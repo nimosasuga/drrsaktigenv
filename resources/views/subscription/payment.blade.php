@@ -17,35 +17,56 @@
                     </svg>
                 </div>
                 <h2 class="text-2xl font-bold text-slate-900">Instruksi Pembayaran</h2>
-                <p class="text-slate-500 mt-2">Selesaikan pembayaran Anda agar lisensi dapat diaktifkan.</p>
+                <p class="text-slate-500 mt-2">Selesaikan pembayaran Anda, lalu konfirmasi ke Admin melalui WhatsApp.</p>
             </div>
 
-            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-8">
+            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-6">
                 <div class="flex justify-between items-center mb-4 pb-4 border-b border-slate-200">
                     <span class="text-slate-500 font-medium">Total Tagihan</span>
-                    <span class="text-3xl font-extrabold text-slate-900">Rp{{ number_format($payment->amount, 0, ',',
-                        '.') }}</span>
+                    <span class="text-3xl font-extrabold text-slate-900">Rp{{ number_format($payment->amount, 0, ',', '.') }}</span>
                 </div>
 
                 <div class="space-y-4">
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center gap-4">
                         <span class="text-sm text-slate-500">Metode Pembayaran</span>
-                        <span class="text-sm font-bold text-slate-900 bg-blue-100 px-3 py-1 rounded-full">{{
-                            $payment->payment_method }}</span>
+                        <span class="text-sm font-bold text-slate-900 bg-blue-100 px-3 py-1 rounded-full">
+                            {{ $payment->payment_method ?? 'Transfer Manual' }}
+                        </span>
                     </div>
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center gap-4">
                         <span class="text-sm text-slate-500">Nomor Tujuan</span>
-                        <span class="text-lg font-bold text-slate-900 tracking-wider">{{ $payment->receiver_number
-                            }}</span>
+                        <span class="text-lg font-bold text-slate-900 tracking-wider text-right">
+                            {{ $payment->receiver_number ?? '-' }}
+                        </span>
                     </div>
-                    <div class="flex justify-between items-center">
+                    <div class="flex justify-between items-center gap-4">
                         <span class="text-sm text-slate-500">Atas Nama</span>
-                        <span class="text-sm font-bold text-slate-900">{{ $payment->receiver_name }}</span>
+                        <span class="text-sm font-bold text-slate-900 text-right">{{ $payment->receiver_name ?? '-' }}</span>
                     </div>
-                    <div class="flex justify-between items-center pt-2">
+                    <div class="flex justify-between items-center gap-4 pt-2">
                         <span class="text-sm text-slate-500">Paket Lisensi</span>
-                        <span class="text-sm font-medium text-slate-700">{{ $payment->package->package_name }} (Role: {{
-                            ucfirst($payment->package->role_name) }})</span>
+                        <span class="text-sm font-medium text-slate-700 text-right">
+                            {{ $payment->package->package_name }} (Role: {{ ucfirst($payment->package->role_name) }})
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-emerald-50 rounded-2xl p-5 border border-emerald-200 mb-6">
+                <div class="flex items-start gap-3">
+                    <div class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100">
+                        <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="text-sm font-bold text-emerald-800">Konfirmasi Pembayaran via WhatsApp</p>
+                        <p class="text-sm text-emerald-700 mt-1 leading-relaxed">
+                            Setelah transfer berhasil, klik tombol konfirmasi. Sistem akan mengubah status pembayaran menjadi
+                            <strong>Menunggu Verifikasi</strong> dan membuka chat WhatsApp Admin di nomor
+                            <strong>085133331467</strong> dengan format pesan otomatis.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -59,9 +80,10 @@
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <p class="text-sm text-amber-700">Pastikan Anda mentransfer sesuai dengan nominal <strong>Total
-                                Tagihan</strong> ke nomor tujuan di atas. Klik tombol di bawah ini <strong>HANYA
-                                JIKA</strong> Anda sudah berhasil mentransfer.</p>
+                        <p class="text-sm text-amber-700">
+                            Klik tombol di bawah ini <strong>HANYA JIKA</strong> Anda sudah berhasil transfer sesuai nominal
+                            tagihan. Jangan asal klik, nanti admin ngejar bukti transfer. Teknologi boleh canggih, bon tetap harus jelas.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -69,8 +91,8 @@
             <form method="POST" action="{{ route('subscription.confirm', $payment->id) }}">
                 @csrf
                 <button type="submit"
-                    class="w-full inline-flex justify-center items-center py-4 px-8 border border-transparent rounded-2xl shadow-lg shadow-blue-600/30 text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:-translate-y-1">
-                    Saya Sudah Membayar
+                    class="w-full inline-flex justify-center items-center py-4 px-8 border border-transparent rounded-2xl shadow-lg shadow-emerald-600/30 text-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all transform hover:-translate-y-1">
+                    Saya Sudah Membayar - Konfirmasi via WhatsApp
                 </button>
             </form>
         </div>
