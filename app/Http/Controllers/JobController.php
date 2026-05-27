@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\Job;
 use App\Models\User;
 use App\Models\UnitAsset;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -27,35 +28,194 @@ class JobController extends Controller
         return ($user->id === $job->user_id) || in_array($role, $privilegedRoles);
     }
 
+    private function isRfuStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'RFU';
+    }
+
+    private function isBreakdownStatus($status): bool
+    {
+        $normalized = strtoupper(trim((string) $status));
+
+        return in_array($normalized, ['B/D', 'BD', 'BREAKDOWN'], true)
+            || str_contains($normalized, 'BREAKDOWN');
+    }
+
+    private function countRfu($jobs): int
+    {
+        return $jobs->filter(fn ($job) => $this->isRfuStatus($job->status_unit))->count();
+    }
+
+    private function countBreakdown($jobs): int
+    {
+        return $jobs->filter(fn ($job) => $this->isBreakdownStatus($job->status_unit))->count();
+    }
+
     /**
-     * Menampilkan daftar job dengan Filter & Pagination.
+     * Menampilkan daftar job dengan grouping bertingkat:
+     * Bulan & Tahun -> PIC -> Customer / Lokasi -> Detail Unit.
      */
     public function index(Request $request)
     {
-        $query = Job::with('user')->latest();
+        $query = Job::with('user');
 
-        // 1. Filter Berdasarkan Bulan (Format dari input type="month" adalah YYYY-MM)
-        // Note: Kolom tanggal di tabel jobs adalah 'work_date'
+        // Default aman: tampilkan tahun berjalan agar halaman tidak memuat seluruh histori pekerjaan.
+        $selectedYear = (int) $request->input('year_filter', now()->year);
+
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
-            if (count($parts) == 2) {
+
+            if (count($parts) === 2) {
                 $query->whereYear('work_date', $parts[0])
                     ->whereMonth('work_date', $parts[1]);
             }
+        } else {
+            $query->whereYear('work_date', $selectedYear);
         }
 
-        // 2. Filter Berdasarkan Customer
         if ($request->filled('customer_filter')) {
             $query->where('customer', $request->customer_filter);
         }
 
-        // Ambil data dengan pagination, append query string agar pagination tidak mereset filter
-        $jobs = $query->paginate(20)->withQueryString();
+        if ($request->filled('pic_filter')) {
+            $query->where('pic', $request->pic_filter);
+        }
 
-        // Ambil daftar customer unik yang ada di tabel update_jobs untuk dropdown filter
-        $customers = Job::select('customer')->distinct()->orderBy('customer')->pluck('customer');
+        if ($request->filled('location_filter')) {
+            $query->where('location', $request->location_filter);
+        }
 
-        return view('update-jobs.index', compact('jobs', 'customers'));
+        if ($request->filled('status_filter')) {
+            $query->where('status_unit', $request->status_filter);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+
+            $query->where(function ($q) use ($search) {
+                $q->where('serial_number', 'like', "%{$search}%")
+                    ->orWhere('unit_type', 'like', "%{$search}%")
+                    ->orWhere('customer', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('pic', 'like', "%{$search}%")
+                    ->orWhere('job_type', 'like', "%{$search}%")
+                    ->orWhere('problem', 'like', "%{$search}%")
+                    ->orWhere('action', 'like', "%{$search}%");
+            });
+        }
+
+        $jobs = $query
+            ->orderByDesc('work_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $summary = [
+            'total_jobs' => $jobs->count(),
+            'total_months' => $jobs->groupBy(function ($job) {
+                return $job->work_date
+                    ? Carbon::parse($job->work_date)->format('Y-m')
+                    : 'tanpa-tanggal';
+            })->count(),
+            'total_pics' => $jobs->pluck('pic')->filter()->unique()->count(),
+            'total_customer_locations' => $jobs->unique(function ($job) {
+                return ($job->customer ?: 'Tanpa Customer') . '|' . ($job->location ?: 'Tanpa Lokasi');
+            })->count(),
+            'total_rfu' => $this->countRfu($jobs),
+            'total_breakdown' => $this->countBreakdown($jobs),
+        ];
+
+        $groupedJobs = $jobs
+            ->groupBy(function ($job) {
+                return $job->work_date
+                    ? Carbon::parse($job->work_date)->translatedFormat('F Y')
+                    : 'Tanpa Tanggal';
+            })
+            ->map(function ($monthJobs, $monthName) {
+                return [
+                    'name' => $monthName,
+                    'total' => $monthJobs->count(),
+                    'pic_total' => $monthJobs->pluck('pic')->filter()->unique()->count(),
+                    'customer_location_total' => $monthJobs->unique(function ($job) {
+                        return ($job->customer ?: 'Tanpa Customer') . '|' . ($job->location ?: 'Tanpa Lokasi');
+                    })->count(),
+                    'rfu_total' => $this->countRfu($monthJobs),
+                    'breakdown_total' => $this->countBreakdown($monthJobs),
+                    'pics' => $monthJobs
+                        ->groupBy(fn ($job) => $job->pic ?: 'Tanpa PIC')
+                        ->map(function ($picJobs, $picName) {
+                            return [
+                                'name' => $picName,
+                                'total' => $picJobs->count(),
+                                'customer_location_total' => $picJobs->unique(function ($job) {
+                                    return ($job->customer ?: 'Tanpa Customer') . '|' . ($job->location ?: 'Tanpa Lokasi');
+                                })->count(),
+                                'rfu_total' => $this->countRfu($picJobs),
+                                'breakdown_total' => $this->countBreakdown($picJobs),
+                                'customer_locations' => $picJobs
+                                    ->groupBy(function ($job) {
+                                        return ($job->customer ?: 'Tanpa Customer') . ' / ' . ($job->location ?: 'Tanpa Lokasi');
+                                    })
+                                    ->map(function ($locationJobs, $customerLocationName) {
+                                        return [
+                                            'name' => $customerLocationName,
+                                            'total' => $locationJobs->count(),
+                                            'unit_total' => $locationJobs->pluck('serial_number')->filter()->unique()->count(),
+                                            'rfu_total' => $this->countRfu($locationJobs),
+                                            'breakdown_total' => $this->countBreakdown($locationJobs),
+                                            'jobs' => $locationJobs->values(),
+                                        ];
+                                    }),
+                            ];
+                        }),
+                ];
+            });
+
+        $customers = Job::whereNotNull('customer')
+            ->where('customer', '!=', '')
+            ->select('customer')
+            ->distinct()
+            ->orderBy('customer')
+            ->pluck('customer');
+
+        $pics = Job::whereNotNull('pic')
+            ->where('pic', '!=', '')
+            ->select('pic')
+            ->distinct()
+            ->orderBy('pic')
+            ->pluck('pic');
+
+        $locations = Job::whereNotNull('location')
+            ->where('location', '!=', '')
+            ->select('location')
+            ->distinct()
+            ->orderBy('location')
+            ->pluck('location');
+
+        $statuses = Job::whereNotNull('status_unit')
+            ->where('status_unit', '!=', '')
+            ->select('status_unit')
+            ->distinct()
+            ->orderBy('status_unit')
+            ->pluck('status_unit');
+
+        $years = Job::whereNotNull('work_date')
+            ->selectRaw('YEAR(work_date) as year')
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year')
+            ->filter()
+            ->values();
+
+        return view('update-jobs.index', compact(
+            'groupedJobs',
+            'summary',
+            'customers',
+            'pics',
+            'locations',
+            'statuses',
+            'years',
+            'selectedYear'
+        ));
     }
 
     public function create()
