@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+:root {
+    /* Konfigurasi warna dasar sesuai arahan Dark Premium Enterprise untuk Tailwind v4 */
+    --color-drr-dark: #0f172a;
+    --color-drr-black: #020617;
+    --color-drr-cyan: #06b6d4;
+    --color-drr-primary: #3b82f6;
+    --color-drr-success: #10b981;
+    --color-drr-warning: #eab308;
+    --color-drr-danger: #ef4444;
+}
