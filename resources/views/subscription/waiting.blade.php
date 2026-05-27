@@ -2,6 +2,20 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $user = auth()->user();
+    $whatsappMessage = implode("\n", [
+        'Halo Admin DRR SAKTI, saya ingin menanyakan status verifikasi pembayaran lisensi.',
+        '',
+        'Nama: ' . ($user->name ?? '-'),
+        'Email: ' . ($user->email ?? '-'),
+        '',
+        'Saat ini akun saya masih berada di halaman Menunggu Verifikasi. Mohon dibantu pengecekannya. Terima kasih.',
+    ]);
+
+    $whatsappUrl = 'https://wa.me/6285133331467?text=' . urlencode($whatsappMessage);
+@endphp
+
 <div class="max-w-2xl mx-auto py-12 px-4 sm:px-6">
     <div
         class="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden text-center p-10 sm:p-14 relative ring-1 ring-slate-900/5">
@@ -35,9 +49,36 @@
             </span>
         </div>
 
-        <div class="mt-10 pt-8 border-t border-slate-100">
+        <div class="mt-8 bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-left">
+            <div class="flex items-start gap-3">
+                <div class="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-emerald-100">
+                    <svg class="w-5 h-5 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-emerald-800">Butuh konfirmasi manual?</p>
+                    <p class="text-sm text-emerald-700 mt-1 leading-relaxed">
+                        Jika WhatsApp sebelumnya tertutup atau admin belum menerima pesan, klik tombol Chat Admin di bawah.
+                        Pesan otomatis akan dikirim ke nomor <strong>085133331467</strong>.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-10 pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="{{ $whatsappUrl }}" target="_blank" rel="noopener noreferrer"
+                class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-transparent shadow-lg shadow-emerald-600/20 text-sm font-bold rounded-xl text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors">
+                <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Chat Admin WhatsApp
+            </a>
+
             <button onclick="window.location.reload();"
-                class="inline-flex items-center px-6 py-3 border border-slate-300 shadow-sm text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-slate-300 shadow-sm text-sm font-medium rounded-xl text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
                 <svg class="-ml-1 mr-2 h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
