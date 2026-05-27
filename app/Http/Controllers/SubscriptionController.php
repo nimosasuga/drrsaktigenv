@@ -81,15 +81,36 @@ class SubscriptionController extends Controller
 
     public function confirmPayment($id)
     {
-        $payment = Payment::findOrFail($id);
+        $payment = Payment::with(['package', 'user'])->findOrFail($id);
 
         if ($payment->user_id !== Auth::id()) {
             abort(403);
         }
 
-        $payment->update(['payment_status' => 'waiting_verification']);
+        $payment->update([
+            'payment_status' => 'waiting_verification',
+            'paid_at' => now(),
+        ]);
 
-        return redirect()->route('subscription.waiting');
+        $user = Auth::user();
+        $packageName = $payment->package->package_name ?? '-';
+        $amount = 'Rp' . number_format((float) $payment->amount, 0, ',', '.');
+
+        $message = implode("\n", [
+            'Halo Admin DRR SAKTI, saya sudah melakukan pembayaran lisensi.',
+            '',
+            'Nama: ' . ($user->name ?? '-'),
+            'Email: ' . ($user->email ?? '-'),
+            'Paket: ' . $packageName,
+            'Nominal: ' . $amount,
+            'Kode Pembayaran: #' . $payment->id,
+            '',
+            'Mohon dibantu verifikasi pembayaran saya. Terima kasih.',
+        ]);
+
+        $whatsappUrl = 'https://wa.me/6285133331467?text=' . urlencode($message);
+
+        return redirect()->away($whatsappUrl);
     }
 
     public function waiting()
