@@ -41,6 +41,17 @@ class JobController extends Controller
             || str_contains($normalized, 'BREAKDOWN');
     }
 
+    private function isTroubleshootingJob($job): bool
+    {
+        $haystack = strtoupper(trim(implode(' ', [
+            (string) ($job->job_type ?? ''),
+            (string) ($job->problem ?? ''),
+            (string) ($job->action ?? ''),
+        ])));
+
+        return str_contains($haystack, 'TROUBLE');
+    }
+
     private function countRfu($jobs): int
     {
         return $jobs->filter(fn ($job) => $this->isRfuStatus($job->status_unit))->count();
@@ -49,6 +60,11 @@ class JobController extends Controller
     private function countBreakdown($jobs): int
     {
         return $jobs->filter(fn ($job) => $this->isBreakdownStatus($job->status_unit))->count();
+    }
+
+    private function countTroubleshooting($jobs): int
+    {
+        return $jobs->filter(fn ($job) => $this->isTroubleshootingJob($job))->count();
     }
 
     /**
@@ -109,19 +125,36 @@ class JobController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        $currentMonth = now()->startOfMonth();
+        $previousMonth = now()->subMonthNoOverflow()->startOfMonth();
+
+        $currentMonthJobs = Job::whereBetween('work_date', [
+            $currentMonth->copy()->startOfMonth()->toDateString(),
+            $currentMonth->copy()->endOfMonth()->toDateString(),
+        ])->get();
+
+        $previousMonthJobs = Job::whereBetween('work_date', [
+            $previousMonth->copy()->startOfMonth()->toDateString(),
+            $previousMonth->copy()->endOfMonth()->toDateString(),
+        ])->get();
+
+        $troubleshootingCurrent = $this->countTroubleshooting($currentMonthJobs);
+        $troubleshootingPrevious = $this->countTroubleshooting($previousMonthJobs);
+        $troubleshootingDelta = $troubleshootingCurrent - $troubleshootingPrevious;
+
         $summary = [
-            'total_jobs' => $jobs->count(),
-            'total_months' => $jobs->groupBy(function ($job) {
-                return $job->work_date
-                    ? Carbon::parse($job->work_date)->format('Y-m')
-                    : 'tanpa-tanggal';
-            })->count(),
-            'total_pics' => $jobs->pluck('pic')->filter()->unique()->count(),
-            'total_customer_locations' => $jobs->unique(function ($job) {
-                return ($job->customer ?: 'Tanpa Customer') . '|' . ($job->location ?: 'Tanpa Lokasi');
-            })->count(),
-            'total_rfu' => $this->countRfu($jobs),
-            'total_breakdown' => $this->countBreakdown($jobs),
+            'total_bd_units' => $jobs
+                ->filter(fn ($job) => $this->isBreakdownStatus($job->status_unit))
+                ->pluck('serial_number')
+                ->filter()
+                ->unique()
+                ->count(),
+            'troubleshooting_current_month' => $troubleshootingCurrent,
+            'troubleshooting_previous_month' => $troubleshootingPrevious,
+            'troubleshooting_delta' => $troubleshootingDelta,
+            'troubleshooting_trend' => $troubleshootingDelta > 0 ? 'Naik' : ($troubleshootingDelta < 0 ? 'Turun' : 'Stabil'),
+            'current_month_label' => $currentMonth->translatedFormat('F Y'),
+            'previous_month_label' => $previousMonth->translatedFormat('F Y'),
         ];
 
         $groupedJobs = $jobs
