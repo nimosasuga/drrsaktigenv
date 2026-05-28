@@ -12,6 +12,7 @@ namespace App\Http\Controllers;
 use App\Models\Delivery;
 use App\Models\UnitAsset;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +38,29 @@ class DeliveryController extends Controller
         }
 
         return $delivery->pic === $user->name || $delivery->user_id === $user->id;
+    }
+
+    private function isRfuStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'RFU';
+    }
+
+    private function isBreakdownStatus($status): bool
+    {
+        $normalized = strtoupper(trim((string) $status));
+
+        return in_array($normalized, ['B/D', 'BD', 'BREAKDOWN'], true)
+            || str_contains($normalized, 'BREAKDOWN');
+    }
+
+    private function countRfu($deliveries): int
+    {
+        return $deliveries->filter(fn ($delivery) => $this->isRfuStatus($delivery->status_unit))->count();
+    }
+
+    private function countBreakdown($deliveries): int
+    {
+        return $deliveries->filter(fn ($delivery) => $this->isBreakdownStatus($delivery->status_unit))->count();
     }
 
     private function generateDeliveryCode(): string
@@ -76,7 +100,9 @@ class DeliveryController extends Controller
 
     public function index(Request $request)
     {
-        $query = Delivery::with('user')->latest();
+        $query = Delivery::with('user');
+
+        $selectedYear = (int) $request->input('year_filter', now()->year);
 
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
@@ -85,10 +111,20 @@ class DeliveryController extends Controller
                 $query->whereYear('date', $parts[0])
                     ->whereMonth('date', $parts[1]);
             }
+        } else {
+            $query->whereYear('date', $selectedYear);
         }
 
         if ($request->filled('customer_filter')) {
             $query->where('customer', $request->customer_filter);
+        }
+
+        if ($request->filled('pic_filter')) {
+            $query->where('pic', $request->pic_filter);
+        }
+
+        if ($request->filled('location_filter')) {
+            $query->where('location', $request->location_filter);
         }
 
         if ($request->filled('status_filter')) {
@@ -96,7 +132,7 @@ class DeliveryController extends Controller
         }
 
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
 
             $query->where(function ($q) use ($search) {
                 $q->where('delivery_code', 'like', "%{$search}%")
@@ -104,11 +140,74 @@ class DeliveryController extends Controller
                     ->orWhere('unit_type', 'like', "%{$search}%")
                     ->orWhere('customer', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%")
-                    ->orWhere('pic', 'like', "%{$search}%");
+                    ->orWhere('pic', 'like', "%{$search}%")
+                    ->orWhere('vehicle', 'like', "%{$search}%")
+                    ->orWhere('nopol', 'like', "%{$search}%")
+                    ->orWhere('battery_sn', 'like', "%{$search}%")
+                    ->orWhere('charger_sn', 'like', "%{$search}%");
             });
         }
 
-        $deliveries = $query->paginate(20)->withQueryString();
+        $deliveries = $query
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get();
+
+        $summary = [
+            'total_deliveries' => $deliveries->count(),
+            'unique_units' => $deliveries->pluck('serial_number')->filter()->unique()->count(),
+            'total_rfu' => $this->countRfu($deliveries),
+            'total_breakdown' => $this->countBreakdown($deliveries),
+            'total_customers' => $deliveries->pluck('customer')->filter()->unique()->count(),
+        ];
+
+        $groupedDeliveries = $deliveries
+            ->groupBy(function ($delivery) {
+                return $delivery->date
+                    ? Carbon::parse($delivery->date)->translatedFormat('F Y')
+                    : 'Tanpa Tanggal';
+            })
+            ->map(function ($monthDeliveries, $monthName) {
+                return [
+                    'name' => $monthName,
+                    'total' => $monthDeliveries->count(),
+                    'pic_total' => $monthDeliveries->pluck('pic')->filter()->unique()->count(),
+                    'unit_total' => $monthDeliveries->pluck('serial_number')->filter()->unique()->count(),
+                    'customer_location_total' => $monthDeliveries->unique(function ($delivery) {
+                        return ($delivery->customer ?: 'Tanpa Customer') . '|' . ($delivery->location ?: 'Tanpa Lokasi');
+                    })->count(),
+                    'rfu_total' => $this->countRfu($monthDeliveries),
+                    'breakdown_total' => $this->countBreakdown($monthDeliveries),
+                    'pics' => $monthDeliveries
+                        ->groupBy(fn ($delivery) => $delivery->pic ?: 'Tanpa PIC')
+                        ->map(function ($picDeliveries, $picName) {
+                            return [
+                                'name' => $picName,
+                                'total' => $picDeliveries->count(),
+                                'unit_total' => $picDeliveries->pluck('serial_number')->filter()->unique()->count(),
+                                'customer_location_total' => $picDeliveries->unique(function ($delivery) {
+                                    return ($delivery->customer ?: 'Tanpa Customer') . '|' . ($delivery->location ?: 'Tanpa Lokasi');
+                                })->count(),
+                                'rfu_total' => $this->countRfu($picDeliveries),
+                                'breakdown_total' => $this->countBreakdown($picDeliveries),
+                                'customer_locations' => $picDeliveries
+                                    ->groupBy(function ($delivery) {
+                                        return ($delivery->customer ?: 'Tanpa Customer') . ' / ' . ($delivery->location ?: 'Tanpa Lokasi');
+                                    })
+                                    ->map(function ($locationDeliveries, $customerLocationName) {
+                                        return [
+                                            'name' => $customerLocationName,
+                                            'total' => $locationDeliveries->count(),
+                                            'unit_total' => $locationDeliveries->pluck('serial_number')->filter()->unique()->count(),
+                                            'rfu_total' => $this->countRfu($locationDeliveries),
+                                            'breakdown_total' => $this->countBreakdown($locationDeliveries),
+                                            'deliveries' => $locationDeliveries->values(),
+                                        ];
+                                    }),
+                            ];
+                        }),
+                ];
+            });
 
         $customers = Delivery::whereNotNull('customer')
             ->where('customer', '!=', '')
@@ -117,7 +216,45 @@ class DeliveryController extends Controller
             ->orderBy('customer')
             ->pluck('customer');
 
-        return view('deliveries.index', compact('deliveries', 'customers'));
+        $pics = Delivery::whereNotNull('pic')
+            ->where('pic', '!=', '')
+            ->select('pic')
+            ->distinct()
+            ->orderBy('pic')
+            ->pluck('pic');
+
+        $locations = Delivery::whereNotNull('location')
+            ->where('location', '!=', '')
+            ->select('location')
+            ->distinct()
+            ->orderBy('location')
+            ->pluck('location');
+
+        $statuses = Delivery::whereNotNull('status_unit')
+            ->where('status_unit', '!=', '')
+            ->select('status_unit')
+            ->distinct()
+            ->orderBy('status_unit')
+            ->pluck('status_unit');
+
+        $years = Delivery::whereNotNull('date')
+            ->selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year')
+            ->filter()
+            ->values();
+
+        return view('deliveries.index', compact(
+            'groupedDeliveries',
+            'summary',
+            'customers',
+            'pics',
+            'locations',
+            'statuses',
+            'years',
+            'selectedYear'
+        ));
     }
 
     public function create()
