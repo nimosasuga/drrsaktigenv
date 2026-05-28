@@ -31,7 +31,7 @@
     <span class="drr-particle right-[12%] top-40"></span>
     <span class="drr-particle left-[56%] top-72"></span>
 
-    <div class="sticky top-0 z-20 -mx-4 border-b border-white/60 bg-slate-50/80 px-4 py-3 backdrop-blur-xl sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+    <div class="rounded-3xl border border-white/70 bg-white/70 px-4 py-3 shadow-lg shadow-slate-900/5 backdrop-blur-xl">
         <div class="flex items-center justify-between gap-3">
             <div class="min-w-0">
                 <h1 class="truncate text-lg font-black tracking-tight text-slate-950 sm:text-2xl">Update Job</h1>
