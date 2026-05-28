@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\Charger;
 use App\Models\User;
 use App\Models\UnitAsset;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -20,26 +21,200 @@ class ChargerController extends Controller
         return ($user->id === $charger->user_id) || in_array($role, $privilegedRoles);
     }
 
+    private function isRfuStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'RFU';
+    }
+
+    private function isBreakdownStatus($status): bool
+    {
+        $normalized = strtoupper(trim((string) $status));
+
+        return in_array($normalized, ['B/D', 'BD', 'BREAKDOWN'], true)
+            || str_contains($normalized, 'BREAKDOWN');
+    }
+
+    private function countRfu($chargers): int
+    {
+        return $chargers->filter(fn ($charger) => $this->isRfuStatus($charger->status_unit))->count();
+    }
+
+    private function countBreakdown($chargers): int
+    {
+        return $chargers->filter(fn ($charger) => $this->isBreakdownStatus($charger->status_unit))->count();
+    }
+
     public function index(Request $request)
     {
-        $query = Charger::with('user')->latest();
+        $query = Charger::with('user');
+
+        $selectedYear = (int) $request->input('year_filter', now()->year);
 
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
-            if (count($parts) == 2) {
+
+            if (count($parts) === 2) {
                 $query->whereYear('date', $parts[0])
                     ->whereMonth('date', $parts[1]);
             }
+        } else {
+            $query->whereYear('date', $selectedYear);
         }
 
         if ($request->filled('customer_filter')) {
             $query->where('customer', $request->customer_filter);
         }
 
-        $chargers = $query->paginate(20)->withQueryString();
-        $customers = Charger::select('customer')->distinct()->orderBy('customer')->pluck('customer');
+        if ($request->filled('pic_filter')) {
+            $query->where('pic', $request->pic_filter);
+        }
 
-        return view('chargers.index', compact('chargers', 'customers'));
+        if ($request->filled('location_filter')) {
+            $query->where('location', $request->location_filter);
+        }
+
+        if ($request->filled('status_filter')) {
+            $query->where('status_unit', $request->status_filter);
+        }
+
+        if ($request->filled('category_filter')) {
+            $query->where('category_job', $request->category_filter);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+
+            $query->where(function ($q) use ($search) {
+                $q->where('serial_number', 'like', "%{$search}%")
+                    ->orWhere('sn_charger', 'like', "%{$search}%")
+                    ->orWhere('charger_type', 'like', "%{$search}%")
+                    ->orWhere('unit_type', 'like', "%{$search}%")
+                    ->orWhere('customer', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('pic', 'like', "%{$search}%")
+                    ->orWhere('category_job', 'like', "%{$search}%")
+                    ->orWhere('problem', 'like', "%{$search}%")
+                    ->orWhere('action', 'like', "%{$search}%");
+            });
+        }
+
+        $chargers = $query
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get();
+
+        $summary = [
+            'total_jobs' => $chargers->count(),
+            'unique_chargers' => $chargers->pluck('sn_charger')->filter()->unique()->count(),
+            'unique_units' => $chargers->pluck('serial_number')->filter()->unique()->count(),
+            'total_rfu' => $this->countRfu($chargers),
+            'total_breakdown' => $this->countBreakdown($chargers),
+            'total_categories' => $chargers->pluck('category_job')->filter()->unique()->count(),
+        ];
+
+        $groupedChargers = $chargers
+            ->groupBy(function ($charger) {
+                return $charger->date
+                    ? Carbon::parse($charger->date)->translatedFormat('F Y')
+                    : 'Tanpa Tanggal';
+            })
+            ->map(function ($monthChargers, $monthName) {
+                return [
+                    'name' => $monthName,
+                    'total' => $monthChargers->count(),
+                    'pic_total' => $monthChargers->pluck('pic')->filter()->unique()->count(),
+                    'charger_total' => $monthChargers->pluck('sn_charger')->filter()->unique()->count(),
+                    'customer_location_total' => $monthChargers->unique(function ($charger) {
+                        return ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi');
+                    })->count(),
+                    'rfu_total' => $this->countRfu($monthChargers),
+                    'breakdown_total' => $this->countBreakdown($monthChargers),
+                    'pics' => $monthChargers
+                        ->groupBy(fn ($charger) => $charger->pic ?: 'Tanpa PIC')
+                        ->map(function ($picChargers, $picName) {
+                            return [
+                                'name' => $picName,
+                                'total' => $picChargers->count(),
+                                'charger_total' => $picChargers->pluck('sn_charger')->filter()->unique()->count(),
+                                'customer_location_total' => $picChargers->unique(function ($charger) {
+                                    return ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi');
+                                })->count(),
+                                'rfu_total' => $this->countRfu($picChargers),
+                                'breakdown_total' => $this->countBreakdown($picChargers),
+                                'customer_locations' => $picChargers
+                                    ->groupBy(function ($charger) {
+                                        return ($charger->customer ?: 'Tanpa Customer') . ' / ' . ($charger->location ?: 'Tanpa Lokasi');
+                                    })
+                                    ->map(function ($locationChargers, $customerLocationName) {
+                                        return [
+                                            'name' => $customerLocationName,
+                                            'total' => $locationChargers->count(),
+                                            'charger_total' => $locationChargers->pluck('sn_charger')->filter()->unique()->count(),
+                                            'unit_total' => $locationChargers->pluck('serial_number')->filter()->unique()->count(),
+                                            'rfu_total' => $this->countRfu($locationChargers),
+                                            'breakdown_total' => $this->countBreakdown($locationChargers),
+                                            'chargers' => $locationChargers->values(),
+                                        ];
+                                    }),
+                            ];
+                        }),
+                ];
+            });
+
+        $customers = Charger::whereNotNull('customer')
+            ->where('customer', '!=', '')
+            ->select('customer')
+            ->distinct()
+            ->orderBy('customer')
+            ->pluck('customer');
+
+        $pics = Charger::whereNotNull('pic')
+            ->where('pic', '!=', '')
+            ->select('pic')
+            ->distinct()
+            ->orderBy('pic')
+            ->pluck('pic');
+
+        $locations = Charger::whereNotNull('location')
+            ->where('location', '!=', '')
+            ->select('location')
+            ->distinct()
+            ->orderBy('location')
+            ->pluck('location');
+
+        $statuses = Charger::whereNotNull('status_unit')
+            ->where('status_unit', '!=', '')
+            ->select('status_unit')
+            ->distinct()
+            ->orderBy('status_unit')
+            ->pluck('status_unit');
+
+        $categories = Charger::whereNotNull('category_job')
+            ->where('category_job', '!=', '')
+            ->select('category_job')
+            ->distinct()
+            ->orderBy('category_job')
+            ->pluck('category_job');
+
+        $years = Charger::whereNotNull('date')
+            ->selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year')
+            ->filter()
+            ->values();
+
+        return view('chargers.index', compact(
+            'groupedChargers',
+            'summary',
+            'customers',
+            'pics',
+            'locations',
+            'statuses',
+            'categories',
+            'years',
+            'selectedYear'
+        ));
     }
 
     public function create()
@@ -196,8 +371,8 @@ class ChargerController extends Controller
 
         $validated = $request->validate([
             'date'          => 'required|date',
-            'in_time'       => 'required|date_format:H:i',
-            'out_time'      => 'required|date_format:H:i',
+            'in_time'       => 'nullable|date_format:H:i',
+            'out_time'      => 'nullable|date_format:H:i',
             'vehicle'       => 'required|string|max:150',
             'nopol'         => 'required|string|max:100',
 
@@ -227,8 +402,8 @@ class ChargerController extends Controller
 
         try {
             $charger->date = $validated['date'];
-            $charger->in_time = $validated['in_time'];
-            $charger->out_time = $validated['out_time'];
+            $charger->in_time = $validated['in_time'] ?? null;
+            $charger->out_time = $validated['out_time'] ?? null;
             $charger->vehicle = $validated['vehicle'];
             $charger->nopol = $validated['nopol'];
 
