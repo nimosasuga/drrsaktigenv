@@ -45,7 +45,37 @@
         <div class="battery-card rounded-2xl px-4 py-3 text-xs font-bold text-emerald-700 sm:text-sm">{{ session('success') }}</div>
     @endif
 
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    @php
+        $flatBatteries = collect();
+
+        foreach ($groupedBatteries as $monthGroup) {
+            foreach ($monthGroup['pics'] as $picGroup) {
+                foreach ($picGroup['customer_locations'] as $customerLocationGroup) {
+                    foreach ($customerLocationGroup['batteries'] as $batteryItem) {
+                        $flatBatteries->push($batteryItem);
+                    }
+                }
+            }
+        }
+
+        $popularJobs = $flatBatteries
+            ->groupBy(function ($batteryItem) {
+                return $batteryItem->category_job ?: ($batteryItem->job_type ?: 'Battery Job');
+            })
+            ->map(function ($items, $name) {
+                return [
+                    'name' => $name,
+                    'total' => $items->count(),
+                ];
+            })
+            ->sortByDesc('total')
+            ->take(3)
+            ->values();
+
+        $popularMax = max(1, (int) ($popularJobs->max('total') ?? 1));
+    @endphp
+
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div class="relative overflow-hidden rounded-3xl border border-emerald-100 bg-gradient-to-br from-emerald-500 to-lime-500 p-4 text-white shadow-2xl shadow-emerald-900/20">
             <div class="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/12"></div>
             <p class="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-50">Battery Job</p>
@@ -56,30 +86,6 @@
             <p class="mt-3 text-xs font-semibold text-emerald-50">Total pekerjaan battery sesuai filter aktif.</p>
         </div>
 
-        <div class="battery-card rounded-3xl p-4">
-            <div class="flex items-start justify-between gap-3">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-600">Battery SN</p>
-                    <p class="mt-1 text-xs font-bold text-slate-500">Unique battery</p>
-                </div>
-                <span class="rounded-full bg-cyan-50 px-3 py-1 text-[10px] font-black text-cyan-700">SN</span>
-            </div>
-            <p class="mt-4 text-4xl font-black leading-none text-slate-950">{{ number_format($summary['unique_batteries'] ?? 0, 0, ',', '.') }}</p>
-            <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-cyan-500" style="width: {{ min(100, max(8, (($summary['unique_batteries'] ?? 0) * 12))) }}%"></div></div>
-        </div>
-
-        <div class="battery-card rounded-3xl p-4">
-            <div class="flex items-start justify-between gap-3">
-                <div>
-                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">RFU</p>
-                    <p class="mt-1 text-xs font-bold text-slate-500">Ready battery unit</p>
-                </div>
-                <span class="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-700">Ready</span>
-            </div>
-            <p class="mt-4 text-4xl font-black leading-none text-slate-950">{{ number_format($summary['total_rfu'] ?? 0, 0, ',', '.') }}</p>
-            <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" style="width: {{ min(100, max(8, (($summary['total_rfu'] ?? 0) * 12))) }}%"></div></div>
-        </div>
-
         <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 p-4 text-white shadow-2xl shadow-orange-900/15">
             <div class="absolute -bottom-8 -right-8 h-28 w-28 rounded-full bg-white/10"></div>
             <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-80">Battery BD</p>
@@ -88,6 +94,54 @@
                 <span class="rounded-full bg-white/15 px-3 py-1 text-[11px] font-black">Alert</span>
             </div>
             <p class="mt-3 text-xs font-semibold opacity-90">Pekerjaan battery dengan status breakdown.</p>
+        </div>
+
+        <div class="battery-card rounded-3xl p-4 md:col-span-2">
+            <div class="mb-4 flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-600">Pekerjaan Populer</p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">Top 1 sampai 3 berdasarkan data filter aktif</p>
+                </div>
+                <span class="rounded-full bg-lime-50 px-3 py-1 text-[10px] font-black text-lime-700">Top 3</span>
+            </div>
+
+            <div class="overflow-hidden rounded-2xl border border-emerald-100 bg-white/80">
+                <div class="hidden grid-cols-12 gap-3 border-b border-emerald-100 bg-emerald-50/70 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-emerald-700 sm:grid">
+                    <div class="col-span-2">Rank</div>
+                    <div class="col-span-5">Pekerjaan</div>
+                    <div class="col-span-2 text-right">Total</div>
+                    <div class="col-span-3">Grafik</div>
+                </div>
+
+                <div class="divide-y divide-emerald-100">
+                    @forelse($popularJobs as $index => $job)
+                        @php
+                            $rank = $index + 1;
+                            $percent = round(($job['total'] / $popularMax) * 100);
+                            $barClass = $rank === 1 ? 'bg-emerald-500' : ($rank === 2 ? 'bg-lime-500' : 'bg-cyan-500');
+                            $badgeClass = $rank === 1 ? 'bg-emerald-600 text-white' : ($rank === 2 ? 'bg-lime-100 text-lime-700' : 'bg-cyan-100 text-cyan-700');
+                        @endphp
+                        <div class="grid grid-cols-1 gap-2 px-3 py-3 sm:grid-cols-12 sm:items-center sm:gap-3">
+                            <div class="flex items-center justify-between gap-3 sm:col-span-2 sm:block">
+                                <span class="inline-flex h-7 min-w-7 items-center justify-center rounded-full px-2 text-xs font-black {{ $badgeClass }}">#{{ $rank }}</span>
+                                <span class="text-xs font-black text-slate-900 sm:hidden">{{ number_format($job['total'], 0, ',', '.') }} Data</span>
+                            </div>
+                            <div class="min-w-0 sm:col-span-5">
+                                <p class="truncate text-sm font-black text-slate-900">{{ $job['name'] }}</p>
+                                <p class="text-[11px] font-semibold text-slate-500 sm:hidden">{{ $percent }}% dari pekerjaan teratas</p>
+                            </div>
+                            <div class="hidden text-right text-sm font-black text-slate-800 sm:col-span-2 sm:block">{{ number_format($job['total'], 0, ',', '.') }}</div>
+                            <div class="sm:col-span-3">
+                                <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                    <div class="h-full rounded-full {{ $barClass }}" style="width: {{ max(8, $percent) }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="px-3 py-5 text-center text-sm font-bold text-slate-500">Belum ada data pekerjaan populer.</div>
+                    @endforelse
+                </div>
+            </div>
         </div>
     </div>
 
