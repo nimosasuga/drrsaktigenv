@@ -287,6 +287,39 @@ class JobController extends Controller
         return response()->json($mapped);
     }
 
+    public function recommendationHistory(Request $request)
+    {
+        $serialNumber = trim((string) $request->get('serial_number', ''));
+
+        if ($serialNumber === '') {
+            return response()->json([]);
+        }
+
+        $jobs = Job::with('recommendations')
+            ->where('serial_number', $serialNumber)
+            ->whereHas('recommendations')
+            ->orderByDesc('work_date')
+            ->orderByDesc('id')
+            ->take(15)
+            ->get();
+
+        $history = $jobs
+            ->flatMap(function ($job) {
+                return $job->recommendations->map(function ($recommendation) use ($job) {
+                    return [
+                        'date' => $job->work_date ? Carbon::parse($job->work_date)->format('d/m/Y') : '-',
+                        'part_number' => $recommendation->part_number ?: '-',
+                        'part_name' => $recommendation->part_name ?: '-',
+                        'qty' => $recommendation->qty ?: 1,
+                    ];
+                });
+            })
+            ->take(30)
+            ->values();
+
+        return response()->json($history);
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
