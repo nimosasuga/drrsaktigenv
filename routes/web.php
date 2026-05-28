@@ -58,6 +58,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/update-jobs/search-assets', [\App\Http\Controllers\JobController::class, 'searchAssets'])
             ->name('update-jobs.search-assets');
 
+        // API Histori Rekomendasi Part berdasarkan S/N untuk Form Update Job
+        Route::get('/update-jobs/recommendation-history', [\App\Http\Controllers\JobController::class, 'recommendationHistory'])
+            ->name('update-jobs.recommendation-history');
+
         // Rute Manajemen Update Job
         Route::resource('update-jobs', \App\Http\Controllers\JobController::class);
 
