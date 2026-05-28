@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 use App\Models\Battery;
 use App\Models\User;
 use App\Models\UnitAsset;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,34 +24,204 @@ class BatteryController extends Controller
         return ($user->id === $battery->user_id) || in_array($role, $privilegedRoles);
     }
 
+    private function isRfuStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'RFU';
+    }
+
+    private function isBreakdownStatus($status): bool
+    {
+        $normalized = strtoupper(trim((string) $status));
+
+        return in_array($normalized, ['B/D', 'BD', 'BREAKDOWN'], true)
+            || str_contains($normalized, 'BREAKDOWN');
+    }
+
+    private function countRfu($batteries): int
+    {
+        return $batteries->filter(fn ($battery) => $this->isRfuStatus($battery->status_unit))->count();
+    }
+
+    private function countBreakdown($batteries): int
+    {
+        return $batteries->filter(fn ($battery) => $this->isBreakdownStatus($battery->status_unit))->count();
+    }
+
     /**
-     * Menampilkan daftar Battery Job dengan Filter & Pagination.
+     * Menampilkan daftar Battery Job dengan grouping bertingkat:
+     * Bulan & Tahun -> PIC -> Customer / Lokasi -> Detail Battery.
      */
     public function index(Request $request)
     {
-        $query = Battery::with('user')->latest();
+        $query = Battery::with('user');
 
-        // 1. Filter Berdasarkan Bulan (Format dari input type="month" adalah YYYY-MM)
+        $selectedYear = (int) $request->input('year_filter', now()->year);
+
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
-            if (count($parts) == 2) {
+
+            if (count($parts) === 2) {
                 $query->whereYear('date', $parts[0])
                     ->whereMonth('date', $parts[1]);
             }
+        } else {
+            $query->whereYear('date', $selectedYear);
         }
 
-        // 2. Filter Berdasarkan Customer
         if ($request->filled('customer_filter')) {
             $query->where('customer', $request->customer_filter);
         }
 
-        // Ambil data dengan pagination, append query string agar pagination tidak mereset filter
-        $batteries = $query->paginate(20)->withQueryString();
+        if ($request->filled('pic_filter')) {
+            $query->where('pic', $request->pic_filter);
+        }
 
-        // Ambil daftar customer unik yang ada di tabel batteries untuk dropdown filter
-        $customers = Battery::select('customer')->distinct()->orderBy('customer')->pluck('customer');
+        if ($request->filled('location_filter')) {
+            $query->where('location', $request->location_filter);
+        }
 
-        return view('batteries.index', compact('batteries', 'customers'));
+        if ($request->filled('status_filter')) {
+            $query->where('status_unit', $request->status_filter);
+        }
+
+        if ($request->filled('category_filter')) {
+            $query->where('category_job', $request->category_filter);
+        }
+
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+
+            $query->where(function ($q) use ($search) {
+                $q->where('serial_number', 'like', "%{$search}%")
+                    ->orWhere('sn_battery', 'like', "%{$search}%")
+                    ->orWhere('battery_type', 'like', "%{$search}%")
+                    ->orWhere('unit_type', 'like', "%{$search}%")
+                    ->orWhere('customer', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('pic', 'like', "%{$search}%")
+                    ->orWhere('category_job', 'like', "%{$search}%")
+                    ->orWhere('problem', 'like', "%{$search}%")
+                    ->orWhere('action', 'like', "%{$search}%");
+            });
+        }
+
+        $batteries = $query
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->get();
+
+        $summary = [
+            'total_jobs' => $batteries->count(),
+            'unique_batteries' => $batteries->pluck('sn_battery')->filter()->unique()->count(),
+            'unique_units' => $batteries->pluck('serial_number')->filter()->unique()->count(),
+            'total_rfu' => $this->countRfu($batteries),
+            'total_breakdown' => $this->countBreakdown($batteries),
+            'total_categories' => $batteries->pluck('category_job')->filter()->unique()->count(),
+        ];
+
+        $groupedBatteries = $batteries
+            ->groupBy(function ($battery) {
+                return $battery->date
+                    ? Carbon::parse($battery->date)->translatedFormat('F Y')
+                    : 'Tanpa Tanggal';
+            })
+            ->map(function ($monthBatteries, $monthName) {
+                return [
+                    'name' => $monthName,
+                    'total' => $monthBatteries->count(),
+                    'pic_total' => $monthBatteries->pluck('pic')->filter()->unique()->count(),
+                    'battery_total' => $monthBatteries->pluck('sn_battery')->filter()->unique()->count(),
+                    'customer_location_total' => $monthBatteries->unique(function ($battery) {
+                        return ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi');
+                    })->count(),
+                    'rfu_total' => $this->countRfu($monthBatteries),
+                    'breakdown_total' => $this->countBreakdown($monthBatteries),
+                    'pics' => $monthBatteries
+                        ->groupBy(fn ($battery) => $battery->pic ?: 'Tanpa PIC')
+                        ->map(function ($picBatteries, $picName) {
+                            return [
+                                'name' => $picName,
+                                'total' => $picBatteries->count(),
+                                'battery_total' => $picBatteries->pluck('sn_battery')->filter()->unique()->count(),
+                                'customer_location_total' => $picBatteries->unique(function ($battery) {
+                                    return ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi');
+                                })->count(),
+                                'rfu_total' => $this->countRfu($picBatteries),
+                                'breakdown_total' => $this->countBreakdown($picBatteries),
+                                'customer_locations' => $picBatteries
+                                    ->groupBy(function ($battery) {
+                                        return ($battery->customer ?: 'Tanpa Customer') . ' / ' . ($battery->location ?: 'Tanpa Lokasi');
+                                    })
+                                    ->map(function ($locationBatteries, $customerLocationName) {
+                                        return [
+                                            'name' => $customerLocationName,
+                                            'total' => $locationBatteries->count(),
+                                            'battery_total' => $locationBatteries->pluck('sn_battery')->filter()->unique()->count(),
+                                            'unit_total' => $locationBatteries->pluck('serial_number')->filter()->unique()->count(),
+                                            'rfu_total' => $this->countRfu($locationBatteries),
+                                            'breakdown_total' => $this->countBreakdown($locationBatteries),
+                                            'batteries' => $locationBatteries->values(),
+                                        ];
+                                    }),
+                            ];
+                        }),
+                ];
+            });
+
+        $customers = Battery::whereNotNull('customer')
+            ->where('customer', '!=', '')
+            ->select('customer')
+            ->distinct()
+            ->orderBy('customer')
+            ->pluck('customer');
+
+        $pics = Battery::whereNotNull('pic')
+            ->where('pic', '!=', '')
+            ->select('pic')
+            ->distinct()
+            ->orderBy('pic')
+            ->pluck('pic');
+
+        $locations = Battery::whereNotNull('location')
+            ->where('location', '!=', '')
+            ->select('location')
+            ->distinct()
+            ->orderBy('location')
+            ->pluck('location');
+
+        $statuses = Battery::whereNotNull('status_unit')
+            ->where('status_unit', '!=', '')
+            ->select('status_unit')
+            ->distinct()
+            ->orderBy('status_unit')
+            ->pluck('status_unit');
+
+        $categories = Battery::whereNotNull('category_job')
+            ->where('category_job', '!=', '')
+            ->select('category_job')
+            ->distinct()
+            ->orderBy('category_job')
+            ->pluck('category_job');
+
+        $years = Battery::whereNotNull('date')
+            ->selectRaw('YEAR(date) as year')
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year')
+            ->filter()
+            ->values();
+
+        return view('batteries.index', compact(
+            'groupedBatteries',
+            'summary',
+            'customers',
+            'pics',
+            'locations',
+            'statuses',
+            'categories',
+            'years',
+            'selectedYear'
+        ));
     }
 
     public function create()
