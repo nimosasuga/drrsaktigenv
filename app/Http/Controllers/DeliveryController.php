@@ -33,11 +33,11 @@ class DeliveryController extends Controller
         $role = $user->role ?? $user->status_user;
         $privilegedRoles = ['koordinator', 'sect_head', 'admin', 'super_admin'];
 
-        if (in_array($role, $privilegedRoles)) {
+        if (in_array($role, $privilegedRoles, true)) {
             return true;
         }
 
-        return $delivery->pic === $user->name || $delivery->user_id === $user->id;
+        return $delivery->pic === $user->name || (int) $delivery->user_id === (int) $user->id;
     }
 
     private function isRfuStatus($status): bool
@@ -51,6 +51,29 @@ class DeliveryController extends Controller
 
         return in_array($normalized, ['B/D', 'BD', 'BREAKDOWN'], true)
             || str_contains($normalized, 'BREAKDOWN');
+    }
+
+    private function isWithdrawnAssetStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'DITARIK';
+    }
+
+    private function assetWithdrawnError(string $serialNumber): string
+    {
+        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Delivery Unit karena status unit asset sudah DITARIK.";
+    }
+
+    private function rejectIfAssetWithdrawn(string $serialNumber)
+    {
+        $asset = UnitAsset::where('serial_number', strtoupper(trim($serialNumber)))->first();
+
+        if ($asset && $this->isWithdrawnAssetStatus($asset->status ?? null)) {
+            return back()
+                ->withInput()
+                ->withErrors(['error' => $this->assetWithdrawnError($serialNumber)]);
+        }
+
+        return null;
     }
 
     private function countRfu($deliveries): int
@@ -101,15 +124,13 @@ class DeliveryController extends Controller
     public function index(Request $request)
     {
         $query = Delivery::with('user');
-
         $selectedYear = (int) $request->input('year_filter', now()->year);
 
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
 
             if (count($parts) === 2) {
-                $query->whereYear('date', $parts[0])
-                    ->whereMonth('date', $parts[1]);
+                $query->whereYear('date', $parts[0])->whereMonth('date', $parts[1]);
             }
         } else {
             $query->whereYear('date', $selectedYear);
@@ -133,7 +154,6 @@ class DeliveryController extends Controller
 
         if ($request->filled('search')) {
             $search = trim($request->search);
-
             $query->where(function ($q) use ($search) {
                 $q->where('delivery_code', 'like', "%{$search}%")
                     ->orWhere('serial_number', 'like', "%{$search}%")
@@ -148,10 +168,7 @@ class DeliveryController extends Controller
             });
         }
 
-        $deliveries = $query
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get();
+        $deliveries = $query->orderByDesc('date')->orderByDesc('id')->get();
 
         $summary = [
             'total_deliveries' => $deliveries->count(),
@@ -162,20 +179,14 @@ class DeliveryController extends Controller
         ];
 
         $groupedDeliveries = $deliveries
-            ->groupBy(function ($delivery) {
-                return $delivery->date
-                    ? Carbon::parse($delivery->date)->translatedFormat('F Y')
-                    : 'Tanpa Tanggal';
-            })
+            ->groupBy(fn ($delivery) => $delivery->date ? Carbon::parse($delivery->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
             ->map(function ($monthDeliveries, $monthName) {
                 return [
                     'name' => $monthName,
                     'total' => $monthDeliveries->count(),
                     'pic_total' => $monthDeliveries->pluck('pic')->filter()->unique()->count(),
                     'unit_total' => $monthDeliveries->pluck('serial_number')->filter()->unique()->count(),
-                    'customer_location_total' => $monthDeliveries->unique(function ($delivery) {
-                        return ($delivery->customer ?: 'Tanpa Customer') . '|' . ($delivery->location ?: 'Tanpa Lokasi');
-                    })->count(),
+                    'customer_location_total' => $monthDeliveries->unique(fn ($delivery) => ($delivery->customer ?: 'Tanpa Customer') . '|' . ($delivery->location ?: 'Tanpa Lokasi'))->count(),
                     'rfu_total' => $this->countRfu($monthDeliveries),
                     'breakdown_total' => $this->countBreakdown($monthDeliveries),
                     'pics' => $monthDeliveries
@@ -185,15 +196,11 @@ class DeliveryController extends Controller
                                 'name' => $picName,
                                 'total' => $picDeliveries->count(),
                                 'unit_total' => $picDeliveries->pluck('serial_number')->filter()->unique()->count(),
-                                'customer_location_total' => $picDeliveries->unique(function ($delivery) {
-                                    return ($delivery->customer ?: 'Tanpa Customer') . '|' . ($delivery->location ?: 'Tanpa Lokasi');
-                                })->count(),
+                                'customer_location_total' => $picDeliveries->unique(fn ($delivery) => ($delivery->customer ?: 'Tanpa Customer') . '|' . ($delivery->location ?: 'Tanpa Lokasi'))->count(),
                                 'rfu_total' => $this->countRfu($picDeliveries),
                                 'breakdown_total' => $this->countBreakdown($picDeliveries),
                                 'customer_locations' => $picDeliveries
-                                    ->groupBy(function ($delivery) {
-                                        return ($delivery->customer ?: 'Tanpa Customer') . ' / ' . ($delivery->location ?: 'Tanpa Lokasi');
-                                    })
+                                    ->groupBy(fn ($delivery) => ($delivery->customer ?: 'Tanpa Customer') . ' / ' . ($delivery->location ?: 'Tanpa Lokasi'))
                                     ->map(function ($locationDeliveries, $customerLocationName) {
                                         return [
                                             'name' => $customerLocationName,
@@ -209,182 +216,87 @@ class DeliveryController extends Controller
                 ];
             });
 
-        $customers = Delivery::whereNotNull('customer')
-            ->where('customer', '!=', '')
-            ->select('customer')
-            ->distinct()
-            ->orderBy('customer')
-            ->pluck('customer');
+        $customers = Delivery::whereNotNull('customer')->where('customer', '!=', '')->select('customer')->distinct()->orderBy('customer')->pluck('customer');
+        $pics = Delivery::whereNotNull('pic')->where('pic', '!=', '')->select('pic')->distinct()->orderBy('pic')->pluck('pic');
+        $locations = Delivery::whereNotNull('location')->where('location', '!=', '')->select('location')->distinct()->orderBy('location')->pluck('location');
+        $statuses = Delivery::whereNotNull('status_unit')->where('status_unit', '!=', '')->select('status_unit')->distinct()->orderBy('status_unit')->pluck('status_unit');
+        $years = Delivery::whereNotNull('date')->selectRaw('YEAR(date) as year')->distinct()->orderByDesc('year')->pluck('year')->filter()->values();
 
-        $pics = Delivery::whereNotNull('pic')
-            ->where('pic', '!=', '')
-            ->select('pic')
-            ->distinct()
-            ->orderBy('pic')
-            ->pluck('pic');
-
-        $locations = Delivery::whereNotNull('location')
-            ->where('location', '!=', '')
-            ->select('location')
-            ->distinct()
-            ->orderBy('location')
-            ->pluck('location');
-
-        $statuses = Delivery::whereNotNull('status_unit')
-            ->where('status_unit', '!=', '')
-            ->select('status_unit')
-            ->distinct()
-            ->orderBy('status_unit')
-            ->pluck('status_unit');
-
-        $years = Delivery::whereNotNull('date')
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->orderByDesc('year')
-            ->pluck('year')
-            ->filter()
-            ->values();
-
-        return view('deliveries.index', compact(
-            'groupedDeliveries',
-            'summary',
-            'customers',
-            'pics',
-            'locations',
-            'statuses',
-            'years',
-            'selectedYear'
-        ));
+        return view('deliveries.index', compact('groupedDeliveries', 'summary', 'customers', 'pics', 'locations', 'statuses', 'years', 'selectedYear'));
     }
 
     public function create()
     {
         if (!$this->canCreateDelivery()) {
-            return redirect()
-                ->route('deliveries.index')
-                ->withErrors(['error' => 'Anda tidak memiliki permission untuk create delivery.']);
+            return redirect()->route('deliveries.index')->withErrors(['error' => 'Anda tidak memiliki permission untuk create delivery.']);
         }
 
         $user = Auth::user();
         $branch = $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $partners = User::where('branch', $branch)->where('id', '!=', $user->id)->orderBy('name')->get(['id', 'name']);
 
         return view('deliveries.create', compact('user', 'branch', 'partners'));
     }
 
     public function searchAssets(Request $request)
     {
-        $search = $request->get('q');
+        $search = trim((string) $request->get('q', ''));
 
-        if (empty($search)) {
+        if ($search === '') {
             return response()->json([]);
         }
 
-        $assets = UnitAsset::where('serial_number', 'like', "%{$search}%")
-            ->orWhere('unit_type', 'like', "%{$search}%")
-            ->orWhere('customer', 'like', "%{$search}%")
+        $assets = UnitAsset::where(function ($query) use ($search) {
+                $query->where('serial_number', 'like', "%{$search}%")
+                    ->orWhere('unit_type', 'like', "%{$search}%")
+                    ->orWhere('customer', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%");
+            })
+            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")
             ->take(10)
             ->get();
 
-        $mapped = $assets->map(function ($asset) {
-            return [
-                'serial_number' => $asset->serial_number,
-                'unit_type' => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
-                'year' => $asset->year ?? '',
-                'customer' => $asset->customer ?? $asset->nama_pelanggan ?? '',
-                'location' => $asset->location ?? $asset->lokasi ?? '',
-            ];
-        });
-
-        return response()->json($mapped);
+        return response()->json($assets->map(fn ($asset) => [
+            'serial_number' => $asset->serial_number,
+            'unit_type' => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
+            'year' => $asset->year ?? '',
+            'customer' => $asset->customer ?? $asset->nama_pelanggan ?? '',
+            'location' => $asset->location ?? $asset->lokasi ?? '',
+            'status' => $asset->status ?? '',
+        ]));
     }
 
     public function store(Request $request)
     {
         if (!$this->canCreateDelivery()) {
-            return redirect()
-                ->route('deliveries.index')
-                ->withErrors(['error' => 'Anda tidak memiliki permission untuk create delivery.']);
+            return redirect()->route('deliveries.index')->withErrors(['error' => 'Anda tidak memiliki permission untuk create delivery.']);
         }
 
-        $validated = $request->validate([
-            'partner' => 'nullable|string|max:150',
-            'in_time' => 'nullable|date_format:H:i',
-            'out_time' => 'nullable|date_format:H:i',
-            'vehicle' => 'required|string|max:150',
-            'nopol' => 'required|string|max:100',
-            'date' => 'required|date',
+        $validated = $this->validateDelivery($request);
 
-            'customer' => 'required|string|max:150',
-            'location' => 'nullable|string|max:150',
-            'serial_number' => 'required|string|max:100',
-            'unit_type' => 'nullable|string|max:100',
-            'year' => 'nullable|integer|min:1900|max:2100',
-            'hour_meter' => 'nullable|integer|min:0',
-
-            'status_unit' => 'required|string|in:RFU,BREAKDOWN',
-
-            'battery_type' => 'nullable|string|max:150',
-            'battery_sn' => 'nullable|string|max:150',
-            'charger_type' => 'nullable|string|max:150',
-            'charger_sn' => 'nullable|string|max:150',
-            'trolly' => 'nullable|string|max:150',
-            'note' => 'nullable|string',
-        ]);
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
         try {
             $user = Auth::user();
-
             $delivery = new Delivery();
+            $this->fillDelivery($delivery, $validated);
             $delivery->delivery_code = $this->generateDeliveryCode();
             $delivery->user_id = $user->id;
             $delivery->branch = $user->branch ?? 'HO / Pusat';
             $delivery->status_mekanik = $this->statusMekanikFromUser();
             $delivery->pic = $user->name;
-            $delivery->partner = $validated['partner'] ?? null;
-
-            $delivery->in_time = $validated['in_time'] ?? null;
-            $delivery->out_time = $validated['out_time'] ?? null;
-            $delivery->vehicle = strtoupper($validated['vehicle']);
-            $delivery->nopol = strtoupper($validated['nopol']);
-            $delivery->date = $validated['date'];
-
-            $delivery->customer = strtoupper($validated['customer']);
-            $delivery->location = isset($validated['location']) ? strtoupper($validated['location']) : null;
-            $delivery->serial_number = strtoupper($validated['serial_number']);
-            $delivery->unit_type = isset($validated['unit_type']) ? strtoupper($validated['unit_type']) : null;
-            $delivery->year = $validated['year'] ?? null;
-            $delivery->hour_meter = $validated['hour_meter'] ?? null;
-
-            $delivery->job_type = 'DELIVERY UNIT';
-            $delivery->status_unit = $validated['status_unit'];
-
-            $delivery->battery_type = isset($validated['battery_type']) ? strtoupper($validated['battery_type']) : null;
-            $delivery->battery_sn = isset($validated['battery_sn']) ? strtoupper($validated['battery_sn']) : null;
-            $delivery->charger_type = isset($validated['charger_type']) ? strtoupper($validated['charger_type']) : null;
-            $delivery->charger_sn = isset($validated['charger_sn']) ? strtoupper($validated['charger_sn']) : null;
-            $delivery->trolly = isset($validated['trolly']) ? strtoupper($validated['trolly']) : null;
-            $delivery->note = $validated['note'] ?? null;
-
             $delivery->save();
 
             DB::commit();
 
-            return redirect()
-                ->route('deliveries.show', $delivery->id)
-                ->with('success', 'Data Delivery Unit berhasil disimpan.');
+            return redirect()->route('deliveries.show', $delivery->id)->with('success', 'Data Delivery Unit berhasil disimpan.');
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return back()
-                ->withInput()
-                ->withErrors(['error' => 'Gagal menyimpan data delivery: ' . $e->getMessage()]);
+            return back()->withInput()->withErrors(['error' => 'Gagal menyimpan data delivery: ' . $e->getMessage()]);
         }
     }
 
@@ -400,18 +312,12 @@ class DeliveryController extends Controller
         $delivery = Delivery::findOrFail($id);
 
         if (!$this->canEditDelivery($delivery)) {
-            return redirect()
-                ->route('deliveries.show', $delivery->id)
-                ->withErrors(['error' => 'Anda hanya bisa edit record delivery yang Anda buat sebagai PIC.']);
+            return redirect()->route('deliveries.show', $delivery->id)->withErrors(['error' => 'Anda hanya bisa edit record delivery yang Anda buat sebagai PIC.']);
         }
 
         $user = Auth::user();
         $branch = $delivery->branch ?? $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $partners = User::where('branch', $branch)->where('id', '!=', $user->id)->orderBy('name')->get(['id', 'name']);
 
         return view('deliveries.edit', compact('delivery', 'user', 'branch', 'partners'));
     }
@@ -421,77 +327,27 @@ class DeliveryController extends Controller
         $delivery = Delivery::findOrFail($id);
 
         if (!$this->canEditDelivery($delivery)) {
-            return redirect()
-                ->route('deliveries.show', $delivery->id)
-                ->withErrors(['error' => 'Anda hanya bisa edit record delivery yang Anda buat sebagai PIC.']);
+            return redirect()->route('deliveries.show', $delivery->id)->withErrors(['error' => 'Anda hanya bisa edit record delivery yang Anda buat sebagai PIC.']);
         }
 
-        $validated = $request->validate([
-            'partner' => 'nullable|string|max:150',
-            'in_time' => 'nullable|date_format:H:i',
-            'out_time' => 'nullable|date_format:H:i',
-            'vehicle' => 'required|string|max:150',
-            'nopol' => 'required|string|max:100',
-            'date' => 'required|date',
+        $validated = $this->validateDelivery($request);
 
-            'customer' => 'required|string|max:150',
-            'location' => 'nullable|string|max:150',
-            'serial_number' => 'required|string|max:100',
-            'unit_type' => 'nullable|string|max:100',
-            'year' => 'nullable|integer|min:1900|max:2100',
-            'hour_meter' => 'nullable|integer|min:0',
-
-            'status_unit' => 'required|string|in:RFU,BREAKDOWN',
-
-            'battery_type' => 'nullable|string|max:150',
-            'battery_sn' => 'nullable|string|max:150',
-            'charger_type' => 'nullable|string|max:150',
-            'charger_sn' => 'nullable|string|max:150',
-            'trolly' => 'nullable|string|max:150',
-            'note' => 'nullable|string',
-        ]);
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
         try {
-            $delivery->partner = $validated['partner'] ?? null;
-
-            $delivery->in_time = $validated['in_time'] ?? null;
-            $delivery->out_time = $validated['out_time'] ?? null;
-            $delivery->vehicle = strtoupper($validated['vehicle']);
-            $delivery->nopol = strtoupper($validated['nopol']);
-            $delivery->date = $validated['date'];
-
-            $delivery->customer = strtoupper($validated['customer']);
-            $delivery->location = isset($validated['location']) ? strtoupper($validated['location']) : null;
-            $delivery->serial_number = strtoupper($validated['serial_number']);
-            $delivery->unit_type = isset($validated['unit_type']) ? strtoupper($validated['unit_type']) : null;
-            $delivery->year = $validated['year'] ?? null;
-            $delivery->hour_meter = $validated['hour_meter'] ?? null;
-
-            $delivery->job_type = 'DELIVERY UNIT';
-            $delivery->status_unit = $validated['status_unit'];
-
-            $delivery->battery_type = isset($validated['battery_type']) ? strtoupper($validated['battery_type']) : null;
-            $delivery->battery_sn = isset($validated['battery_sn']) ? strtoupper($validated['battery_sn']) : null;
-            $delivery->charger_type = isset($validated['charger_type']) ? strtoupper($validated['charger_type']) : null;
-            $delivery->charger_sn = isset($validated['charger_sn']) ? strtoupper($validated['charger_sn']) : null;
-            $delivery->trolly = isset($validated['trolly']) ? strtoupper($validated['trolly']) : null;
-            $delivery->note = $validated['note'] ?? null;
-
+            $this->fillDelivery($delivery, $validated);
             $delivery->save();
 
             DB::commit();
 
-            return redirect()
-                ->route('deliveries.show', $delivery->id)
-                ->with('success', 'Data Delivery Unit berhasil diperbarui.');
+            return redirect()->route('deliveries.show', $delivery->id)->with('success', 'Data Delivery Unit berhasil diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return back()
-                ->withInput()
-                ->withErrors(['error' => 'Gagal memperbarui data delivery: ' . $e->getMessage()]);
+            return back()->withInput()->withErrors(['error' => 'Gagal memperbarui data delivery: ' . $e->getMessage()]);
         }
     }
 
@@ -500,15 +356,60 @@ class DeliveryController extends Controller
         $delivery = Delivery::findOrFail($id);
 
         if (!$this->canEditDelivery($delivery)) {
-            return redirect()
-                ->route('deliveries.show', $delivery->id)
-                ->withErrors(['error' => 'Anda hanya bisa hapus record delivery yang Anda buat sebagai PIC.']);
+            return redirect()->route('deliveries.show', $delivery->id)->withErrors(['error' => 'Anda hanya bisa hapus record delivery yang Anda buat sebagai PIC.']);
         }
 
         $delivery->delete();
 
-        return redirect()
-            ->route('deliveries.index')
-            ->with('success', 'Data Delivery Unit berhasil dihapus.');
+        return redirect()->route('deliveries.index')->with('success', 'Data Delivery Unit berhasil dihapus.');
+    }
+
+    private function validateDelivery(Request $request): array
+    {
+        return $request->validate([
+            'partner' => 'nullable|string|max:150',
+            'in_time' => 'nullable|date_format:H:i',
+            'out_time' => 'nullable|date_format:H:i',
+            'vehicle' => 'required|string|max:150',
+            'nopol' => 'required|string|max:100',
+            'date' => 'required|date',
+            'customer' => 'required|string|max:150',
+            'location' => 'nullable|string|max:150',
+            'serial_number' => 'required|string|max:100',
+            'unit_type' => 'nullable|string|max:100',
+            'year' => 'nullable|integer|min:1900|max:2100',
+            'hour_meter' => 'nullable|integer|min:0',
+            'status_unit' => 'required|string|in:RFU,BREAKDOWN',
+            'battery_type' => 'nullable|string|max:150',
+            'battery_sn' => 'nullable|string|max:150',
+            'charger_type' => 'nullable|string|max:150',
+            'charger_sn' => 'nullable|string|max:150',
+            'trolly' => 'nullable|string|max:150',
+            'note' => 'nullable|string',
+        ]);
+    }
+
+    private function fillDelivery(Delivery $delivery, array $validated): void
+    {
+        $delivery->partner = $validated['partner'] ?? null;
+        $delivery->in_time = $validated['in_time'] ?? null;
+        $delivery->out_time = $validated['out_time'] ?? null;
+        $delivery->vehicle = strtoupper($validated['vehicle']);
+        $delivery->nopol = strtoupper($validated['nopol']);
+        $delivery->date = $validated['date'];
+        $delivery->customer = strtoupper($validated['customer']);
+        $delivery->location = isset($validated['location']) ? strtoupper($validated['location']) : null;
+        $delivery->serial_number = strtoupper($validated['serial_number']);
+        $delivery->unit_type = isset($validated['unit_type']) ? strtoupper($validated['unit_type']) : null;
+        $delivery->year = $validated['year'] ?? null;
+        $delivery->hour_meter = $validated['hour_meter'] ?? null;
+        $delivery->job_type = 'DELIVERY UNIT';
+        $delivery->status_unit = $validated['status_unit'];
+        $delivery->battery_type = isset($validated['battery_type']) ? strtoupper($validated['battery_type']) : null;
+        $delivery->battery_sn = isset($validated['battery_sn']) ? strtoupper($validated['battery_sn']) : null;
+        $delivery->charger_type = isset($validated['charger_type']) ? strtoupper($validated['charger_type']) : null;
+        $delivery->charger_sn = isset($validated['charger_sn']) ? strtoupper($validated['charger_sn']) : null;
+        $delivery->trolly = isset($validated['trolly']) ? strtoupper($validated['trolly']) : null;
+        $delivery->note = $validated['note'] ?? null;
     }
 }
