@@ -10,22 +10,33 @@ use Illuminate\Support\Facades\Schema;
 
 class CommandCenterController extends Controller
 {
-    private function allowedRoles(): array
-    {
-        return ['koordinator', 'sect_head', 'admin', 'super_admin'];
-    }
-
-    private function normalizedRole(): string
+    private function roleText(): string
     {
         $user = Auth::user();
-        $role = strtolower((string) ($user->role ?? $user->status_user ?? ''));
 
-        return str_replace([' ', '-'], '_', trim($role));
+        return strtolower(trim(implode(' ', array_filter([
+            (string) ($user->role ?? ''),
+            (string) ($user->status_user ?? ''),
+        ]))));
+    }
+
+    private function canAccessCommandCenter(): bool
+    {
+        $roleText = $this->roleText();
+        $roleText = str_replace(['-', '_'], ' ', $roleText);
+
+        return str_contains($roleText, 'koordinator')
+            || str_contains($roleText, 'coordinator')
+            || str_contains($roleText, 'sect head')
+            || str_contains($roleText, 'secthead')
+            || str_contains($roleText, 'admin')
+            || str_contains($roleText, 'super admin')
+            || str_contains($roleText, 'superadmin');
     }
 
     private function authorizeCommandCenter(): void
     {
-        abort_unless(in_array($this->normalizedRole(), $this->allowedRoles(), true), 403, 'Akses Command Center hanya untuk Koordinator, Sect Head, Admin, dan Super Admin.');
+        abort_unless($this->canAccessCommandCenter(), 403, 'Akses Command Center hanya untuk Koordinator, Sect Head, Admin, dan Super Admin.');
     }
 
     private function modules(): array
