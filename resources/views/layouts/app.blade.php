@@ -305,7 +305,7 @@
                     </a>
 
                     <!-- 5. Penarikan (Rose) -->
-                    <a href="#"
+                    <a href="{{ route('penarikans.index') }}"
                         class="group relative flex items-center gap-4 px-4 py-3 rounded-2xl bg-white hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all duration-300 active:scale-95 shadow-sm hover:shadow-md">
                         <div
                             class="bg-rose-100 text-rose-600 p-2.5 rounded-xl group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
