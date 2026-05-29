@@ -47,12 +47,12 @@ class PenarikanController extends Controller
 
     private function countRfu($items): int
     {
-        return $items->filter(fn ($item) => $this->isRfuStatus($item->status_unit))->count();
+        return $items->filter(fn($item) => $this->isRfuStatus($item->status_unit))->count();
     }
 
     private function countBreakdown($items): int
     {
-        return $items->filter(fn ($item) => $this->isBreakdownStatus($item->status_unit))->count();
+        return $items->filter(fn($item) => $this->isBreakdownStatus($item->status_unit))->count();
     }
 
     private function generatePenarikanCode(): string
@@ -88,6 +88,20 @@ class PenarikanController extends Controller
         }
 
         return $user->status_user ?? $user->role ?? 'Field Service';
+    }
+
+    private function markAssetAsDitarik(?string $serialNumber): void
+    {
+        $serialNumber = strtoupper(trim((string) $serialNumber));
+
+        if ($serialNumber === '') {
+            return;
+        }
+
+        UnitAsset::where('serial_number', $serialNumber)->update([
+            'status' => 'DITARIK',
+            'updated_at' => now(),
+        ]);
     }
 
     public function index(Request $request)
@@ -149,28 +163,28 @@ class PenarikanController extends Controller
         ];
 
         $groupedPenarikans = $penarikans
-            ->groupBy(fn ($item) => $item->date ? Carbon::parse($item->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
+            ->groupBy(fn($item) => $item->date ? Carbon::parse($item->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
             ->map(function ($monthItems, $monthName) {
                 return [
                     'name' => $monthName,
                     'total' => $monthItems->count(),
                     'pic_total' => $monthItems->pluck('pic')->filter()->unique()->count(),
                     'unit_total' => $monthItems->pluck('serial_number')->filter()->unique()->count(),
-                    'customer_location_total' => $monthItems->unique(fn ($item) => ($item->customer ?: 'Tanpa Customer') . '|' . ($item->location ?: 'Tanpa Lokasi'))->count(),
+                    'customer_location_total' => $monthItems->unique(fn($item) => ($item->customer ?: 'Tanpa Customer') . '|' . ($item->location ?: 'Tanpa Lokasi'))->count(),
                     'rfu_total' => $this->countRfu($monthItems),
                     'breakdown_total' => $this->countBreakdown($monthItems),
                     'pics' => $monthItems
-                        ->groupBy(fn ($item) => $item->pic ?: 'Tanpa PIC')
+                        ->groupBy(fn($item) => $item->pic ?: 'Tanpa PIC')
                         ->map(function ($picItems, $picName) {
                             return [
                                 'name' => $picName,
                                 'total' => $picItems->count(),
                                 'unit_total' => $picItems->pluck('serial_number')->filter()->unique()->count(),
-                                'customer_location_total' => $picItems->unique(fn ($item) => ($item->customer ?: 'Tanpa Customer') . '|' . ($item->location ?: 'Tanpa Lokasi'))->count(),
+                                'customer_location_total' => $picItems->unique(fn($item) => ($item->customer ?: 'Tanpa Customer') . '|' . ($item->location ?: 'Tanpa Lokasi'))->count(),
                                 'rfu_total' => $this->countRfu($picItems),
                                 'breakdown_total' => $this->countBreakdown($picItems),
                                 'customer_locations' => $picItems
-                                    ->groupBy(fn ($item) => ($item->customer ?: 'Tanpa Customer') . ' / ' . ($item->location ?: 'Tanpa Lokasi'))
+                                    ->groupBy(fn($item) => ($item->customer ?: 'Tanpa Customer') . ' / ' . ($item->location ?: 'Tanpa Lokasi'))
                                     ->map(function ($locationItems, $customerLocationName) {
                                         return [
                                             'name' => $customerLocationName,
@@ -224,7 +238,7 @@ class PenarikanController extends Controller
             ->limit(12)
             ->get();
 
-        return response()->json($assets->map(fn ($asset) => [
+        return response()->json($assets->map(fn($asset) => [
             'serial_number' => $asset->serial_number,
             'unit_type' => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
             'year' => $asset->year ?? '',
@@ -252,7 +266,10 @@ class PenarikanController extends Controller
         $validated['created_at'] = now();
         $validated['updated_at'] = now();
 
-        $id = DB::table('penarikans')->insertGetId($this->normalizePenarikanData($validated));
+        $penarikanData = $this->normalizePenarikanData($validated);
+        $id = DB::table('penarikans')->insertGetId($penarikanData);
+
+        $this->markAssetAsDitarik($penarikanData['serial_number'] ?? null);
 
         return redirect()->route('penarikans.show', $id)->with('success', 'Data Penarikan Unit berhasil disimpan.');
     }
@@ -295,7 +312,10 @@ class PenarikanController extends Controller
         $validated['job_type'] = 'TARIK UNIT';
         $validated['updated_at'] = now();
 
-        DB::table('penarikans')->where('id', $id)->update($this->normalizePenarikanData($validated));
+        $penarikanData = $this->normalizePenarikanData($validated);
+        DB::table('penarikans')->where('id', $id)->update($penarikanData);
+
+        $this->markAssetAsDitarik($penarikanData['serial_number'] ?? null);
 
         return redirect()->route('penarikans.show', $id)->with('success', 'Data Penarikan Unit berhasil diperbarui.');
     }
@@ -345,11 +365,25 @@ class PenarikanController extends Controller
 
     private function normalizePenarikanData(array $data): array
     {
-        foreach ([
-            'vehicle', 'nopol', 'customer', 'location', 'serial_number', 'unit_type',
-            'battery_type', 'battery_sn', 'battery_type_2', 'battery_sn_2',
-            'charger_type', 'charger_sn', 'trolly', 'trolly_2', 'trolly_3'
-        ] as $field) {
+        foreach (
+            [
+                'vehicle',
+                'nopol',
+                'customer',
+                'location',
+                'serial_number',
+                'unit_type',
+                'battery_type',
+                'battery_sn',
+                'battery_type_2',
+                'battery_sn_2',
+                'charger_type',
+                'charger_sn',
+                'trolly',
+                'trolly_2',
+                'trolly_3'
+            ] as $field
+        ) {
             if (isset($data[$field]) && $data[$field] !== null) {
                 $data[$field] = strtoupper((string) $data[$field]);
             }
