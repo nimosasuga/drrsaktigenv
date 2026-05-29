@@ -8,6 +8,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    const isCreatePage = window.location.pathname === '/penarikans/create';
+    const draftKey = 'drrsakti:penarikan:create:draft';
+    const pendingClearKey = 'drrsakti:penarikan:create:pending-clear';
+
+    if (!isCreatePage && localStorage.getItem(pendingClearKey) === '1') {
+        localStorage.removeItem(draftKey);
+        localStorage.removeItem(pendingClearKey);
+    }
+
     const findInput = (name) => form.querySelector(`[name="${name}"]`);
     const autoFields = ['customer', 'location', 'unit_type', 'year', 'hour_meter'];
 
@@ -22,6 +31,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const setValue = (name, value) => {
         const input = findInput(name);
         if (input) input.value = value || '';
+    };
+
+    const createNotice = (message, type = 'info') => {
+        let notice = document.getElementById('penarikan-draft-notice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'penarikan-draft-notice';
+            form.parentElement?.insertBefore(notice, form);
+        }
+
+        notice.className = type === 'warning'
+            ? 'mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800 shadow-sm'
+            : 'mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700 shadow-sm';
+        notice.textContent = message;
+    };
+
+    const getDraftData = () => {
+        const formData = new FormData(form);
+        const data = {};
+
+        formData.forEach((value, key) => {
+            if (key !== '_token' && key !== '_method') {
+                data[key] = value;
+            }
+        });
+
+        return data;
+    };
+
+    const hasMeaningfulData = (data) => {
+        return Object.entries(data).some(([key, value]) => {
+            if (['date', 'status_unit'].includes(key)) return false;
+            return String(value || '').trim() !== '';
+        });
+    };
+
+    const saveDraft = () => {
+        if (!isCreatePage) return;
+
+        const data = getDraftData();
+        if (!hasMeaningfulData(data)) return;
+
+        localStorage.setItem(draftKey, JSON.stringify({
+            saved_at: new Date().toISOString(),
+            data,
+        }));
+    };
+
+    const restoreDraft = () => {
+        if (!isCreatePage) return;
+
+        const rawDraft = localStorage.getItem(draftKey);
+        if (!rawDraft) return;
+
+        let draft = null;
+        try {
+            draft = JSON.parse(rawDraft);
+        } catch (error) {
+            localStorage.removeItem(draftKey);
+            return;
+        }
+
+        if (!draft?.data || !hasMeaningfulData(draft.data)) return;
+
+        Object.entries(draft.data).forEach(([key, value]) => {
+            const field = findInput(key);
+            if (field) field.value = value ?? '';
+        });
+
+        createNotice('Progres form Penarikan Unit berhasil dipulihkan dari penyimpanan lokal browser.');
     };
 
     const createDropdown = () => {
@@ -76,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setValue('year', item.year);
                 setValue('hour_meter', item.hour_meter);
                 hideDropdown();
+                saveDraft();
             });
             dropdown.appendChild(button);
         });
@@ -92,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (!q) {
             hideDropdown();
+            saveDraft();
             return;
         }
 
@@ -105,6 +186,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderItems([]);
             }
         }, 180);
+
+        saveDraft();
     });
 
     document.addEventListener('click', (event) => {
@@ -130,6 +213,43 @@ document.addEventListener('DOMContentLoaded', () => {
     if (submitArea && !form.querySelector('[name="battery_type_2"]')) {
         form.insertBefore(extraSection, submitArea);
     }
+
+    restoreDraft();
+
+    let draftTimer = null;
+    form.addEventListener('input', () => {
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(saveDraft, 250);
+    });
+
+    form.addEventListener('change', () => {
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(saveDraft, 100);
+    });
+
+    form.addEventListener('submit', () => {
+        saveDraft();
+        localStorage.setItem(pendingClearKey, '1');
+    });
+
+    document.querySelectorAll('a[href]').forEach((link) => {
+        link.addEventListener('click', () => {
+            if (!isCreatePage) return;
+            saveDraft();
+            if (hasMeaningfulData(getDraftData())) {
+                createNotice('Progres Penarikan Unit sudah disimpan otomatis. Jika kembali ke form ini, data akan dipulihkan.', 'warning');
+            }
+        });
+    });
+
+    window.addEventListener('beforeunload', (event) => {
+        if (!isCreatePage) return;
+        if (!hasMeaningfulData(getDraftData())) return;
+
+        saveDraft();
+        event.preventDefault();
+        event.returnValue = 'Progres form Penarikan Unit sudah disimpan otomatis. Tetap keluar halaman?';
+    });
 
     form.querySelectorAll('input.uppercase, textarea.uppercase').forEach((input) => {
         input.addEventListener('input', () => {
