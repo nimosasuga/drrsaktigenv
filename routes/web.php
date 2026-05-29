@@ -16,6 +16,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\PenarikanController;
+use App\Http\Controllers\CommandCenterController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
 
@@ -53,6 +54,9 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('deliveries', DeliveryController::class);
         Route::get('/penarikans/search-assets', [PenarikanController::class, 'searchAssets'])->name('penarikans.search-assets');
         Route::resource('penarikans', PenarikanController::class);
+        Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
+        Route::get('/command-center/export/{module}', [CommandCenterController::class, 'export'])->name('command-center.export');
+        Route::post('/command-center/import/{module}', [CommandCenterController::class, 'import'])->name('command-center.import');
         Route::get('/calendar', fn() => view('calendar.index'))->name('calendar.index');
         Route::get('/reminders', fn() => view('reminders.index'))->name('reminders.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
