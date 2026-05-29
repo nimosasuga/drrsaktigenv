@@ -5,18 +5,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use Carbon\Carbon;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
 class UpdateJobShareController extends Controller
 {
-    public function message(int $id): JsonResponse
+    public function message(int $id)
     {
         $job = Job::with(['installParts', 'recommendations'])->findOrFail($id);
+        $message = $this->formatMessage($job);
+        $whatsappUrl = 'https://wa.me/?text=' . urlencode($message);
 
-        return response()->json([
-            'message' => $this->formatMessage($job),
-        ]);
+        return redirect()->away($whatsappUrl);
     }
 
     private function formatDate($value): string
