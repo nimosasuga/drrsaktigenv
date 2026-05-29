@@ -21,7 +21,7 @@
             <a href="{{ route('command-center.index') }}" class="w-fit rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm">Reset Filter</a>
         </div>
 
-        <section class="mt-5 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+        <section class="mt-5 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
             <div class="mb-4">
                 <h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Filter Analisa</h2>
                 <p class="mt-1 text-xs font-bold text-slate-500">Status memakai standar RFU, Breakdown, Monitoring, dan Waiting Part.</p>
@@ -105,41 +105,183 @@
         <div class="mb-5 rounded-3xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700 shadow-sm">{{ $errors->first() }}</div>
     @endif
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-3xl border border-blue-100 bg-white p-5 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Total Aktivitas Filter</p><p class="mt-3 text-4xl font-black text-slate-950">{{ number_format($summary['total_records']) }}</p><p class="mt-2 text-xs font-bold text-slate-500">Mengikuti filter aktif.</p></div>
-        <div class="rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Modul Terbaca</p><p class="mt-3 text-4xl font-black text-slate-950">{{ number_format($summary['total_modules']) }}</p><p class="mt-2 text-xs font-bold text-slate-500">Jumlah modul dalam filter.</p></div>
-        <div class="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Asset Aktif</p><p class="mt-3 text-4xl font-black text-emerald-700">{{ number_format($summary['asset_active']) }}</p><p class="mt-2 text-xs font-bold text-slate-500">Status selain DITARIK.</p></div>
-        <div class="rounded-3xl border border-rose-100 bg-white p-5 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Asset Ditarik</p><p class="mt-3 text-4xl font-black text-rose-700">{{ number_format($summary['asset_withdrawn']) }}</p><p class="mt-2 text-xs font-bold text-slate-500">Unit sudah keluar dari proses aktif.</p></div>
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="rounded-3xl border border-blue-100 bg-white p-4 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Total Aktivitas Filter</p><p class="mt-2 text-3xl font-black text-slate-950">{{ number_format($summary['total_records']) }}</p><p class="mt-1 text-xs font-bold text-slate-500">Mengikuti filter aktif.</p></div>
+        <div class="rounded-3xl border border-indigo-100 bg-white p-4 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Modul Terbaca</p><p class="mt-2 text-3xl font-black text-slate-950">{{ number_format($summary['total_modules']) }}</p><p class="mt-1 text-xs font-bold text-slate-500">Jumlah modul dalam filter.</p></div>
+        <div class="rounded-3xl border border-emerald-100 bg-white p-4 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Asset Aktif</p><p class="mt-2 text-3xl font-black text-emerald-700">{{ number_format($summary['asset_active']) }}</p><p class="mt-1 text-xs font-bold text-slate-500">Status selain DITARIK.</p></div>
+        <div class="rounded-3xl border border-rose-100 bg-white p-4 shadow-sm"><p class="text-xs font-black uppercase tracking-wider text-slate-400">Asset Ditarik</p><p class="mt-2 text-3xl font-black text-rose-700">{{ number_format($summary['asset_withdrawn']) }}</p><p class="mt-1 text-xs font-bold text-slate-500">Unit keluar dari proses aktif.</p></div>
     </div>
 
-    <div class="mt-5 grid gap-5 xl:grid-cols-3">
-        <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm xl:col-span-2">
-            <div class="mb-5 flex items-center justify-between gap-3"><div><h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Grafik Aktivitas Bulanan</h2><p class="mt-1 text-xs font-bold text-slate-500">Tahun {{ $filters['year'] }}.</p></div><span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">Peak: {{ number_format($summary['peak_month_total']) }}</span></div>
-            <div class="grid grid-cols-12 items-end gap-2 rounded-3xl bg-slate-50 p-4">
+    <div class="mt-5 grid gap-4 xl:grid-cols-3">
+        <section class="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm xl:col-span-2">
+            <div class="mb-4 flex items-center justify-between gap-3"><div><h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Grafik Aktivitas Bulanan</h2><p class="mt-1 text-xs font-bold text-slate-500">Tahun {{ $filters['year'] }}.</p></div><span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">Peak: {{ number_format($summary['peak_month_total']) }}</span></div>
+            <div class="grid grid-cols-12 items-end gap-2 rounded-3xl bg-slate-50 p-3">
                 @foreach($monthLabels as $month => $label)
-                    @php $value = (int) ($monthlyTotals[$month] ?? 0); $height = $maxMonthly > 0 ? max(8, round(($value / $maxMonthly) * 160)) : 8; $selected = (int) ($filters['month'] ?? 0) === (int) $month; @endphp
-                    <div class="flex flex-col items-center gap-2"><div class="flex h-44 w-full items-end justify-center rounded-2xl {{ $selected ? 'bg-blue-50 ring-2 ring-blue-200' : 'bg-white' }} p-1 shadow-inner"><div class="w-full rounded-xl bg-blue-600" style="height: {{ $height }}px"></div></div><p class="text-[10px] font-black {{ $selected ? 'text-blue-700' : 'text-slate-500' }}">{{ $label }}</p><p class="text-[10px] font-black text-slate-900">{{ $value }}</p></div>
+                    @php $value = (int) ($monthlyTotals[$month] ?? 0); $height = $maxMonthly > 0 ? max(8, round(($value / $maxMonthly) * 140)) : 8; $selected = (int) ($filters['month'] ?? 0) === (int) $month; @endphp
+                    <div class="flex flex-col items-center gap-2"><div class="flex h-36 w-full items-end justify-center rounded-2xl {{ $selected ? 'bg-blue-50 ring-2 ring-blue-200' : 'bg-white' }} p-1 shadow-inner"><div class="w-full rounded-xl bg-blue-600" style="height: {{ $height }}px"></div></div><p class="text-[10px] font-black {{ $selected ? 'text-blue-700' : 'text-slate-500' }}">{{ $label }}</p><p class="text-[10px] font-black text-slate-900">{{ $value }}</p></div>
                 @endforeach
             </div>
         </section>
-        <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm"><div class="mb-5"><h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Top PIC Performance</h2><p class="mt-1 text-xs font-bold text-slate-500">Ranking berbasis jumlah aktivitas tercatat.</p></div><div class="space-y-3">@forelse($picScores as $index => $pic)@php $width = $maxPic > 0 ? max(8, round(($pic['total'] / $maxPic) * 100)) : 8; @endphp<div class="rounded-2xl border border-slate-100 bg-slate-50 p-3"><div class="flex items-center justify-between gap-3"><p class="truncate text-sm font-black text-slate-900">#{{ $index + 1 }} {{ $pic['name'] }}</p><p class="text-sm font-black text-blue-700">{{ $pic['total'] }}</p></div><div class="mt-3 h-2 overflow-hidden rounded-full bg-white"><div class="h-full rounded-full bg-blue-600" style="width: {{ $width }}%"></div></div></div>@empty<div class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500">Belum ada data PIC pada filter ini.</div>@endforelse</div></section>
+        <section class="rounded-3xl border border-slate-100 bg-white p-4 shadow-sm"><div class="mb-4"><h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Top PIC Performance</h2><p class="mt-1 text-xs font-bold text-slate-500">Ranking aktivitas tercatat.</p></div><div class="space-y-2">@forelse($picScores as $index => $pic)@php $width = $maxPic > 0 ? max(8, round(($pic['total'] / $maxPic) * 100)) : 8; @endphp<div class="rounded-2xl border border-slate-100 bg-slate-50 p-3"><div class="flex items-center justify-between gap-3"><p class="truncate text-sm font-black text-slate-900">#{{ $index + 1 }} {{ $pic['name'] }}</p><p class="text-sm font-black text-blue-700">{{ $pic['total'] }}</p></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-white"><div class="h-full rounded-full bg-blue-600" style="width: {{ $width }}%"></div></div></div>@empty<div class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm font-bold text-slate-500">Belum ada data PIC pada filter ini.</div>@endforelse</div></section>
     </div>
 
-    <section class="mt-5 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-        <div class="mb-5"><h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Analisa Performa Berbasis Status & Tipe Pekerjaan Resmi</h2><p class="mt-1 text-xs font-bold text-slate-500">Status dinormalisasi ke RFU, Breakdown, Monitoring, Waiting Part. Tipe pekerjaan memakai standar Update Job terbaru.</p></div>
-        <div class="grid gap-4 xl:grid-cols-2">
-            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4"><h3 class="text-sm font-black text-slate-900">Distribusi Status Akhir Unit</h3><div class="mt-4 grid gap-2 sm:grid-cols-2">@forelse($performanceInsights['status_distribution'] as $row)<div class="rounded-2xl bg-white px-4 py-3 shadow-sm"><div class="flex items-center justify-between text-sm font-black"><span>{{ $row['status'] }}</span><span class="text-blue-700">{{ $row['total'] }}</span></div></div>@empty<p class="text-sm font-bold text-slate-500">Belum ada data.</p>@endforelse</div></div>
-            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4"><h3 class="text-sm font-black text-slate-900">Distribusi Tipe Pekerjaan Update Job</h3><div class="mt-4 grid gap-2 sm:grid-cols-2">@forelse($performanceInsights['job_type_distribution'] as $row)<div class="rounded-2xl bg-white px-4 py-3 shadow-sm"><div class="flex items-center justify-between gap-3 text-sm font-black"><span>{{ $row['job_type'] }}</span><span class="text-blue-700">{{ $row['total'] }}</span></div></div>@empty<p class="text-sm font-bold text-slate-500">Belum ada data.</p>@endforelse</div></div>
-            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4"><h3 class="text-sm font-black text-slate-900">Produktivitas per Bulan</h3><div class="mt-4 space-y-2">@forelse($performanceInsights['monthly_productivity'] as $row)<div class="flex items-center justify-between rounded-2xl bg-white px-4 py-3 text-sm font-bold shadow-sm"><span>{{ $row['pic'] }} · {{ $monthLabels[$row['month']] ?? $row['month'] }}</span><span class="text-blue-700">{{ $row['total'] }}</span></div>@empty<p class="text-sm font-bold text-slate-500">Belum ada data.</p>@endforelse</div></div>
-            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4"><h3 class="text-sm font-black text-slate-900">Beban Kerja Customer / Location</h3><div class="mt-4 space-y-2">@forelse($performanceInsights['customer_location_load'] as $row)<div class="rounded-2xl bg-white px-4 py-3 shadow-sm"><div class="flex items-center justify-between gap-3 text-sm font-bold"><span>{{ $row['customer'] }}</span><span class="text-blue-700">{{ $row['total'] }}</span></div><p class="mt-1 text-xs font-bold text-slate-500">{{ $row['location'] }}</p></div>@empty<p class="text-sm font-bold text-slate-500">Belum ada data.</p>@endforelse</div></div>
-            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4"><h3 class="text-sm font-black text-slate-900">Status per PIC</h3><div class="mt-4 space-y-2">@forelse($performanceInsights['status_by_pic'] as $row)<div class="rounded-2xl bg-white px-4 py-3 shadow-sm"><div class="flex items-center justify-between text-sm font-black"><span>{{ $row['pic'] }}</span><span class="text-emerald-700">{{ $row['rfu_rate'] }}% RFU</span></div><p class="mt-1 text-xs font-bold text-slate-500">RFU: {{ $row['rfu'] }} · Breakdown: {{ $row['breakdown'] }} · Monitoring: {{ $row['monitoring'] }} · Waiting Part: {{ $row['waiting_part'] }} · Risk: {{ $row['risk_rate'] }}%</p></div>@empty<p class="text-sm font-bold text-slate-500">Belum ada data.</p>@endforelse</div></div>
-            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4"><h3 class="text-sm font-black text-slate-900">Unit Paling Sering Bermasalah</h3><div class="mt-4 space-y-2">@forelse($performanceInsights['troubled_units'] as $row)<div class="rounded-2xl bg-white px-4 py-3 shadow-sm"><div class="flex items-center justify-between text-sm font-black"><span>{{ $row['serial_number'] }}</span><span class="text-rose-700">{{ $row['total'] }}</span></div><p class="mt-1 text-xs font-bold text-slate-500">{{ $row['unit_type'] }} · {{ $row['customer'] }} · {{ $row['location'] }}</p></div>@empty<p class="text-sm font-bold text-slate-500">Belum ada data.</p>@endforelse</div></div>
-            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4 xl:col-span-2"><h3 class="text-sm font-black text-slate-900">Rekomendasi Part Terbanyak</h3><div class="mt-4 grid gap-2 md:grid-cols-2">@forelse($performanceInsights['top_recommendations'] as $row)<div class="rounded-2xl bg-white px-4 py-3 shadow-sm"><div class="flex items-center justify-between gap-3 text-sm font-black"><span>{{ $row['part_name'] }}</span><span class="text-blue-700">Qty {{ $row['qty_total'] }}</span></div><p class="mt-1 text-xs font-bold text-slate-500">PN: {{ $row['part_number'] }} · {{ $row['total'] }} rekomendasi</p></div>@empty<p class="text-sm font-bold text-slate-500">Belum ada data rekomendasi part.</p>@endforelse</div></div>
+    <section class="mt-5 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Analisa Performa Tajam</h2>
+                <p class="mt-1 text-xs font-bold text-slate-500">Hijau = RFU tinggi, merah = Breakdown tinggi, amber = Monitoring / Waiting Part perlu diawasi.</p>
+            </div>
+            <div class="flex flex-wrap gap-2 text-[11px] font-black">
+                <span class="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">RFU Aman</span>
+                <span class="rounded-full bg-rose-50 px-3 py-1 text-rose-700">Breakdown Risiko</span>
+                <span class="rounded-full bg-amber-50 px-3 py-1 text-amber-700">Monitoring / Waiting</span>
+            </div>
+        </div>
+
+        <div class="grid gap-3 xl:grid-cols-3">
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Distribusi Status</h3>
+                <div class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                    @forelse($performanceInsights['status_distribution'] as $row)
+                        @php
+                            $statusClass = match ($row['status']) {
+                                'RFU' => 'border-emerald-100 bg-emerald-50 text-emerald-700',
+                                'Breakdown' => 'border-rose-100 bg-rose-50 text-rose-700',
+                                'Monitoring', 'Waiting Part' => 'border-amber-100 bg-amber-50 text-amber-700',
+                                default => 'border-slate-100 bg-white text-slate-700',
+                            };
+                        @endphp
+                        <div class="flex items-center justify-between rounded-2xl border px-3 py-2 text-sm font-black {{ $statusClass }}">
+                            <span>{{ $row['status'] }}</span>
+                            <span>{{ number_format($row['total']) }}</span>
+                        </div>
+                    @empty
+                        <p class="text-sm font-bold text-slate-500">Belum ada data.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Tipe Pekerjaan Update Job</h3>
+                <div class="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                    @forelse($performanceInsights['job_type_distribution'] as $row)
+                        <div class="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2 text-sm font-black shadow-sm">
+                            <span class="truncate">{{ $row['job_type'] }}</span>
+                            <span class="text-blue-700">{{ number_format($row['total']) }}</span>
+                        </div>
+                    @empty
+                        <p class="text-sm font-bold text-slate-500">Belum ada data.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Produktivitas Bulanan</h3>
+                <div class="mt-3 space-y-2">
+                    @forelse($performanceInsights['monthly_productivity'] as $row)
+                        <div class="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2 text-sm font-bold shadow-sm">
+                            <span class="truncate">{{ $row['pic'] }} · {{ $monthLabels[$row['month']] ?? $row['month'] }}</span>
+                            <span class="font-black text-blue-700">{{ number_format($row['total']) }}</span>
+                        </div>
+                    @empty
+                        <p class="text-sm font-bold text-slate-500">Belum ada data.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3 grid gap-3 xl:grid-cols-2">
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Status per PIC</h3>
+                <div class="mt-3 space-y-2">
+                    @forelse($performanceInsights['status_by_pic'] as $row)
+                        @php
+                            $riskClass = $row['risk_rate'] >= 50
+                                ? 'bg-rose-50 text-rose-700 border-rose-100'
+                                : ($row['risk_rate'] >= 25 ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100');
+                        @endphp
+                        <div class="rounded-2xl border border-slate-100 bg-white p-3 shadow-sm">
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="truncate text-sm font-black text-slate-900">{{ $row['pic'] }}</p>
+                                <span class="rounded-full border px-3 py-1 text-[11px] font-black {{ $riskClass }}">Risk {{ $row['risk_rate'] }}%</span>
+                            </div>
+                            <div class="mt-3 grid grid-cols-2 gap-2 text-[11px] font-black sm:grid-cols-4">
+                                <span class="rounded-xl bg-emerald-50 px-2 py-1 text-emerald-700">RFU {{ $row['rfu'] }}</span>
+                                <span class="rounded-xl bg-rose-50 px-2 py-1 text-rose-700">BD {{ $row['breakdown'] }}</span>
+                                <span class="rounded-xl bg-amber-50 px-2 py-1 text-amber-700">Mon {{ $row['monitoring'] }}</span>
+                                <span class="rounded-xl bg-amber-50 px-2 py-1 text-amber-700">WP {{ $row['waiting_part'] }}</span>
+                            </div>
+                            <div class="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                                <div class="h-full rounded-full bg-emerald-600" style="width: {{ min(100, $row['rfu_rate']) }}%"></div>
+                            </div>
+                            <p class="mt-1 text-[11px] font-bold text-slate-500">RFU Rate {{ $row['rfu_rate'] }}%</p>
+                        </div>
+                    @empty
+                        <p class="text-sm font-bold text-slate-500">Belum ada data.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Beban Customer / Location</h3>
+                <div class="mt-3 space-y-2">
+                    @forelse($performanceInsights['customer_location_load'] as $row)
+                        @php
+                            $loadClass = $row['total'] >= 20 ? 'text-rose-700 bg-rose-50' : ($row['total'] >= 10 ? 'text-amber-700 bg-amber-50' : 'text-blue-700 bg-blue-50');
+                        @endphp
+                        <div class="rounded-2xl bg-white px-3 py-2 shadow-sm">
+                            <div class="flex items-center justify-between gap-3 text-sm font-black">
+                                <span class="truncate">{{ $row['customer'] }}</span>
+                                <span class="rounded-full px-2 py-1 text-[11px] font-black {{ $loadClass }}">{{ number_format($row['total']) }}</span>
+                            </div>
+                            <p class="mt-1 truncate text-xs font-bold text-slate-500">{{ $row['location'] }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm font-bold text-slate-500">Belum ada data.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-3 grid gap-3 xl:grid-cols-2">
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Unit Paling Sering Bermasalah</h3>
+                <div class="mt-3 space-y-2">
+                    @forelse($performanceInsights['troubled_units'] as $row)
+                        <div class="rounded-2xl border border-rose-100 bg-white px-3 py-2 shadow-sm">
+                            <div class="flex items-center justify-between gap-3 text-sm font-black">
+                                <span class="truncate">{{ $row['serial_number'] }}</span>
+                                <span class="rounded-full bg-rose-50 px-2 py-1 text-[11px] text-rose-700">{{ number_format($row['total']) }}x</span>
+                            </div>
+                            <p class="mt-1 truncate text-xs font-bold text-slate-500">{{ $row['unit_type'] }} · {{ $row['customer'] }} · {{ $row['location'] }}</p>
+                        </div>
+                    @empty
+                        <p class="text-sm font-bold text-slate-500">Belum ada data.</p>
+                    @endforelse
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-slate-100 bg-slate-50 p-3">
+                <h3 class="text-xs font-black uppercase tracking-wider text-slate-500">Rekomendasi Part Terbanyak</h3>
+                <div class="mt-3 space-y-2">
+                    @forelse($performanceInsights['top_recommendations'] as $row)
+                        <div class="rounded-2xl bg-white px-3 py-2 shadow-sm">
+                            <div class="flex items-center justify-between gap-3 text-sm font-black">
+                                <span class="truncate">{{ $row['part_name'] }}</span>
+                                <span class="rounded-full bg-blue-50 px-2 py-1 text-[11px] text-blue-700">Qty {{ number_format($row['qty_total']) }}</span>
+                            </div>
+                            <p class="mt-1 truncate text-xs font-bold text-slate-500">PN: {{ $row['part_number'] }} · {{ $row['total'] }} rekomendasi</p>
+                        </div>
+                    @empty
+                        <p class="text-sm font-bold text-slate-500">Belum ada data rekomendasi part.</p>
+                    @endforelse
+                </div>
+            </div>
         </div>
     </section>
 
-    <section class="mt-5 rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
-        <div class="mb-5"><h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Import / Export Excel-Friendly</h2><p class="mt-1 text-xs font-bold text-slate-500">Export mengikuti filter aktif. Import bersifat insert-only, tidak overwrite data lama.</p></div>
+    <section class="mt-5 rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5">
+        <div class="mb-4"><h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Import / Export Excel-Friendly</h2><p class="mt-1 text-xs font-bold text-slate-500">Export mengikuti filter aktif. Import bersifat insert-only, tidak overwrite data lama.</p></div>
         <div class="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             @foreach($moduleStats as $stat)
                 <div class="rounded-3xl border border-slate-100 bg-slate-50 p-4"><div class="flex items-start justify-between gap-3"><div><h3 class="text-sm font-black text-slate-900">{{ $stat['label'] }}</h3><p class="mt-1 text-xs font-bold text-slate-500">{{ $stat['table'] }} · {{ number_format($stat['year_total']) }} data sesuai filter</p></div><a href="{{ route($stat['route']) }}" class="rounded-xl bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm">Buka</a></div><div class="mt-4 grid grid-cols-2 gap-2"><a href="{{ route('command-center.export', array_merge(['module' => $stat['key']], $exportQuery)) }}" class="rounded-2xl bg-blue-600 px-4 py-2.5 text-center text-xs font-black text-white shadow-lg shadow-blue-900/20">Export CSV</a><span class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-center text-xs font-black text-slate-700">Import CSV</span></div><form action="{{ route('command-center.import', $stat['key']) }}" method="POST" enctype="multipart/form-data" class="mt-3 space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-3">@csrf<input type="file" name="file" accept=".csv,.txt" required class="block w-full text-xs font-bold text-slate-700"><button type="submit" class="w-full rounded-2xl bg-amber-600 px-4 py-2.5 text-xs font-black text-white">Upload CSV</button></form>@if(!empty($stat['status_counts']))<div class="mt-4 flex flex-wrap gap-2">@foreach($stat['status_counts'] as $status => $total)<span class="rounded-full bg-white px-3 py-1 text-[11px] font-black text-slate-600 shadow-sm">{{ $status }}: {{ $total }}</span>@endforeach</div>@endif</div>
