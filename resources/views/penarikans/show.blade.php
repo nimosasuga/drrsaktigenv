@@ -62,7 +62,14 @@
         </section>
         <section class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-6">
             <h2 class="mb-5 text-sm font-black uppercase tracking-wider text-slate-900">Battery / Charger / Trolly</h2>
-            <div class="grid gap-4 md:grid-cols-2"><div><p class="text-xs font-bold uppercase text-slate-400">Battery</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->battery_type ?? '-' }} / {{ $penarikan->battery_sn ?? '-' }}</p></div><div><p class="text-xs font-bold uppercase text-slate-400">Charger</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->charger_type ?? '-' }} / {{ $penarikan->charger_sn ?? '-' }}</p></div><div><p class="text-xs font-bold uppercase text-slate-400">Trolly</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->trolly ?? '-' }}</p></div></div>
+            <div class="grid gap-4 md:grid-cols-2">
+                <div><p class="text-xs font-bold uppercase text-slate-400">Battery 1</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->battery_type ?? '-' }} / {{ $penarikan->battery_sn ?? '-' }}</p></div>
+                <div><p class="text-xs font-bold uppercase text-slate-400">Battery 2</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->battery_type_2 ?? '-' }} / {{ $penarikan->battery_sn_2 ?? '-' }}</p></div>
+                <div><p class="text-xs font-bold uppercase text-slate-400">Charger</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->charger_type ?? '-' }} / {{ $penarikan->charger_sn ?? '-' }}</p></div>
+                <div><p class="text-xs font-bold uppercase text-slate-400">Trolly 1</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->trolly ?? '-' }}</p></div>
+                <div><p class="text-xs font-bold uppercase text-slate-400">Trolly 2</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->trolly_2 ?? '-' }}</p></div>
+                <div><p class="text-xs font-bold uppercase text-slate-400">Trolly 3</p><p class="mt-1 text-sm font-black text-slate-900">{{ $penarikan->trolly_3 ?? '-' }}</p></div>
+            </div>
         </section>
     </div>
 
