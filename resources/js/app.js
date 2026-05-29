@@ -6,3 +6,4 @@ import "./penarikan-menu-link";
 import "./penarikan-form-enhancer";
 import "./update-job-withdrawn-asset-blocker";
 import "./update-job-field-options";
+import "./update-job-copy-report";
