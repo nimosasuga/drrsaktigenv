@@ -133,6 +133,7 @@ class PenarikanController extends Controller
                     ->orWhere('vehicle', 'like', "%{$search}%")
                     ->orWhere('nopol', 'like', "%{$search}%")
                     ->orWhere('battery_sn', 'like', "%{$search}%")
+                    ->orWhere('battery_sn_2', 'like', "%{$search}%")
                     ->orWhere('charger_sn', 'like', "%{$search}%");
             });
         }
@@ -210,16 +211,17 @@ class PenarikanController extends Controller
 
     public function searchAssets(Request $request)
     {
-        $search = $request->get('q');
+        $search = trim((string) $request->get('q', ''));
 
-        if (empty($search)) {
+        if ($search === '') {
             return response()->json([]);
         }
 
         $assets = UnitAsset::where('serial_number', 'like', "%{$search}%")
             ->orWhere('unit_type', 'like', "%{$search}%")
             ->orWhere('customer', 'like', "%{$search}%")
-            ->take(10)
+            ->orWhere('location', 'like', "%{$search}%")
+            ->limit(12)
             ->get();
 
         return response()->json($assets->map(fn ($asset) => [
@@ -330,16 +332,24 @@ class PenarikanController extends Controller
             'status_unit' => 'required|string|in:RFU,BREAKDOWN',
             'battery_type' => 'nullable|string|max:150',
             'battery_sn' => 'nullable|string|max:150',
+            'battery_type_2' => 'nullable|string|max:150',
+            'battery_sn_2' => 'nullable|string|max:150',
             'charger_type' => 'nullable|string|max:150',
             'charger_sn' => 'nullable|string|max:150',
             'trolly' => 'nullable|string|max:150',
+            'trolly_2' => 'nullable|string|max:150',
+            'trolly_3' => 'nullable|string|max:150',
             'note' => 'nullable|string',
         ]);
     }
 
     private function normalizePenarikanData(array $data): array
     {
-        foreach (['vehicle', 'nopol', 'customer', 'location', 'serial_number', 'unit_type', 'battery_type', 'battery_sn', 'charger_type', 'charger_sn', 'trolly'] as $field) {
+        foreach ([
+            'vehicle', 'nopol', 'customer', 'location', 'serial_number', 'unit_type',
+            'battery_type', 'battery_sn', 'battery_type_2', 'battery_sn_2',
+            'charger_type', 'charger_sn', 'trolly', 'trolly_2', 'trolly_3'
+        ] as $field) {
             if (isset($data[$field]) && $data[$field] !== null) {
                 $data[$field] = strtoupper((string) $data[$field]);
             }
