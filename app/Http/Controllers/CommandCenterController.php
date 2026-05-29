@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +23,7 @@ class CommandCenterController extends Controller
 
     private function canAccessCommandCenter(): bool
     {
-        $roleText = $this->roleText();
-        $roleText = str_replace(['-', '_'], ' ', $roleText);
+        $roleText = str_replace(['-', '_'], ' ', $this->roleText());
 
         return str_contains($roleText, 'koordinator')
             || str_contains($roleText, 'coordinator')
@@ -97,13 +97,16 @@ class CommandCenterController extends Controller
     {
         $this->authorizeCommandCenter();
 
-        $selectedYear = (int) $request->input('year', now()->year);
         $modules = $this->modules();
+        $filters = $this->filters($request, $modules);
+        $activeModules = $this->activeModules($modules, $filters['module']);
+
         $moduleStats = [];
         $monthlyTotals = array_fill(1, 12, 0);
         $picScores = [];
+        $filteredTotalRecords = 0;
 
-        foreach ($modules as $key => $module) {
+        foreach ($activeModules as $key => $module) {
             $table = $module['table'];
 
             if (!Schema::hasTable($table)) {
@@ -115,37 +118,41 @@ class CommandCenterController extends Controller
             $unitColumn = $module['unit_column'];
             $statusColumn = $module['status_column'];
 
-            $baseQuery = DB::table($table);
-            $yearQuery = DB::table($table);
+            $total = DB::table($table)->count();
+            $filteredQuery = DB::table($table);
+            $this->applyFilters($filteredQuery, $module, $columns, $filters, true);
 
-            if (in_array($dateColumn, $columns, true)) {
-                $yearQuery->whereYear($dateColumn, $selectedYear);
-            }
+            $yearTotal = (clone $filteredQuery)->count();
+            $filteredTotalRecords += $yearTotal;
 
-            $total = (clone $baseQuery)->count();
-            $yearTotal = (clone $yearQuery)->count();
             $uniqueUnits = in_array($unitColumn, $columns, true)
-                ? (clone $yearQuery)->whereNotNull($unitColumn)->where($unitColumn, '!=', '')->distinct()->count($unitColumn)
+                ? (clone $filteredQuery)->whereNotNull($unitColumn)->where($unitColumn, '!=', '')->distinct()->count($unitColumn)
                 : 0;
 
             $statusCounts = [];
             if (in_array($statusColumn, $columns, true)) {
-                $statusCounts = (clone $yearQuery)
+                $statusQuery = DB::table($table);
+                $this->applyFilters($statusQuery, $module, $columns, $filters, true, false);
+
+                $statusCounts = $statusQuery
                     ->select($statusColumn, DB::raw('COUNT(*) as total'))
                     ->whereNotNull($statusColumn)
                     ->where($statusColumn, '!=', '')
                     ->groupBy($statusColumn)
                     ->orderByDesc('total')
-                    ->limit(8)
+                    ->limit(10)
                     ->pluck('total', $statusColumn)
                     ->toArray();
             }
 
             $monthly = array_fill(1, 12, 0);
             if (in_array($dateColumn, $columns, true)) {
-                $rows = DB::table($table)
+                $monthlyQuery = DB::table($table);
+                $this->applyFilters($monthlyQuery, $module, $columns, $filters, false);
+
+                $rows = $monthlyQuery
                     ->selectRaw("MONTH({$dateColumn}) as month_number, COUNT(*) as total")
-                    ->whereYear($dateColumn, $selectedYear)
+                    ->whereYear($dateColumn, $filters['year'])
                     ->whereNotNull($dateColumn)
                     ->groupBy('month_number')
                     ->pluck('total', 'month_number')
@@ -161,7 +168,10 @@ class CommandCenterController extends Controller
             }
 
             if (in_array('pic', $columns, true)) {
-                $picRows = (clone $yearQuery)
+                $picQuery = DB::table($table);
+                $this->applyFilters($picQuery, $module, $columns, $filters, true, true, false);
+
+                $picRows = $picQuery
                     ->select('pic', DB::raw('COUNT(*) as total'))
                     ->whereNotNull('pic')
                     ->where('pic', '!=', '')
@@ -200,8 +210,8 @@ class CommandCenterController extends Controller
         $picScores = array_slice($picScores, 0, 10);
 
         $summary = [
-            'selected_year' => $selectedYear,
-            'total_records' => array_sum(array_column($moduleStats, 'year_total')),
+            'selected_year' => $filters['year'],
+            'total_records' => $filteredTotalRecords,
             'total_modules' => count($moduleStats),
             'peak_month_total' => max($monthlyTotals ?: [0]),
             'asset_active' => Schema::hasTable('unit_assets') ? DB::table('unit_assets')->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")->count() : 0,
@@ -209,14 +219,19 @@ class CommandCenterController extends Controller
         ];
 
         $years = $this->availableYears($modules);
+        $filterOptions = $this->filterOptions($modules, $filters);
+        $exportQuery = $this->exportQuery($filters);
 
-        return view('command-center.index', compact('modules', 'moduleStats', 'summary', 'monthlyTotals', 'picScores', 'selectedYear', 'years'));
+        return view('command-center.index', compact('modules', 'activeModules', 'moduleStats', 'summary', 'monthlyTotals', 'picScores', 'filters', 'years', 'filterOptions', 'exportQuery'));
     }
 
-    public function export(string $module)
+    public function export(Request $request, string $module)
     {
         $this->authorizeCommandCenter();
+
+        $modules = $this->modules();
         $moduleConfig = $this->moduleOrFail($module);
+        $filters = $this->filters($request, $modules);
         $table = $moduleConfig['table'];
 
         abort_unless(Schema::hasTable($table), 404, 'Tabel tidak ditemukan.');
@@ -224,12 +239,14 @@ class CommandCenterController extends Controller
         $columns = Schema::getColumnListing($table);
         $filename = $module . '-' . now()->format('Ymd-His') . '.csv';
 
-        return response()->streamDownload(function () use ($table, $columns) {
+        return response()->streamDownload(function () use ($table, $columns, $moduleConfig, $filters) {
             $handle = fopen('php://output', 'w');
             fwrite($handle, "\xEF\xBB\xBF");
             fputcsv($handle, $columns);
 
             $query = DB::table($table);
+            $this->applyFilters($query, $moduleConfig, $columns, $filters, true);
+
             if (in_array('id', $columns, true)) {
                 $query->orderBy('id');
             }
@@ -341,6 +358,141 @@ class CommandCenterController extends Controller
 
             return back()->withErrors(['error' => 'Import gagal: ' . $e->getMessage()]);
         }
+    }
+
+    private function filters(Request $request, array $modules): array
+    {
+        $module = (string) $request->input('module', 'all');
+        if ($module !== 'all' && !isset($modules[$module])) {
+            $module = 'all';
+        }
+
+        $month = $request->input('month');
+        $month = is_numeric($month) ? (int) $month : null;
+        if ($month !== null && ($month < 1 || $month > 12)) {
+            $month = null;
+        }
+
+        return [
+            'module' => $module,
+            'year' => (int) $request->input('year', now()->year),
+            'month' => $month,
+            'pic' => trim((string) $request->input('pic', '')),
+            'customer' => trim((string) $request->input('customer', '')),
+            'location' => trim((string) $request->input('location', '')),
+            'status' => trim((string) $request->input('status', '')),
+        ];
+    }
+
+    private function activeModules(array $modules, string $selectedModule): array
+    {
+        if ($selectedModule !== 'all' && isset($modules[$selectedModule])) {
+            return [$selectedModule => $modules[$selectedModule]];
+        }
+
+        return $modules;
+    }
+
+    private function applyFilters(
+        Builder $query,
+        array $module,
+        array $columns,
+        array $filters,
+        bool $applyMonth = true,
+        bool $applyStatus = true,
+        bool $applyPic = true
+    ): void {
+        $dateColumn = $module['date_column'];
+        $statusColumn = $module['status_column'];
+
+        if (in_array($dateColumn, $columns, true)) {
+            $query->whereYear($dateColumn, $filters['year']);
+
+            if ($applyMonth && !empty($filters['month'])) {
+                $query->whereMonth($dateColumn, $filters['month']);
+            }
+        }
+
+        if ($applyPic && $filters['pic'] !== '') {
+            in_array('pic', $columns, true)
+                ? $query->where('pic', $filters['pic'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['customer'] !== '') {
+            in_array('customer', $columns, true)
+                ? $query->where('customer', $filters['customer'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['location'] !== '') {
+            in_array('location', $columns, true)
+                ? $query->where('location', $filters['location'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($applyStatus && $filters['status'] !== '') {
+            in_array($statusColumn, $columns, true)
+                ? $query->where($statusColumn, $filters['status'])
+                : $query->whereRaw('1 = 0');
+        }
+    }
+
+    private function filterOptions(array $modules, array $filters): array
+    {
+        $activeModules = $this->activeModules($modules, $filters['module']);
+        $options = [
+            'pics' => [],
+            'customers' => [],
+            'locations' => [],
+            'statuses' => [],
+        ];
+
+        foreach ($activeModules as $module) {
+            $table = $module['table'];
+            if (!Schema::hasTable($table)) {
+                continue;
+            }
+
+            $columns = Schema::getColumnListing($table);
+
+            if (in_array('pic', $columns, true)) {
+                $options['pics'] = array_merge($options['pics'], DB::table($table)->whereNotNull('pic')->where('pic', '!=', '')->distinct()->pluck('pic')->toArray());
+            }
+
+            if (in_array('customer', $columns, true)) {
+                $options['customers'] = array_merge($options['customers'], DB::table($table)->whereNotNull('customer')->where('customer', '!=', '')->distinct()->pluck('customer')->toArray());
+            }
+
+            if (in_array('location', $columns, true)) {
+                $options['locations'] = array_merge($options['locations'], DB::table($table)->whereNotNull('location')->where('location', '!=', '')->distinct()->pluck('location')->toArray());
+            }
+
+            $statusColumn = $module['status_column'];
+            if (in_array($statusColumn, $columns, true)) {
+                $options['statuses'] = array_merge($options['statuses'], DB::table($table)->whereNotNull($statusColumn)->where($statusColumn, '!=', '')->distinct()->pluck($statusColumn)->toArray());
+            }
+        }
+
+        foreach ($options as $key => $values) {
+            $values = array_values(array_unique(array_filter($values, fn ($value) => $value !== null && $value !== '')));
+            sort($values, SORT_NATURAL | SORT_FLAG_CASE);
+            $options[$key] = $values;
+        }
+
+        return $options;
+    }
+
+    private function exportQuery(array $filters): array
+    {
+        return array_filter([
+            'year' => $filters['year'],
+            'month' => $filters['month'],
+            'pic' => $filters['pic'],
+            'customer' => $filters['customer'],
+            'location' => $filters['location'],
+            'status' => $filters['status'],
+        ], fn ($value) => $value !== null && $value !== '');
     }
 
     private function moduleOrFail(string $module): array
