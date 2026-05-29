@@ -13,15 +13,13 @@ use Illuminate\Support\Facades\DB;
 
 class BatteryController extends Controller
 {
-    /**
-     * Helper untuk mengecek Hak Akses (Otorisasi)
-     */
     private function canEditBattery($battery)
     {
         $user = Auth::user();
         $role = $user->role ?? $user->status_user;
         $privilegedRoles = ['koordinator', 'sect_head', 'admin', 'super_admin'];
-        return ($user->id === $battery->user_id) || in_array($role, $privilegedRoles);
+
+        return ($user->id === $battery->user_id) || in_array($role, $privilegedRoles, true);
     }
 
     private function isRfuStatus($status): bool
@@ -37,6 +35,29 @@ class BatteryController extends Controller
             || str_contains($normalized, 'BREAKDOWN');
     }
 
+    private function isWithdrawnAssetStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'DITARIK';
+    }
+
+    private function assetWithdrawnError(string $serialNumber): string
+    {
+        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Management Battery karena status unit asset sudah DITARIK.";
+    }
+
+    private function rejectIfAssetWithdrawn(string $serialNumber)
+    {
+        $asset = UnitAsset::where('serial_number', strtoupper(trim($serialNumber)))->first();
+
+        if ($asset && $this->isWithdrawnAssetStatus($asset->status ?? null)) {
+            return back()
+                ->withInput()
+                ->withErrors(['error' => $this->assetWithdrawnError($serialNumber)]);
+        }
+
+        return null;
+    }
+
     private function countRfu($batteries): int
     {
         return $batteries->filter(fn ($battery) => $this->isRfuStatus($battery->status_unit))->count();
@@ -47,22 +68,16 @@ class BatteryController extends Controller
         return $batteries->filter(fn ($battery) => $this->isBreakdownStatus($battery->status_unit))->count();
     }
 
-    /**
-     * Menampilkan daftar Battery Job dengan grouping bertingkat:
-     * Bulan & Tahun -> PIC -> Customer / Lokasi -> Detail Battery.
-     */
     public function index(Request $request)
     {
         $query = Battery::with('user');
-
         $selectedYear = (int) $request->input('year_filter', now()->year);
 
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
 
             if (count($parts) === 2) {
-                $query->whereYear('date', $parts[0])
-                    ->whereMonth('date', $parts[1]);
+                $query->whereYear('date', $parts[0])->whereMonth('date', $parts[1]);
             }
         } else {
             $query->whereYear('date', $selectedYear);
@@ -105,10 +120,7 @@ class BatteryController extends Controller
             });
         }
 
-        $batteries = $query
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get();
+        $batteries = $query->orderByDesc('date')->orderByDesc('id')->get();
 
         $summary = [
             'total_jobs' => $batteries->count(),
@@ -120,20 +132,14 @@ class BatteryController extends Controller
         ];
 
         $groupedBatteries = $batteries
-            ->groupBy(function ($battery) {
-                return $battery->date
-                    ? Carbon::parse($battery->date)->translatedFormat('F Y')
-                    : 'Tanpa Tanggal';
-            })
+            ->groupBy(fn ($battery) => $battery->date ? Carbon::parse($battery->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
             ->map(function ($monthBatteries, $monthName) {
                 return [
                     'name' => $monthName,
                     'total' => $monthBatteries->count(),
                     'pic_total' => $monthBatteries->pluck('pic')->filter()->unique()->count(),
                     'battery_total' => $monthBatteries->pluck('sn_battery')->filter()->unique()->count(),
-                    'customer_location_total' => $monthBatteries->unique(function ($battery) {
-                        return ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi');
-                    })->count(),
+                    'customer_location_total' => $monthBatteries->unique(fn ($battery) => ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi'))->count(),
                     'rfu_total' => $this->countRfu($monthBatteries),
                     'breakdown_total' => $this->countBreakdown($monthBatteries),
                     'pics' => $monthBatteries
@@ -143,15 +149,11 @@ class BatteryController extends Controller
                                 'name' => $picName,
                                 'total' => $picBatteries->count(),
                                 'battery_total' => $picBatteries->pluck('sn_battery')->filter()->unique()->count(),
-                                'customer_location_total' => $picBatteries->unique(function ($battery) {
-                                    return ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi');
-                                })->count(),
+                                'customer_location_total' => $picBatteries->unique(fn ($battery) => ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi'))->count(),
                                 'rfu_total' => $this->countRfu($picBatteries),
                                 'breakdown_total' => $this->countBreakdown($picBatteries),
                                 'customer_locations' => $picBatteries
-                                    ->groupBy(function ($battery) {
-                                        return ($battery->customer ?: 'Tanpa Customer') . ' / ' . ($battery->location ?: 'Tanpa Lokasi');
-                                    })
+                                    ->groupBy(fn ($battery) => ($battery->customer ?: 'Tanpa Customer') . ' / ' . ($battery->location ?: 'Tanpa Lokasi'))
                                     ->map(function ($locationBatteries, $customerLocationName) {
                                         return [
                                             'name' => $customerLocationName,
@@ -168,120 +170,79 @@ class BatteryController extends Controller
                 ];
             });
 
-        $customers = Battery::whereNotNull('customer')
-            ->where('customer', '!=', '')
-            ->select('customer')
-            ->distinct()
-            ->orderBy('customer')
-            ->pluck('customer');
+        $customers = Battery::whereNotNull('customer')->where('customer', '!=', '')->select('customer')->distinct()->orderBy('customer')->pluck('customer');
+        $pics = Battery::whereNotNull('pic')->where('pic', '!=', '')->select('pic')->distinct()->orderBy('pic')->pluck('pic');
+        $locations = Battery::whereNotNull('location')->where('location', '!=', '')->select('location')->distinct()->orderBy('location')->pluck('location');
+        $statuses = Battery::whereNotNull('status_unit')->where('status_unit', '!=', '')->select('status_unit')->distinct()->orderBy('status_unit')->pluck('status_unit');
+        $categories = Battery::whereNotNull('category_job')->where('category_job', '!=', '')->select('category_job')->distinct()->orderBy('category_job')->pluck('category_job');
+        $years = Battery::whereNotNull('date')->selectRaw('YEAR(date) as year')->distinct()->orderByDesc('year')->pluck('year')->filter()->values();
 
-        $pics = Battery::whereNotNull('pic')
-            ->where('pic', '!=', '')
-            ->select('pic')
-            ->distinct()
-            ->orderBy('pic')
-            ->pluck('pic');
-
-        $locations = Battery::whereNotNull('location')
-            ->where('location', '!=', '')
-            ->select('location')
-            ->distinct()
-            ->orderBy('location')
-            ->pluck('location');
-
-        $statuses = Battery::whereNotNull('status_unit')
-            ->where('status_unit', '!=', '')
-            ->select('status_unit')
-            ->distinct()
-            ->orderBy('status_unit')
-            ->pluck('status_unit');
-
-        $categories = Battery::whereNotNull('category_job')
-            ->where('category_job', '!=', '')
-            ->select('category_job')
-            ->distinct()
-            ->orderBy('category_job')
-            ->pluck('category_job');
-
-        $years = Battery::whereNotNull('date')
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->orderByDesc('year')
-            ->pluck('year')
-            ->filter()
-            ->values();
-
-        return view('batteries.index', compact(
-            'groupedBatteries',
-            'summary',
-            'customers',
-            'pics',
-            'locations',
-            'statuses',
-            'categories',
-            'years',
-            'selectedYear'
-        ));
+        return view('batteries.index', compact('groupedBatteries', 'summary', 'customers', 'pics', 'locations', 'statuses', 'categories', 'years', 'selectedYear'));
     }
 
     public function create()
     {
         $user = Auth::user();
         $branch = $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->get(['id', 'name']);
+        $partners = User::where('branch', $branch)->where('id', '!=', $user->id)->get(['id', 'name']);
 
         return view('batteries.create', compact('user', 'branch', 'partners'));
     }
 
     public function searchAssets(Request $request)
     {
-        $search = $request->get('q');
-        if (empty($search)) return response()->json([]);
+        $search = trim((string) $request->get('q', ''));
 
-        $assets = UnitAsset::where('serial_number', 'LIKE', "%{$search}%")->take(10)->get();
+        if ($search === '') {
+            return response()->json([]);
+        }
 
-        $mapped = $assets->map(function ($asset) {
-            return [
-                'serial_number' => $asset->serial_number,
-                'unit_type'     => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
-                'customer'      => $asset->customer ?? $asset->nama_pelanggan ?? '',
-                'location'      => $asset->location ?? $asset->lokasi ?? ''
-            ];
-        });
+        $assets = UnitAsset::where(function ($query) use ($search) {
+                $query->where('serial_number', 'LIKE', "%{$search}%")
+                    ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                    ->orWhere('customer', 'LIKE', "%{$search}%")
+                    ->orWhere('location', 'LIKE', "%{$search}%");
+            })
+            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")
+            ->take(10)
+            ->get();
 
-        return response()->json($mapped);
+        return response()->json($assets->map(fn ($asset) => [
+            'serial_number' => $asset->serial_number,
+            'unit_type' => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
+            'customer' => $asset->customer ?? $asset->nama_pelanggan ?? '',
+            'location' => $asset->location ?? $asset->lokasi ?? '',
+            'status' => $asset->status ?? '',
+        ]));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'date'          => 'required|date',
-            'in_time'       => 'required|date_format:H:i',
-            'out_time'      => 'required|date_format:H:i',
-            'vehicle'       => 'required|string|max:150',
-            'nopol'         => 'required|string|max:100',
-
-            'customer'      => 'required|string|max:150',
-            'location'      => 'required|string|max:150',
-            'unit_type'     => 'required|string|max:100',
+            'date' => 'required|date',
+            'in_time' => 'required|date_format:H:i',
+            'out_time' => 'required|date_format:H:i',
+            'vehicle' => 'required|string|max:150',
+            'nopol' => 'required|string|max:100',
+            'customer' => 'required|string|max:150',
+            'location' => 'required|string|max:150',
+            'unit_type' => 'required|string|max:100',
             'serial_number' => 'required|string|max:100',
-
-            'sn_battery'    => 'required|string|max:100',
-            'battery_type'  => 'required|string|max:100',
-            'battery_year'  => 'nullable|integer',
-
-            'category_job'  => 'required|string|max:100',
-            'status_unit'   => 'required|string|max:100',
-
-            'problem_date'  => 'nullable|date',
-            'rfu_date'      => 'nullable|date',
-            'problem'       => 'nullable|string',
-            'action'        => 'nullable|string',
-            'partner'       => 'nullable|string|max:150',
+            'sn_battery' => 'required|string|max:100',
+            'battery_type' => 'required|string|max:100',
+            'battery_year' => 'nullable|integer',
+            'category_job' => 'required|string|max:100',
+            'status_unit' => 'required|string|max:100',
+            'problem_date' => 'nullable|date',
+            'rfu_date' => 'nullable|date',
+            'problem' => 'nullable|string',
+            'action' => 'nullable|string',
+            'partner' => 'nullable|string|max:150',
         ]);
+
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
@@ -303,11 +264,11 @@ class BatteryController extends Controller
                     if (!empty($part_name)) {
                         $battery->installParts()->create([
                             'part_number' => $request->inst_part_number[$key] ?? null,
-                            'part_name'   => $part_name,
-                            'qty'         => $request->inst_qty[$key] ?? 1,
-                            'remarks'     => $request->inst_remarks[$key] ?? null,
-                            'no_job'      => $request->inst_no_job[$key] ?? null,
-                            'no_pr'       => $request->inst_no_pr[$key] ?? null,
+                            'part_name' => $part_name,
+                            'qty' => $request->inst_qty[$key] ?? 1,
+                            'remarks' => $request->inst_remarks[$key] ?? null,
+                            'no_job' => $request->inst_no_job[$key] ?? null,
+                            'no_pr' => $request->inst_no_pr[$key] ?? null,
                         ]);
                     }
                 }
@@ -318,9 +279,9 @@ class BatteryController extends Controller
                     if (!empty($part_name)) {
                         $battery->recommendations()->create([
                             'part_number' => $request->rec_part_number[$key] ?? null,
-                            'part_name'   => $part_name,
-                            'qty'         => $request->rec_qty[$key] ?? 1,
-                            'remarks'     => $request->rec_remarks[$key] ?? null,
+                            'part_name' => $part_name,
+                            'qty' => $request->rec_qty[$key] ?? 1,
+                            'remarks' => $request->rec_remarks[$key] ?? null,
                         ]);
                     }
                 }
@@ -352,9 +313,6 @@ class BatteryController extends Controller
         return redirect()->route('batteries.index')->with('success', 'Data Battery berhasil dihapus permanen.');
     }
 
-    /**
-     * Menampilkan form edit data Battery.
-     */
     public function edit($id)
     {
         $battery = Battery::with(['installParts', 'recommendations'])->findOrFail($id);
@@ -365,17 +323,11 @@ class BatteryController extends Controller
 
         $user = Auth::user();
         $branch = $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->get(['id', 'name']);
+        $partners = User::where('branch', $branch)->where('id', '!=', $user->id)->get(['id', 'name']);
 
         return view('batteries.edit', compact('battery', 'user', 'branch', 'partners'));
     }
 
-    /**
-     * Memperbarui data Battery di database.
-     */
     public function update(Request $request, $id)
     {
         $battery = Battery::findOrFail($id);
@@ -385,35 +337,34 @@ class BatteryController extends Controller
         }
 
         $validated = $request->validate([
-            'date'          => 'required|date',
-            'in_time'       => 'required|date_format:H:i',
-            'out_time'      => 'required|date_format:H:i',
-            'vehicle'       => 'required|string|max:150',
-            'nopol'         => 'required|string|max:100',
-
-            'customer'      => 'required|string|max:150',
-            'location'      => 'required|string|max:150',
-            'unit_type'     => 'required|string|max:100',
+            'date' => 'required|date',
+            'in_time' => 'required|date_format:H:i',
+            'out_time' => 'required|date_format:H:i',
+            'vehicle' => 'required|string|max:150',
+            'nopol' => 'required|string|max:100',
+            'customer' => 'required|string|max:150',
+            'location' => 'required|string|max:150',
+            'unit_type' => 'required|string|max:100',
             'serial_number' => 'required|string|max:100',
-
-            'sn_battery'    => 'required|string|max:100',
-            'battery_type'  => 'required|string|max:100',
-            'battery_year'  => 'nullable|integer',
-
-            'category_job'  => 'required|string|max:100',
-            'status_unit'   => 'required|string|max:100',
-
-            'problem_date'  => 'nullable|date',
-            'rfu_date'      => 'nullable|date',
-            'problem'       => 'nullable|string',
-            'action'        => 'nullable|string',
-            'partner'       => 'nullable|string|max:150',
+            'sn_battery' => 'required|string|max:100',
+            'battery_type' => 'required|string|max:100',
+            'battery_year' => 'nullable|integer',
+            'category_job' => 'required|string|max:100',
+            'status_unit' => 'required|string|max:100',
+            'problem_date' => 'nullable|date',
+            'rfu_date' => 'nullable|date',
+            'problem' => 'nullable|string',
+            'action' => 'nullable|string',
+            'partner' => 'nullable|string|max:150',
         ]);
+
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
         try {
-            // Update Array Checkbox ke String
             if ($request->has('job_types') && is_array($request->job_types)) {
                 $validated['job_type'] = implode(', ', $request->job_types);
             } else {
@@ -422,33 +373,31 @@ class BatteryController extends Controller
 
             $battery->update($validated);
 
-            // Sync Install Parts
             $battery->installParts()->delete();
             if ($request->has('inst_part_name')) {
                 foreach ($request->inst_part_name as $key => $part_name) {
                     if (!empty($part_name)) {
                         $battery->installParts()->create([
                             'part_number' => $request->inst_part_number[$key] ?? null,
-                            'part_name'   => $part_name,
-                            'qty'         => $request->inst_qty[$key] ?? 1,
-                            'remarks'     => $request->inst_remarks[$key] ?? null,
-                            'no_job'      => $request->inst_no_job[$key] ?? null,
-                            'no_pr'       => $request->inst_no_pr[$key] ?? null,
+                            'part_name' => $part_name,
+                            'qty' => $request->inst_qty[$key] ?? 1,
+                            'remarks' => $request->inst_remarks[$key] ?? null,
+                            'no_job' => $request->inst_no_job[$key] ?? null,
+                            'no_pr' => $request->inst_no_pr[$key] ?? null,
                         ]);
                     }
                 }
             }
 
-            // Sync Recommendations
             $battery->recommendations()->delete();
             if ($request->has('rec_part_name')) {
                 foreach ($request->rec_part_name as $key => $part_name) {
                     if (!empty($part_name)) {
                         $battery->recommendations()->create([
                             'part_number' => $request->rec_part_number[$key] ?? null,
-                            'part_name'   => $part_name,
-                            'qty'         => $request->rec_qty[$key] ?? 1,
-                            'remarks'     => $request->rec_remarks[$key] ?? null,
+                            'part_name' => $part_name,
+                            'qty' => $request->rec_qty[$key] ?? 1,
+                            'remarks' => $request->rec_remarks[$key] ?? null,
                         ]);
                     }
                 }
