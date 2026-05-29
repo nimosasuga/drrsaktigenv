@@ -221,8 +221,21 @@ class CommandCenterController extends Controller
         $years = $this->availableYears($modules);
         $filterOptions = $this->filterOptions($modules, $filters);
         $exportQuery = $this->exportQuery($filters);
+        $performanceInsights = $this->performanceInsights($activeModules, $filters);
 
-        return view('command-center.index', compact('modules', 'activeModules', 'moduleStats', 'summary', 'monthlyTotals', 'picScores', 'filters', 'years', 'filterOptions', 'exportQuery'));
+        return view('command-center.index', compact(
+            'modules',
+            'activeModules',
+            'moduleStats',
+            'summary',
+            'monthlyTotals',
+            'picScores',
+            'filters',
+            'years',
+            'filterOptions',
+            'exportQuery',
+            'performanceInsights'
+        ));
     }
 
     public function export(Request $request, string $module)
@@ -481,6 +494,326 @@ class CommandCenterController extends Controller
         }
 
         return $options;
+    }
+
+    private function performanceInsights(array $activeModules, array $filters): array
+    {
+        return [
+            'monthly_productivity' => $this->monthlyProductivity($activeModules, $filters),
+            'customer_location_load' => $this->customerLocationLoad($activeModules, $filters),
+            'rfu_breakdown_ratio' => $this->rfuBreakdownRatio($activeModules, $filters),
+            'troubled_units' => $this->troubledUnits($activeModules, $filters),
+            'top_recommendations' => $this->topRecommendations($activeModules, $filters),
+        ];
+    }
+
+    private function monthlyProductivity(array $activeModules, array $filters): array
+    {
+        $scores = [];
+
+        foreach ($activeModules as $module) {
+            if (!Schema::hasTable($module['table'])) {
+                continue;
+            }
+
+            $columns = Schema::getColumnListing($module['table']);
+            if (!in_array('pic', $columns, true) || !in_array($module['date_column'], $columns, true)) {
+                continue;
+            }
+
+            $query = DB::table($module['table']);
+            $this->applyFilters($query, $module, $columns, $filters, true, true, false);
+
+            $rows = $query
+                ->select('pic', DB::raw("MONTH({$module['date_column']}) as month_number"), DB::raw('COUNT(*) as total'))
+                ->whereNotNull('pic')
+                ->where('pic', '!=', '')
+                ->groupBy('pic', 'month_number')
+                ->get();
+
+            foreach ($rows as $row) {
+                $key = $row->pic . '|' . (int) $row->month_number;
+                if (!isset($scores[$key])) {
+                    $scores[$key] = [
+                        'pic' => $row->pic,
+                        'month' => (int) $row->month_number,
+                        'total' => 0,
+                    ];
+                }
+
+                $scores[$key]['total'] += (int) $row->total;
+            }
+        }
+
+        usort($scores, fn ($a, $b) => $b['total'] <=> $a['total']);
+
+        return array_slice(array_values($scores), 0, 12);
+    }
+
+    private function customerLocationLoad(array $activeModules, array $filters): array
+    {
+        $loads = [];
+
+        foreach ($activeModules as $module) {
+            if (!Schema::hasTable($module['table'])) {
+                continue;
+            }
+
+            $columns = Schema::getColumnListing($module['table']);
+            if (!in_array('customer', $columns, true) || !in_array('location', $columns, true)) {
+                continue;
+            }
+
+            $query = DB::table($module['table']);
+            $this->applyFilters($query, $module, $columns, $filters, true);
+
+            $rows = $query
+                ->select('customer', 'location', DB::raw('COUNT(*) as total'))
+                ->groupBy('customer', 'location')
+                ->orderByDesc('total')
+                ->limit(30)
+                ->get();
+
+            foreach ($rows as $row) {
+                $customer = $row->customer ?: 'Tanpa Customer';
+                $location = $row->location ?: 'Tanpa Location';
+                $key = $customer . '|' . $location;
+
+                if (!isset($loads[$key])) {
+                    $loads[$key] = [
+                        'customer' => $customer,
+                        'location' => $location,
+                        'total' => 0,
+                    ];
+                }
+
+                $loads[$key]['total'] += (int) $row->total;
+            }
+        }
+
+        usort($loads, fn ($a, $b) => $b['total'] <=> $a['total']);
+
+        return array_slice(array_values($loads), 0, 10);
+    }
+
+    private function rfuBreakdownRatio(array $activeModules, array $filters): array
+    {
+        $ratios = [];
+
+        foreach ($activeModules as $module) {
+            if (!Schema::hasTable($module['table'])) {
+                continue;
+            }
+
+            $columns = Schema::getColumnListing($module['table']);
+            $statusColumn = $module['status_column'];
+            if (!in_array('pic', $columns, true) || !in_array($statusColumn, $columns, true)) {
+                continue;
+            }
+
+            $query = DB::table($module['table']);
+            $this->applyFilters($query, $module, $columns, $filters, true, false, false);
+
+            $rows = $query
+                ->select('pic', $statusColumn, DB::raw('COUNT(*) as total'))
+                ->whereNotNull('pic')
+                ->where('pic', '!=', '')
+                ->whereNotNull($statusColumn)
+                ->where($statusColumn, '!=', '')
+                ->groupBy('pic', $statusColumn)
+                ->get();
+
+            foreach ($rows as $row) {
+                $pic = $row->pic ?: 'Tanpa PIC';
+                if (!isset($ratios[$pic])) {
+                    $ratios[$pic] = [
+                        'pic' => $pic,
+                        'rfu' => 0,
+                        'breakdown' => 0,
+                        'other' => 0,
+                        'total' => 0,
+                        'rfu_rate' => 0,
+                    ];
+                }
+
+                $status = strtoupper(trim((string) $row->{$statusColumn}));
+                $count = (int) $row->total;
+
+                if ($status === 'RFU') {
+                    $ratios[$pic]['rfu'] += $count;
+                } elseif (in_array($status, ['B/D', 'BD', 'BREAKDOWN'], true) || str_contains($status, 'BREAKDOWN')) {
+                    $ratios[$pic]['breakdown'] += $count;
+                } else {
+                    $ratios[$pic]['other'] += $count;
+                }
+
+                $ratios[$pic]['total'] += $count;
+            }
+        }
+
+        foreach ($ratios as &$ratio) {
+            $ratio['rfu_rate'] = $ratio['total'] > 0 ? round(($ratio['rfu'] / $ratio['total']) * 100, 1) : 0;
+        }
+        unset($ratio);
+
+        usort($ratios, fn ($a, $b) => $b['total'] <=> $a['total']);
+
+        return array_slice(array_values($ratios), 0, 10);
+    }
+
+    private function troubledUnits(array $activeModules, array $filters): array
+    {
+        $units = [];
+
+        foreach ($activeModules as $module) {
+            if ($module['table'] === 'unit_assets' || !Schema::hasTable($module['table'])) {
+                continue;
+            }
+
+            $columns = Schema::getColumnListing($module['table']);
+            if (!in_array('serial_number', $columns, true)) {
+                continue;
+            }
+
+            $query = DB::table($module['table']);
+            $this->applyFilters($query, $module, $columns, $filters, true);
+
+            if (in_array('problem', $columns, true)) {
+                $query->where(function ($q) use ($module) {
+                    $q->whereNotNull('problem')
+                        ->where('problem', '!=', '')
+                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) LIKE '%BREAKDOWN%'")
+                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')");
+                });
+            } elseif (in_array($module['status_column'], $columns, true)) {
+                $query->where(function ($q) use ($module) {
+                    $q->whereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) LIKE '%BREAKDOWN%'")
+                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')");
+                });
+            }
+
+            $rows = $query
+                ->select('serial_number', DB::raw('MAX(unit_type) as unit_type'), DB::raw('MAX(customer) as customer'), DB::raw('MAX(location) as location'), DB::raw('COUNT(*) as total'))
+                ->whereNotNull('serial_number')
+                ->where('serial_number', '!=', '')
+                ->groupBy('serial_number')
+                ->orderByDesc('total')
+                ->limit(30)
+                ->get();
+
+            foreach ($rows as $row) {
+                $serialNumber = $row->serial_number;
+                if (!isset($units[$serialNumber])) {
+                    $units[$serialNumber] = [
+                        'serial_number' => $serialNumber,
+                        'unit_type' => $row->unit_type ?? '-',
+                        'customer' => $row->customer ?? '-',
+                        'location' => $row->location ?? '-',
+                        'total' => 0,
+                    ];
+                }
+
+                $units[$serialNumber]['total'] += (int) $row->total;
+            }
+        }
+
+        usort($units, fn ($a, $b) => $b['total'] <=> $a['total']);
+
+        return array_slice(array_values($units), 0, 10);
+    }
+
+    private function topRecommendations(array $activeModules, array $filters): array
+    {
+        $configs = [
+            'update-jobs' => ['recommendation_table' => 'job_recommendations', 'foreign_key' => 'job_id', 'parent_id' => 'id'],
+            'batteries' => ['recommendation_table' => 'battery_recommendations', 'foreign_key' => 'battery_id', 'parent_id' => 'id'],
+            'chargers' => ['recommendation_table' => 'charger_recommendations', 'foreign_key' => 'charger_id', 'parent_id' => 'id'],
+        ];
+
+        $parts = [];
+
+        foreach ($configs as $moduleKey => $config) {
+            if (!isset($activeModules[$moduleKey])) {
+                continue;
+            }
+
+            $module = $activeModules[$moduleKey];
+            if (!Schema::hasTable($module['table']) || !Schema::hasTable($config['recommendation_table'])) {
+                continue;
+            }
+
+            $columns = Schema::getColumnListing($module['table']);
+            $query = DB::table($config['recommendation_table'] . ' as r')
+                ->join($module['table'] . ' as p', 'p.' . $config['parent_id'], '=', 'r.' . $config['foreign_key']);
+
+            $this->applyAliasedFilters($query, 'p', $module, $columns, $filters, true);
+
+            $rows = $query
+                ->select('r.part_number', 'r.part_name', DB::raw('SUM(COALESCE(r.qty, 0)) as qty_total'), DB::raw('COUNT(*) as total'))
+                ->whereNotNull('r.part_name')
+                ->where('r.part_name', '!=', '')
+                ->groupBy('r.part_number', 'r.part_name')
+                ->orderByDesc('qty_total')
+                ->limit(30)
+                ->get();
+
+            foreach ($rows as $row) {
+                $key = ($row->part_number ?: '-') . '|' . $row->part_name;
+                if (!isset($parts[$key])) {
+                    $parts[$key] = [
+                        'part_number' => $row->part_number ?: '-',
+                        'part_name' => $row->part_name,
+                        'qty_total' => 0,
+                        'total' => 0,
+                    ];
+                }
+
+                $parts[$key]['qty_total'] += (int) $row->qty_total;
+                $parts[$key]['total'] += (int) $row->total;
+            }
+        }
+
+        usort($parts, fn ($a, $b) => $b['qty_total'] <=> $a['qty_total']);
+
+        return array_slice(array_values($parts), 0, 10);
+    }
+
+    private function applyAliasedFilters(Builder $query, string $alias, array $module, array $columns, array $filters, bool $applyMonth = true): void
+    {
+        $dateColumn = $module['date_column'];
+        $statusColumn = $module['status_column'];
+
+        if (in_array($dateColumn, $columns, true)) {
+            $query->whereYear($alias . '.' . $dateColumn, $filters['year']);
+
+            if ($applyMonth && !empty($filters['month'])) {
+                $query->whereMonth($alias . '.' . $dateColumn, $filters['month']);
+            }
+        }
+
+        if ($filters['pic'] !== '') {
+            in_array('pic', $columns, true)
+                ? $query->where($alias . '.pic', $filters['pic'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['customer'] !== '') {
+            in_array('customer', $columns, true)
+                ? $query->where($alias . '.customer', $filters['customer'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['location'] !== '') {
+            in_array('location', $columns, true)
+                ? $query->where($alias . '.location', $filters['location'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['status'] !== '') {
+            in_array($statusColumn, $columns, true)
+                ? $query->where($alias . '.' . $statusColumn, $filters['status'])
+                : $query->whereRaw('1 = 0');
+        }
     }
 
     private function exportQuery(array $filters): array
