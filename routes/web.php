@@ -18,6 +18,7 @@ use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\PenarikanController;
 use App\Http\Controllers\CommandCenterController;
 use App\Http\Controllers\UpdateJobShareController;
+use App\Http\Controllers\OperationalShareController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
 
@@ -49,12 +50,16 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/update-jobs/{id}/share-message', [UpdateJobShareController::class, 'message'])->name('update-jobs.share-message');
         Route::resource('update-jobs', \App\Http\Controllers\JobController::class);
         Route::get('/batteries/search-assets', [\App\Http\Controllers\BatteryController::class, 'searchAssets'])->name('batteries.search-assets');
+        Route::get('/batteries/{id}/share-message', [OperationalShareController::class, 'battery'])->name('batteries.share-message');
         Route::resource('batteries', \App\Http\Controllers\BatteryController::class);
         Route::get('/chargers/search-assets', [\App\Http\Controllers\ChargerController::class, 'searchAssets'])->name('chargers.search-assets');
+        Route::get('/chargers/{id}/share-message', [OperationalShareController::class, 'charger'])->name('chargers.share-message');
         Route::resource('chargers', \App\Http\Controllers\ChargerController::class);
         Route::get('/deliveries/search-assets', [DeliveryController::class, 'searchAssets'])->name('deliveries.search-assets');
+        Route::get('/deliveries/{id}/share-message', [OperationalShareController::class, 'delivery'])->name('deliveries.share-message');
         Route::resource('deliveries', DeliveryController::class);
         Route::get('/penarikans/search-assets', [PenarikanController::class, 'searchAssets'])->name('penarikans.search-assets');
+        Route::get('/penarikans/{id}/share-message', [OperationalShareController::class, 'penarikan'])->name('penarikans.share-message');
         Route::resource('penarikans', PenarikanController::class);
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
         Route::get('/command-center/export/{module}', [CommandCenterController::class, 'export'])->name('command-center.export');
