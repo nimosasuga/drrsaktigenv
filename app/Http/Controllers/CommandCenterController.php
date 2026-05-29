@@ -39,6 +39,46 @@ class CommandCenterController extends Controller
         abort_unless($this->canAccessCommandCenter(), 403, 'Akses Command Center hanya untuk Koordinator, Sect Head, Admin, dan Super Admin.');
     }
 
+    private function statusUnitOptions(): array
+    {
+        return ['RFU', 'Breakdown', 'Monitoring', 'Waiting Part'];
+    }
+
+    private function jobTypeOptions(): array
+    {
+        return ['Preventive Maintenance', 'Install Part', 'Troubleshooting', 'Inspection', 'Repair'];
+    }
+
+    private function normalizeStatus(?string $status): string
+    {
+        $value = strtoupper(trim((string) $status));
+
+        return match (true) {
+            $value === 'RFU' => 'RFU',
+            in_array($value, ['B/D', 'BD', 'BREAKDOWN'], true) || str_contains($value, 'BREAKDOWN') => 'Breakdown',
+            in_array($value, ['MONITORING', 'STANDBY'], true) => 'Monitoring',
+            in_array($value, ['WAITING PART', 'WAITING_PART', 'WAITING-PART'], true) || str_contains($value, 'WAITING PART') => 'Waiting Part',
+            default => trim((string) $status) !== '' ? trim((string) $status) : 'Tanpa Status',
+        };
+    }
+
+    private function normalizeJobType(?string $jobType): string
+    {
+        $value = strtoupper(trim((string) $jobType));
+
+        return match ($value) {
+            'PM' => 'Preventive Maintenance',
+            'BM' => 'Troubleshooting',
+            'PDI' => 'Inspection',
+            'PREVENTIVE MAINTENANCE' => 'Preventive Maintenance',
+            'INSTALL PART' => 'Install Part',
+            'TROUBLESHOOTING' => 'Troubleshooting',
+            'INSPECTION' => 'Inspection',
+            'REPAIR' => 'Repair',
+            default => trim((string) $jobType) !== '' ? trim((string) $jobType) : 'Tanpa Tipe',
+        };
+    }
+
     private function modules(): array
     {
         return [
@@ -134,15 +174,19 @@ class CommandCenterController extends Controller
                 $statusQuery = DB::table($table);
                 $this->applyFilters($statusQuery, $module, $columns, $filters, true, false);
 
-                $statusCounts = $statusQuery
+                $rows = $statusQuery
                     ->select($statusColumn, DB::raw('COUNT(*) as total'))
                     ->whereNotNull($statusColumn)
                     ->where($statusColumn, '!=', '')
                     ->groupBy($statusColumn)
-                    ->orderByDesc('total')
-                    ->limit(10)
-                    ->pluck('total', $statusColumn)
-                    ->toArray();
+                    ->get();
+
+                foreach ($rows as $row) {
+                    $status = $this->normalizeStatus($row->{$statusColumn});
+                    $statusCounts[$status] = ($statusCounts[$status] ?? 0) + (int) $row->total;
+                }
+
+                arsort($statusCounts);
             }
 
             $monthly = array_fill(1, 12, 0);
@@ -393,7 +437,7 @@ class CommandCenterController extends Controller
             'pic' => trim((string) $request->input('pic', '')),
             'customer' => trim((string) $request->input('customer', '')),
             'location' => trim((string) $request->input('location', '')),
-            'status' => trim((string) $request->input('status', '')),
+            'status' => $this->normalizeStatus($request->input('status', '')),
         ];
     }
 
@@ -444,11 +488,42 @@ class CommandCenterController extends Controller
                 : $query->whereRaw('1 = 0');
         }
 
-        if ($applyStatus && $filters['status'] !== '') {
+        if ($applyStatus && $filters['status'] !== '' && $filters['status'] !== 'Tanpa Status') {
             in_array($statusColumn, $columns, true)
-                ? $query->where($statusColumn, $filters['status'])
+                ? $this->applyStatusFilter($query, $statusColumn, $filters['status'])
                 : $query->whereRaw('1 = 0');
         }
+    }
+
+    private function applyStatusFilter(Builder $query, string $column, string $status, ?string $alias = null): void
+    {
+        $qualifiedColumn = $alias ? $alias . '.' . $column : $column;
+        $status = $this->normalizeStatus($status);
+
+        $query->where(function ($q) use ($qualifiedColumn, $status) {
+            if ($status === 'RFU') {
+                $q->whereRaw("UPPER(TRIM(COALESCE({$qualifiedColumn}, ''))) = 'RFU'");
+                return;
+            }
+
+            if ($status === 'Breakdown') {
+                $q->whereRaw("UPPER(TRIM(COALESCE({$qualifiedColumn}, ''))) LIKE '%BREAKDOWN%'")
+                    ->orWhereRaw("UPPER(TRIM(COALESCE({$qualifiedColumn}, ''))) IN ('B/D', 'BD')");
+                return;
+            }
+
+            if ($status === 'Monitoring') {
+                $q->whereRaw("UPPER(TRIM(COALESCE({$qualifiedColumn}, ''))) IN ('MONITORING', 'STANDBY')");
+                return;
+            }
+
+            if ($status === 'Waiting Part') {
+                $q->whereRaw("UPPER(TRIM(COALESCE({$qualifiedColumn}, ''))) IN ('WAITING PART', 'WAITING_PART', 'WAITING-PART')");
+                return;
+            }
+
+            $q->where($qualifiedColumn, $status);
+        });
     }
 
     private function filterOptions(array $modules, array $filters): array
@@ -458,7 +533,7 @@ class CommandCenterController extends Controller
             'pics' => [],
             'customers' => [],
             'locations' => [],
-            'statuses' => [],
+            'statuses' => $this->statusUnitOptions(),
         ];
 
         foreach ($activeModules as $module) {
@@ -480,11 +555,6 @@ class CommandCenterController extends Controller
             if (in_array('location', $columns, true)) {
                 $options['locations'] = array_merge($options['locations'], DB::table($table)->whereNotNull('location')->where('location', '!=', '')->distinct()->pluck('location')->toArray());
             }
-
-            $statusColumn = $module['status_column'];
-            if (in_array($statusColumn, $columns, true)) {
-                $options['statuses'] = array_merge($options['statuses'], DB::table($table)->whereNotNull($statusColumn)->where($statusColumn, '!=', '')->distinct()->pluck($statusColumn)->toArray());
-            }
         }
 
         foreach ($options as $key => $values) {
@@ -501,7 +571,10 @@ class CommandCenterController extends Controller
         return [
             'monthly_productivity' => $this->monthlyProductivity($activeModules, $filters),
             'customer_location_load' => $this->customerLocationLoad($activeModules, $filters),
-            'rfu_breakdown_ratio' => $this->rfuBreakdownRatio($activeModules, $filters),
+            'status_distribution' => $this->statusDistribution($activeModules, $filters),
+            'job_type_distribution' => $this->jobTypeDistribution($activeModules, $filters),
+            'status_by_pic' => $this->statusByPic($activeModules, $filters),
+            'rfu_breakdown_ratio' => $this->statusByPic($activeModules, $filters),
             'troubled_units' => $this->troubledUnits($activeModules, $filters),
             'top_recommendations' => $this->topRecommendations($activeModules, $filters),
         ];
@@ -596,7 +669,84 @@ class CommandCenterController extends Controller
         return array_slice(array_values($loads), 0, 10);
     }
 
-    private function rfuBreakdownRatio(array $activeModules, array $filters): array
+    private function statusDistribution(array $activeModules, array $filters): array
+    {
+        $distribution = array_fill_keys($this->statusUnitOptions(), 0);
+
+        foreach ($activeModules as $module) {
+            if (!Schema::hasTable($module['table'])) {
+                continue;
+            }
+
+            $columns = Schema::getColumnListing($module['table']);
+            $statusColumn = $module['status_column'];
+            if (!in_array($statusColumn, $columns, true)) {
+                continue;
+            }
+
+            $query = DB::table($module['table']);
+            $this->applyFilters($query, $module, $columns, $filters, true, false);
+
+            $rows = $query
+                ->select($statusColumn, DB::raw('COUNT(*) as total'))
+                ->whereNotNull($statusColumn)
+                ->where($statusColumn, '!=', '')
+                ->groupBy($statusColumn)
+                ->get();
+
+            foreach ($rows as $row) {
+                $status = $this->normalizeStatus($row->{$statusColumn});
+                if (!isset($distribution[$status])) {
+                    $distribution[$status] = 0;
+                }
+                $distribution[$status] += (int) $row->total;
+            }
+        }
+
+        return collect($distribution)
+            ->map(fn ($total, $status) => ['status' => $status, 'total' => (int) $total])
+            ->values()
+            ->all();
+    }
+
+    private function jobTypeDistribution(array $activeModules, array $filters): array
+    {
+        if (!isset($activeModules['update-jobs']) || !Schema::hasTable('update_jobs')) {
+            return collect($this->jobTypeOptions())->map(fn ($type) => ['job_type' => $type, 'total' => 0])->all();
+        }
+
+        $module = $activeModules['update-jobs'];
+        $columns = Schema::getColumnListing('update_jobs');
+        if (!in_array('job_type', $columns, true)) {
+            return [];
+        }
+
+        $query = DB::table('update_jobs');
+        $this->applyFilters($query, $module, $columns, $filters, true);
+
+        $rows = $query
+            ->select('job_type', DB::raw('COUNT(*) as total'))
+            ->whereNotNull('job_type')
+            ->where('job_type', '!=', '')
+            ->groupBy('job_type')
+            ->get();
+
+        $distribution = array_fill_keys($this->jobTypeOptions(), 0);
+        foreach ($rows as $row) {
+            $jobType = $this->normalizeJobType($row->job_type);
+            if (!isset($distribution[$jobType])) {
+                $distribution[$jobType] = 0;
+            }
+            $distribution[$jobType] += (int) $row->total;
+        }
+
+        return collect($distribution)
+            ->map(fn ($total, $jobType) => ['job_type' => $jobType, 'total' => (int) $total])
+            ->values()
+            ->all();
+    }
+
+    private function statusByPic(array $activeModules, array $filters): array
     {
         $ratios = [];
 
@@ -630,22 +780,25 @@ class CommandCenterController extends Controller
                         'pic' => $pic,
                         'rfu' => 0,
                         'breakdown' => 0,
+                        'monitoring' => 0,
+                        'waiting_part' => 0,
                         'other' => 0,
                         'total' => 0,
                         'rfu_rate' => 0,
+                        'risk_rate' => 0,
                     ];
                 }
 
-                $status = strtoupper(trim((string) $row->{$statusColumn}));
+                $status = $this->normalizeStatus($row->{$statusColumn});
                 $count = (int) $row->total;
 
-                if ($status === 'RFU') {
-                    $ratios[$pic]['rfu'] += $count;
-                } elseif (in_array($status, ['B/D', 'BD', 'BREAKDOWN'], true) || str_contains($status, 'BREAKDOWN')) {
-                    $ratios[$pic]['breakdown'] += $count;
-                } else {
-                    $ratios[$pic]['other'] += $count;
-                }
+                match ($status) {
+                    'RFU' => $ratios[$pic]['rfu'] += $count,
+                    'Breakdown' => $ratios[$pic]['breakdown'] += $count,
+                    'Monitoring' => $ratios[$pic]['monitoring'] += $count,
+                    'Waiting Part' => $ratios[$pic]['waiting_part'] += $count,
+                    default => $ratios[$pic]['other'] += $count,
+                };
 
                 $ratios[$pic]['total'] += $count;
             }
@@ -653,6 +806,8 @@ class CommandCenterController extends Controller
 
         foreach ($ratios as &$ratio) {
             $ratio['rfu_rate'] = $ratio['total'] > 0 ? round(($ratio['rfu'] / $ratio['total']) * 100, 1) : 0;
+            $riskTotal = $ratio['breakdown'] + $ratio['waiting_part'];
+            $ratio['risk_rate'] = $ratio['total'] > 0 ? round(($riskTotal / $ratio['total']) * 100, 1) : 0;
         }
         unset($ratio);
 
@@ -683,12 +838,14 @@ class CommandCenterController extends Controller
                     $q->whereNotNull('problem')
                         ->where('problem', '!=', '')
                         ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) LIKE '%BREAKDOWN%'")
-                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')");
+                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')")
+                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('WAITING PART', 'WAITING_PART', 'WAITING-PART')");
                 });
             } elseif (in_array($module['status_column'], $columns, true)) {
                 $query->where(function ($q) use ($module) {
                     $q->whereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) LIKE '%BREAKDOWN%'")
-                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')");
+                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')")
+                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('WAITING PART', 'WAITING_PART', 'WAITING-PART')");
                 });
             }
 
@@ -809,9 +966,9 @@ class CommandCenterController extends Controller
                 : $query->whereRaw('1 = 0');
         }
 
-        if ($filters['status'] !== '') {
+        if ($filters['status'] !== '' && $filters['status'] !== 'Tanpa Status') {
             in_array($statusColumn, $columns, true)
-                ? $query->where($alias . '.' . $statusColumn, $filters['status'])
+                ? $this->applyStatusFilter($query, $statusColumn, $filters['status'], $alias)
                 : $query->whereRaw('1 = 0');
         }
     }
@@ -825,7 +982,7 @@ class CommandCenterController extends Controller
             'customer' => $filters['customer'],
             'location' => $filters['location'],
             'status' => $filters['status'],
-        ], fn ($value) => $value !== null && $value !== '');
+        ], fn ($value) => $value !== null && $value !== '' && $value !== 'Tanpa Status');
     }
 
     private function moduleOrFail(string $module): array
