@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class JobController extends Controller
 {
@@ -26,6 +27,50 @@ class JobController extends Controller
 
         // True JIKA dia pembuatnya ATAU dia punya role level atas
         return ($user->id === $job->user_id) || in_array($role, $privilegedRoles);
+    }
+
+    private function jobTypeOptions(): array
+    {
+        return [
+            'Preventive Maintenance',
+            'Install Part',
+            'Troubleshooting',
+            'Inspection',
+            'Repair',
+        ];
+    }
+
+    private function statusUnitOptions(): array
+    {
+        return [
+            'RFU',
+            'Breakdown',
+            'Monitoring',
+            'Waiting Part',
+        ];
+    }
+
+    private function normalizeJobType(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return match (strtoupper($value)) {
+            'PM' => 'Preventive Maintenance',
+            'BM' => 'Troubleshooting',
+            'PDI' => 'Inspection',
+            default => $value !== '' ? $value : null,
+        };
+    }
+
+    private function normalizeStatusUnit(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return match (strtoupper($value)) {
+            'B/D', 'BD', 'BREAKDOWN' => 'Breakdown',
+            'STANDBY' => 'Monitoring',
+            default => $value !== '' ? $value : null,
+        };
     }
 
     private function isRfuStatus($status): bool
@@ -283,7 +328,10 @@ class JobController extends Controller
             ->where('id', '!=', $user->id)
             ->get(['id', 'name']);
 
-        return view('update-jobs.create', compact('user', 'branch', 'partners'));
+        $jobTypeOptions = $this->jobTypeOptions();
+        $statusUnitOptions = $this->statusUnitOptions();
+
+        return view('update-jobs.create', compact('user', 'branch', 'partners', 'jobTypeOptions', 'statusUnitOptions'));
     }
 
     public function searchAssets(Request $request)
@@ -359,6 +407,11 @@ class JobController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'job_type' => $this->normalizeJobType($request->input('job_type')),
+            'status_unit' => $this->normalizeStatusUnit($request->input('status_unit')),
+        ]);
+
         $validated = $request->validate([
             'work_date'     => 'required|date',
             'in_time'       => 'nullable|date_format:H:i',
@@ -370,8 +423,8 @@ class JobController extends Controller
             'location'      => 'required|string|max:150',
             'problem'       => 'required|string',
             'action'        => 'required|string',
-            'job_type'      => 'nullable|string|max:100',
-            'status_unit'   => 'nullable|string|max:100',
+            'job_type'      => ['required', 'string', Rule::in($this->jobTypeOptions())],
+            'status_unit'   => ['required', 'string', Rule::in($this->statusUnitOptions())],
             'partner'       => 'nullable|string|max:150',
             'vehicle_type'  => 'nullable|string|max:100',
             'nopol'         => 'nullable|string|max:100',
@@ -451,7 +504,12 @@ class JobController extends Controller
             ->where('id', '!=', $user->id)
             ->get(['id', 'name']);
 
-        return view('update-jobs.edit', compact('job', 'user', 'branch', 'partners'));
+        $job->job_type = $this->normalizeJobType($job->job_type);
+        $job->status_unit = $this->normalizeStatusUnit($job->status_unit);
+        $jobTypeOptions = $this->jobTypeOptions();
+        $statusUnitOptions = $this->statusUnitOptions();
+
+        return view('update-jobs.edit', compact('job', 'user', 'branch', 'partners', 'jobTypeOptions', 'statusUnitOptions'));
     }
 
     public function update(Request $request, $id)
@@ -462,6 +520,11 @@ class JobController extends Controller
         if (!$this->canEditJob($job)) {
             return redirect()->route('update-jobs.show', $id)->withErrors(['error' => 'Akses Ditolak: Anda tidak memiliki hak untuk mengedit Pekerjaan mekanik lain.']);
         }
+
+        $request->merge([
+            'job_type' => $this->normalizeJobType($request->input('job_type')),
+            'status_unit' => $this->normalizeStatusUnit($request->input('status_unit')),
+        ]);
 
         $validated = $request->validate([
             'work_date'     => 'required|date',
@@ -474,8 +537,8 @@ class JobController extends Controller
             'location'      => 'required|string|max:150',
             'problem'       => 'required|string',
             'action'        => 'required|string',
-            'job_type'      => 'nullable|string|max:100',
-            'status_unit'   => 'nullable|string|max:100',
+            'job_type'      => ['required', 'string', Rule::in($this->jobTypeOptions())],
+            'status_unit'   => ['required', 'string', Rule::in($this->statusUnitOptions())],
             'partner'       => 'nullable|string|max:150',
             'vehicle_type'  => 'nullable|string|max:100',
             'nopol'         => 'nullable|string|max:100',
