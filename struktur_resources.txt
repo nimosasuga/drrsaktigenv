@@ -1,0 +1,73 @@
+Folder PATH listing for volume OS
+Volume serial number is BC4A-5155
+C:\LARAGON\WWW\DRRSAKTI\RESOURCES
++---css
+¦       app.css
+¦       
++---js
+¦       app.js
+¦       bootstrap.js
+¦       
++---views
+    ¦   dashboard.blade.php
+    ¦   welcome.blade.php
+    ¦   
+    +---admin
+    ¦   ¦   subscriptions.blade.php
+    ¦   ¦   
+    ¦   +---users
+    ¦           create.blade.php
+    ¦           edit.blade.php
+    ¦           index.blade.php
+    ¦           
+    +---assets
+    ¦       create.blade.php
+    ¦       edit.blade.php
+    ¦       index.blade.php
+    ¦       list.blade.php
+    ¦       show.blade.php
+    ¦       
+    +---auth
+    ¦       login.blade.php
+    ¦       
+    +---batteries
+    ¦       create.blade.php
+    ¦       edit.blade.php
+    ¦       index.blade.php
+    ¦       show.blade.php
+    ¦       
+    +---calendar
+    ¦       index.blade.php
+    ¦       
+    +---chargers
+    ¦       create.blade.php
+    ¦       edit.blade.php
+    ¦       index.blade.php
+    ¦       show.blade.php
+    ¦       
+    +---deliveries
+    ¦       create.blade.php
+    ¦       edit.blade.php
+    ¦       index.blade.php
+    ¦       show.blade.php
+    ¦       
+    +---layouts
+    ¦       app.blade.php
+    ¦       
+    +---profile
+    ¦       index.blade.php
+    ¦       
+    +---reminders
+    ¦       index.blade.php
+    ¦       
+    +---subscription
+    ¦       index.blade.php
+    ¦       payment.blade.php
+    ¦       waiting.blade.php
+    ¦       
+    +---update-jobs
+            create.blade.php
+            edit.blade.php
+            index.blade.php
+            show.blade.php
+            

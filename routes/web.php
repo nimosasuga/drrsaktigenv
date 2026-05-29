@@ -19,7 +19,9 @@ use App\Http\Controllers\PenarikanController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
 
-Route::get('/', function () { return redirect()->route('login'); });
+Route::get('/', function () {
+    return redirect()->route('login');
+});
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -51,8 +53,8 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('deliveries', DeliveryController::class);
         Route::get('/penarikans/search-assets', [PenarikanController::class, 'searchAssets'])->name('penarikans.search-assets');
         Route::resource('penarikans', PenarikanController::class);
-        Route::get('/calendar', fn () => view('calendar.index'))->name('calendar.index');
-        Route::get('/reminders', fn () => view('reminders.index'))->name('reminders.index');
+        Route::get('/calendar', fn() => view('calendar.index'))->name('calendar.index');
+        Route::get('/reminders', fn() => view('reminders.index'))->name('reminders.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
         Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
     });
