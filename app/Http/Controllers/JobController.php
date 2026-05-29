@@ -41,6 +41,29 @@ class JobController extends Controller
             || str_contains($normalized, 'BREAKDOWN');
     }
 
+    private function isWithdrawnAssetStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'DITARIK';
+    }
+
+    private function assetWithdrawnError(string $serialNumber): string
+    {
+        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Update Job karena status unit asset sudah DITARIK.";
+    }
+
+    private function rejectIfAssetWithdrawn(string $serialNumber)
+    {
+        $asset = UnitAsset::where('serial_number', $serialNumber)->first();
+
+        if ($asset && $this->isWithdrawnAssetStatus($asset->status ?? null)) {
+            return back()
+                ->withInput()
+                ->withErrors(['error' => $this->assetWithdrawnError($serialNumber)]);
+        }
+
+        return null;
+    }
+
     private function isTroubleshootingJob($job): bool
     {
         $haystack = strtoupper(trim(implode(' ', [
@@ -265,22 +288,36 @@ class JobController extends Controller
 
     public function searchAssets(Request $request)
     {
-        $search = $request->get('q');
+        $search = trim((string) $request->get('q', ''));
+        $includeWithdrawn = $request->boolean('include_withdrawn');
 
-        if (empty($search)) {
+        if ($search === '') {
             return response()->json([]);
         }
 
-        $assets = UnitAsset::where('serial_number', 'LIKE', "%{$search}%")
+        $assets = UnitAsset::where(function ($query) use ($search) {
+                $query->where('serial_number', 'LIKE', "%{$search}%")
+                    ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                    ->orWhere('customer', 'LIKE', "%{$search}%")
+                    ->orWhere('location', 'LIKE', "%{$search}%");
+            })
+            ->when(!$includeWithdrawn, function ($query) {
+                $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'");
+            })
             ->take(10)
             ->get();
 
         $mapped = $assets->map(function ($asset) {
+            $isWithdrawn = $this->isWithdrawnAssetStatus($asset->status ?? null);
+
             return [
                 'serial_number' => $asset->serial_number,
                 'unit_type'     => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
                 'customer'      => $asset->customer ?? $asset->nama_pelanggan ?? '',
-                'location'      => $asset->location ?? $asset->lokasi ?? ''
+                'location'      => $asset->location ?? $asset->lokasi ?? '',
+                'status'        => $asset->status ?? '',
+                'is_withdrawn'  => $isWithdrawn,
+                'blocked_reason' => $isWithdrawn ? $this->assetWithdrawnError((string) $asset->serial_number) : null,
             ];
         });
 
@@ -341,6 +378,10 @@ class JobController extends Controller
             'problem_date'  => 'nullable|date',
             'rfu_date'      => 'nullable|date',
         ]);
+
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
@@ -441,6 +482,10 @@ class JobController extends Controller
             'problem_date'  => 'nullable|date',
             'rfu_date'      => 'nullable|date',
         ]);
+
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
