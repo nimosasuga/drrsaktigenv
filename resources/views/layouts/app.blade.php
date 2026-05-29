@@ -210,6 +210,16 @@
                 <span>Home</span>
             </a>
 
+            <a href="{{ route('calendar.index') }}"
+                class="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition lg:flex-row lg:px-4 lg:text-xs
+                {{ request()->routeIs('calendar.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
+                </svg>
+                <span>Kalender</span>
+            </a>
+
             <!-- ========================================== -->
             <!-- MENU JOB DINAMIS (FLOATING POP-UP) -->
             <!-- ========================================== -->
@@ -315,32 +325,20 @@
 
                 <!-- Tombol Trigger Utama (Job) -->
                 <button type="button" @click="openJobMenu = !openJobMenu"
-                    class="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition lg:flex-row lg:px-4 lg:text-xs relative z-50
-                    {{ request()->routeIs('update-jobs.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                    class="relative -mt-6 flex flex-col items-center justify-center gap-1 rounded-full bg-blue-600 px-4 py-4 text-[11px] font-bold text-white shadow-xl ring-4 ring-blue-100 transition hover:bg-blue-700 lg:mt-0 lg:flex-row lg:rounded-2xl lg:px-5 lg:py-3 lg:text-xs">
 
                     <!-- Efek rotasi saat menu terbuka -->
-                    <svg class="h-5 w-5 transition-transform duration-500 ease-out"
-                        :class="openJobMenu ? 'rotate-360 scale-110 text-blue-600' : ''" fill="none"
+                    <svg class="h-6 w-6 transition-transform duration-500 ease-out lg:h-5 lg:w-5"
+                        :class="openJobMenu ? 'rotate-360 scale-110 text-white' : ''" fill="none"
                         stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
                         </path>
                     </svg>
-                    <span :class="openJobMenu ? 'text-blue-700 font-bold' : ''"
-                        class="transition-colors duration-300">Job</span>
+                    <span class="transition-colors duration-300">Job</span>
                 </button>
             </div>
             <!-- ========================================== -->
-
-            <a href="{{ route('calendar.index') }}" class="relative -mt-6 flex flex-col items-center justify-center gap-1 rounded-full bg-blue-600 px-4 py-4 text-[11px] font-bold text-white shadow-xl ring-4 ring-blue-100 transition hover:bg-blue-700 lg:mt-0 lg:flex-row lg:rounded-2xl lg:px-5 lg:py-3 lg:text-xs
-                {{ request()->routeIs('calendar.*') ? 'bg-amber-500 ring-amber-100 hover:bg-amber-600' : '' }}">
-                <span class="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-400 ring-2 ring-white"></span>
-                <svg class="h-6 w-6 lg:h-5 lg:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
-                </svg>
-                <span>Kalender</span>
-            </a>
 
             <a href="{{ route('reminders.index') }}"
                 class="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition lg:flex-row lg:px-4 lg:text-xs
