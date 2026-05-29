@@ -18,7 +18,8 @@ class ChargerController extends Controller
         $user = Auth::user();
         $role = $user->role ?? $user->status_user;
         $privilegedRoles = ['koordinator', 'sect_head', 'admin', 'super_admin'];
-        return ($user->id === $charger->user_id) || in_array($role, $privilegedRoles);
+
+        return ($user->id === $charger->user_id) || in_array($role, $privilegedRoles, true);
     }
 
     private function isRfuStatus($status): bool
@@ -34,6 +35,29 @@ class ChargerController extends Controller
             || str_contains($normalized, 'BREAKDOWN');
     }
 
+    private function isWithdrawnAssetStatus($status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'DITARIK';
+    }
+
+    private function assetWithdrawnError(string $serialNumber): string
+    {
+        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Management Charger karena status unit asset sudah DITARIK.";
+    }
+
+    private function rejectIfAssetWithdrawn(string $serialNumber)
+    {
+        $asset = UnitAsset::where('serial_number', strtoupper(trim($serialNumber)))->first();
+
+        if ($asset && $this->isWithdrawnAssetStatus($asset->status ?? null)) {
+            return back()
+                ->withInput()
+                ->withErrors(['error' => $this->assetWithdrawnError($serialNumber)]);
+        }
+
+        return null;
+    }
+
     private function countRfu($chargers): int
     {
         return $chargers->filter(fn ($charger) => $this->isRfuStatus($charger->status_unit))->count();
@@ -47,15 +71,13 @@ class ChargerController extends Controller
     public function index(Request $request)
     {
         $query = Charger::with('user');
-
         $selectedYear = (int) $request->input('year_filter', now()->year);
 
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
 
             if (count($parts) === 2) {
-                $query->whereYear('date', $parts[0])
-                    ->whereMonth('date', $parts[1]);
+                $query->whereYear('date', $parts[0])->whereMonth('date', $parts[1]);
             }
         } else {
             $query->whereYear('date', $selectedYear);
@@ -98,10 +120,7 @@ class ChargerController extends Controller
             });
         }
 
-        $chargers = $query
-            ->orderByDesc('date')
-            ->orderByDesc('id')
-            ->get();
+        $chargers = $query->orderByDesc('date')->orderByDesc('id')->get();
 
         $summary = [
             'total_jobs' => $chargers->count(),
@@ -113,20 +132,14 @@ class ChargerController extends Controller
         ];
 
         $groupedChargers = $chargers
-            ->groupBy(function ($charger) {
-                return $charger->date
-                    ? Carbon::parse($charger->date)->translatedFormat('F Y')
-                    : 'Tanpa Tanggal';
-            })
+            ->groupBy(fn ($charger) => $charger->date ? Carbon::parse($charger->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
             ->map(function ($monthChargers, $monthName) {
                 return [
                     'name' => $monthName,
                     'total' => $monthChargers->count(),
                     'pic_total' => $monthChargers->pluck('pic')->filter()->unique()->count(),
                     'charger_total' => $monthChargers->pluck('sn_charger')->filter()->unique()->count(),
-                    'customer_location_total' => $monthChargers->unique(function ($charger) {
-                        return ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi');
-                    })->count(),
+                    'customer_location_total' => $monthChargers->unique(fn ($charger) => ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi'))->count(),
                     'rfu_total' => $this->countRfu($monthChargers),
                     'breakdown_total' => $this->countBreakdown($monthChargers),
                     'pics' => $monthChargers
@@ -136,15 +149,11 @@ class ChargerController extends Controller
                                 'name' => $picName,
                                 'total' => $picChargers->count(),
                                 'charger_total' => $picChargers->pluck('sn_charger')->filter()->unique()->count(),
-                                'customer_location_total' => $picChargers->unique(function ($charger) {
-                                    return ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi');
-                                })->count(),
+                                'customer_location_total' => $picChargers->unique(fn ($charger) => ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi'))->count(),
                                 'rfu_total' => $this->countRfu($picChargers),
                                 'breakdown_total' => $this->countBreakdown($picChargers),
                                 'customer_locations' => $picChargers
-                                    ->groupBy(function ($charger) {
-                                        return ($charger->customer ?: 'Tanpa Customer') . ' / ' . ($charger->location ?: 'Tanpa Lokasi');
-                                    })
+                                    ->groupBy(fn ($charger) => ($charger->customer ?: 'Tanpa Customer') . ' / ' . ($charger->location ?: 'Tanpa Lokasi'))
                                     ->map(function ($locationChargers, $customerLocationName) {
                                         return [
                                             'name' => $customerLocationName,
@@ -161,120 +170,79 @@ class ChargerController extends Controller
                 ];
             });
 
-        $customers = Charger::whereNotNull('customer')
-            ->where('customer', '!=', '')
-            ->select('customer')
-            ->distinct()
-            ->orderBy('customer')
-            ->pluck('customer');
+        $customers = Charger::whereNotNull('customer')->where('customer', '!=', '')->select('customer')->distinct()->orderBy('customer')->pluck('customer');
+        $pics = Charger::whereNotNull('pic')->where('pic', '!=', '')->select('pic')->distinct()->orderBy('pic')->pluck('pic');
+        $locations = Charger::whereNotNull('location')->where('location', '!=', '')->select('location')->distinct()->orderBy('location')->pluck('location');
+        $statuses = Charger::whereNotNull('status_unit')->where('status_unit', '!=', '')->select('status_unit')->distinct()->orderBy('status_unit')->pluck('status_unit');
+        $categories = Charger::whereNotNull('category_job')->where('category_job', '!=', '')->select('category_job')->distinct()->orderBy('category_job')->pluck('category_job');
+        $years = Charger::whereNotNull('date')->selectRaw('YEAR(date) as year')->distinct()->orderByDesc('year')->pluck('year')->filter()->values();
 
-        $pics = Charger::whereNotNull('pic')
-            ->where('pic', '!=', '')
-            ->select('pic')
-            ->distinct()
-            ->orderBy('pic')
-            ->pluck('pic');
-
-        $locations = Charger::whereNotNull('location')
-            ->where('location', '!=', '')
-            ->select('location')
-            ->distinct()
-            ->orderBy('location')
-            ->pluck('location');
-
-        $statuses = Charger::whereNotNull('status_unit')
-            ->where('status_unit', '!=', '')
-            ->select('status_unit')
-            ->distinct()
-            ->orderBy('status_unit')
-            ->pluck('status_unit');
-
-        $categories = Charger::whereNotNull('category_job')
-            ->where('category_job', '!=', '')
-            ->select('category_job')
-            ->distinct()
-            ->orderBy('category_job')
-            ->pluck('category_job');
-
-        $years = Charger::whereNotNull('date')
-            ->selectRaw('YEAR(date) as year')
-            ->distinct()
-            ->orderByDesc('year')
-            ->pluck('year')
-            ->filter()
-            ->values();
-
-        return view('chargers.index', compact(
-            'groupedChargers',
-            'summary',
-            'customers',
-            'pics',
-            'locations',
-            'statuses',
-            'categories',
-            'years',
-            'selectedYear'
-        ));
+        return view('chargers.index', compact('groupedChargers', 'summary', 'customers', 'pics', 'locations', 'statuses', 'categories', 'years', 'selectedYear'));
     }
 
     public function create()
     {
         $user = Auth::user();
         $branch = $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->get(['id', 'name']);
+        $partners = User::where('branch', $branch)->where('id', '!=', $user->id)->get(['id', 'name']);
 
         return view('chargers.create', compact('user', 'branch', 'partners'));
     }
 
     public function searchAssets(Request $request)
     {
-        $search = $request->get('q');
-        if (empty($search)) return response()->json([]);
+        $search = trim((string) $request->get('q', ''));
 
-        $assets = UnitAsset::where('serial_number', 'LIKE', "%{$search}%")->take(10)->get();
+        if ($search === '') {
+            return response()->json([]);
+        }
 
-        $mapped = $assets->map(function ($asset) {
-            return [
-                'serial_number' => $asset->serial_number,
-                'unit_type'     => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
-                'customer'      => $asset->customer ?? $asset->nama_pelanggan ?? '',
-                'location'      => $asset->location ?? $asset->lokasi ?? ''
-            ];
-        });
+        $assets = UnitAsset::where(function ($query) use ($search) {
+                $query->where('serial_number', 'LIKE', "%{$search}%")
+                    ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                    ->orWhere('customer', 'LIKE', "%{$search}%")
+                    ->orWhere('location', 'LIKE', "%{$search}%");
+            })
+            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")
+            ->take(10)
+            ->get();
 
-        return response()->json($mapped);
+        return response()->json($assets->map(fn ($asset) => [
+            'serial_number' => $asset->serial_number,
+            'unit_type' => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
+            'customer' => $asset->customer ?? $asset->nama_pelanggan ?? '',
+            'location' => $asset->location ?? $asset->lokasi ?? '',
+            'status' => $asset->status ?? '',
+        ]));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'date'          => 'required|date',
-            'in_time'       => 'required|date_format:H:i',
-            'out_time'      => 'required|date_format:H:i',
-            'vehicle'       => 'required|string|max:150',
-            'nopol'         => 'required|string|max:100',
-
-            'customer'      => 'required|string|max:150',
-            'location'      => 'required|string|max:150',
-            'unit_type'     => 'required|string|max:100',
+            'date' => 'required|date',
+            'in_time' => 'required|date_format:H:i',
+            'out_time' => 'required|date_format:H:i',
+            'vehicle' => 'required|string|max:150',
+            'nopol' => 'required|string|max:100',
+            'customer' => 'required|string|max:150',
+            'location' => 'required|string|max:150',
+            'unit_type' => 'required|string|max:100',
             'serial_number' => 'required|string|max:100',
-
-            'sn_charger'    => 'required|string|max:100',
-            'charger_type'  => 'required|string|max:100',
-            'charger_year'  => 'nullable|integer',
-
-            'category_job'  => 'required|string|max:100',
-            'status_unit'   => 'required|string|max:100',
-
-            'problem_date'  => 'nullable|date',
-            'rfu_date'      => 'nullable|date',
-            'problem'       => 'nullable|string',
-            'action'        => 'nullable|string',
-            'partner'       => 'nullable|string|max:150',
+            'sn_charger' => 'required|string|max:100',
+            'charger_type' => 'required|string|max:100',
+            'charger_year' => 'nullable|integer',
+            'category_job' => 'required|string|max:100',
+            'status_unit' => 'required|string|max:100',
+            'problem_date' => 'nullable|date',
+            'rfu_date' => 'nullable|date',
+            'problem' => 'nullable|string',
+            'action' => 'nullable|string',
+            'partner' => 'nullable|string|max:150',
         ]);
+
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
@@ -285,38 +253,35 @@ class ChargerController extends Controller
             $charger->pic = Auth::user()->name;
             $charger->status_mekanik = Auth::user()->role ?? Auth::user()->status_user;
 
-            // Konversi Job Type Checkbox ke String
             if ($request->has('job_types') && is_array($request->job_types)) {
                 $charger->job_type = implode(', ', $request->job_types);
             }
 
             $charger->save();
 
-            // Simpan Install Parts
             if ($request->has('inst_part_name')) {
                 foreach ($request->inst_part_name as $key => $part_name) {
                     if (!empty($part_name)) {
                         $charger->installParts()->create([
                             'part_number' => $request->inst_part_number[$key] ?? null,
-                            'part_name'   => $part_name,
-                            'qty'         => $request->inst_qty[$key] ?? 1,
-                            'remarks'     => $request->inst_remarks[$key] ?? null,
-                            'no_job'      => $request->inst_no_job[$key] ?? null,
-                            'no_pr'       => $request->inst_no_pr[$key] ?? null,
+                            'part_name' => $part_name,
+                            'qty' => $request->inst_qty[$key] ?? 1,
+                            'remarks' => $request->inst_remarks[$key] ?? null,
+                            'no_job' => $request->inst_no_job[$key] ?? null,
+                            'no_pr' => $request->inst_no_pr[$key] ?? null,
                         ]);
                     }
                 }
             }
 
-            // Simpan Recommendations Parts
             if ($request->has('rec_part_name')) {
                 foreach ($request->rec_part_name as $key => $part_name) {
                     if (!empty($part_name)) {
                         $charger->recommendations()->create([
                             'part_number' => $request->rec_part_number[$key] ?? null,
-                            'part_name'   => $part_name,
-                            'qty'         => $request->rec_qty[$key] ?? 1,
-                            'remarks'     => $request->rec_remarks[$key] ?? null,
+                            'part_name' => $part_name,
+                            'qty' => $request->rec_qty[$key] ?? 1,
+                            'remarks' => $request->rec_remarks[$key] ?? null,
                         ]);
                     }
                 }
@@ -333,7 +298,6 @@ class ChargerController extends Controller
     public function show($id)
     {
         $charger = Charger::with(['user', 'installParts', 'recommendations'])->findOrFail($id);
-
         return view('chargers.show', compact('charger'));
     }
 
@@ -342,61 +306,51 @@ class ChargerController extends Controller
         $charger = Charger::with(['installParts', 'recommendations'])->findOrFail($id);
 
         if (!$this->canEditCharger($charger)) {
-            return redirect()
-                ->route('chargers.show', $charger->id)
-                ->withErrors(['error' => 'Anda tidak memiliki izin untuk mengedit data charger ini.']);
+            return redirect()->route('chargers.show', $charger->id)->withErrors(['error' => 'Anda tidak memiliki izin untuk mengedit data charger ini.']);
         }
 
         $user = Auth::user();
         $branch = $charger->branch ?? $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        $partners = User::where('branch', $branch)->where('id', '!=', $user->id)->orderBy('name')->get(['id', 'name']);
 
         return view('chargers.edit', compact('charger', 'user', 'branch', 'partners'));
     }
-
 
     public function update(Request $request, $id)
     {
         $charger = Charger::with(['installParts', 'recommendations'])->findOrFail($id);
 
         if (!$this->canEditCharger($charger)) {
-            return redirect()
-                ->route('chargers.show', $charger->id)
-                ->withErrors(['error' => 'Anda tidak memiliki izin untuk mengubah data charger ini.']);
+            return redirect()->route('chargers.show', $charger->id)->withErrors(['error' => 'Anda tidak memiliki izin untuk mengubah data charger ini.']);
         }
 
         $validated = $request->validate([
-            'date'          => 'required|date',
-            'in_time'       => 'nullable|date_format:H:i',
-            'out_time'      => 'nullable|date_format:H:i',
-            'vehicle'       => 'required|string|max:150',
-            'nopol'         => 'required|string|max:100',
-
-            'customer'      => 'required|string|max:150',
-            'location'      => 'required|string|max:150',
-            'unit_type'     => 'required|string|max:100',
+            'date' => 'required|date',
+            'in_time' => 'nullable|date_format:H:i',
+            'out_time' => 'nullable|date_format:H:i',
+            'vehicle' => 'required|string|max:150',
+            'nopol' => 'required|string|max:100',
+            'customer' => 'required|string|max:150',
+            'location' => 'required|string|max:150',
+            'unit_type' => 'required|string|max:100',
             'serial_number' => 'required|string|max:100',
-
-            'sn_charger'    => 'required|string|max:100',
-            'charger_type'  => 'required|string|max:100',
-            'charger_year'  => 'nullable|integer|min:1900|max:2100',
-
-            'category_job'  => 'required|string|max:100',
-            'status_unit'   => 'required|string|max:100',
-
-            'problem_date'  => 'nullable|date',
-            'rfu_date'      => 'nullable|date',
-            'problem'       => 'nullable|string',
-            'action'        => 'nullable|string',
-            'partner'       => 'nullable|string|max:150',
-
-            'job_types'     => 'required|array|min:1',
-            'job_types.*'   => 'required|string|max:100',
+            'sn_charger' => 'required|string|max:100',
+            'charger_type' => 'required|string|max:100',
+            'charger_year' => 'nullable|integer|min:1900|max:2100',
+            'category_job' => 'required|string|max:100',
+            'status_unit' => 'required|string|max:100',
+            'problem_date' => 'nullable|date',
+            'rfu_date' => 'nullable|date',
+            'problem' => 'nullable|string',
+            'action' => 'nullable|string',
+            'partner' => 'nullable|string|max:150',
+            'job_types' => 'required|array|min:1',
+            'job_types.*' => 'required|string|max:100',
         ]);
+
+        if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
+            return $blockedResponse;
+        }
 
         DB::beginTransaction();
 
@@ -406,31 +360,24 @@ class ChargerController extends Controller
             $charger->out_time = $validated['out_time'] ?? null;
             $charger->vehicle = $validated['vehicle'];
             $charger->nopol = $validated['nopol'];
-
             $charger->customer = $validated['customer'];
             $charger->location = $validated['location'];
             $charger->unit_type = $validated['unit_type'];
             $charger->serial_number = $validated['serial_number'];
-
             $charger->sn_charger = $validated['sn_charger'];
             $charger->charger_type = $validated['charger_type'];
             $charger->charger_year = $validated['charger_year'] ?? null;
-
             $charger->category_job = $validated['category_job'];
             $charger->job_type = implode(', ', $validated['job_types']);
             $charger->status_unit = $validated['status_unit'];
-
             $charger->problem_date = $validated['problem_date'] ?? null;
             $charger->rfu_date = $validated['rfu_date'] ?? null;
             $charger->problem = $validated['problem'] ?? null;
             $charger->action = $validated['action'] ?? null;
             $charger->partner = $validated['partner'] ?? null;
-
             $charger->save();
 
-            // Reset install parts lama, lalu insert ulang sesuai form terbaru.
             $charger->installParts()->delete();
-
             if ($request->has('inst_part_name') && is_array($request->inst_part_name)) {
                 foreach ($request->inst_part_name as $key => $partName) {
                     $partNumber = $request->inst_part_number[$key] ?? null;
@@ -442,18 +389,16 @@ class ChargerController extends Controller
 
                     $charger->installParts()->create([
                         'part_number' => $partNumber,
-                        'part_name'   => $partName,
-                        'qty'         => $request->inst_qty[$key] ?? 1,
-                        'remarks'     => $request->inst_remarks[$key] ?? null,
-                        'no_job'      => $request->inst_no_job[$key] ?? null,
-                        'no_pr'       => $request->inst_no_pr[$key] ?? null,
+                        'part_name' => $partName,
+                        'qty' => $request->inst_qty[$key] ?? 1,
+                        'remarks' => $request->inst_remarks[$key] ?? null,
+                        'no_job' => $request->inst_no_job[$key] ?? null,
+                        'no_pr' => $request->inst_no_pr[$key] ?? null,
                     ]);
                 }
             }
 
-            // Reset recommendations lama, lalu insert ulang sesuai form terbaru.
             $charger->recommendations()->delete();
-
             if ($request->has('rec_part_name') && is_array($request->rec_part_name)) {
                 foreach ($request->rec_part_name as $key => $partName) {
                     $partNumber = $request->rec_part_number[$key] ?? null;
@@ -465,54 +410,31 @@ class ChargerController extends Controller
 
                     $charger->recommendations()->create([
                         'part_number' => $partNumber,
-                        'part_name'   => $partName,
-                        'qty'         => $request->rec_qty[$key] ?? 1,
-                        'remarks'     => $request->rec_remarks[$key] ?? null,
+                        'part_name' => $partName,
+                        'qty' => $request->rec_qty[$key] ?? 1,
+                        'remarks' => $request->rec_remarks[$key] ?? null,
                     ]);
                 }
             }
 
             DB::commit();
-
-            return redirect()
-                ->route('chargers.show', $charger->id)
-                ->with('success', 'Data Management Charger berhasil diperbarui.');
+            return redirect()->route('chargers.show', $charger->id)->with('success', 'Data Management Charger berhasil diperbarui.');
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return back()
-                ->withInput()
-                ->withErrors(['error' => 'Gagal memperbarui data charger: ' . $e->getMessage()]);
+            return back()->withInput()->withErrors(['error' => 'Gagal memperbarui data charger: ' . $e->getMessage()]);
         }
     }
 
     public function destroy($id)
     {
-        $charger = Charger::with(['installParts', 'recommendations'])->findOrFail($id);
+        $charger = Charger::findOrFail($id);
 
         if (!$this->canEditCharger($charger)) {
-            return redirect()
-                ->route('chargers.show', $charger->id)
-                ->withErrors(['error' => 'Anda tidak memiliki izin untuk menghapus data charger ini.']);
+            return redirect()->route('chargers.show', $charger->id)->withErrors(['error' => 'Anda tidak memiliki izin untuk menghapus data charger ini.']);
         }
 
-        DB::beginTransaction();
+        $charger->delete();
 
-        try {
-            $charger->installParts()->delete();
-            $charger->recommendations()->delete();
-            $charger->delete();
-
-            DB::commit();
-
-            return redirect()
-                ->route('chargers.index')
-                ->with('success', 'Data Management Charger berhasil dihapus.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return back()
-                ->withErrors(['error' => 'Gagal menghapus data charger: ' . $e->getMessage()]);
-        }
+        return redirect()->route('chargers.index')->with('success', 'Data Management Charger berhasil dihapus.');
     }
 }
