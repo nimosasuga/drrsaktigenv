@@ -2,6 +2,13 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $user = Auth::user();
+    $role = $user->role ?? $user->status_user;
+    $privilegedRoles = ['koordinator', 'sect_head', 'admin', 'super_admin'];
+    $canEdit = ((int) $user->id === (int) ($penarikan->user_id ?? 0)) || in_array($role, $privilegedRoles, true);
+@endphp
+
 <div class="mx-auto max-w-6xl pb-28">
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -11,7 +18,18 @@
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('penarikans.index') }}" class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-sm">Kembali</a>
-            <a href="{{ route('penarikans.edit', $penarikan->id) }}" class="rounded-2xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-rose-900/20">Edit</a>
+
+            @if($canEdit)
+                <form action="{{ route('penarikans.destroy', $penarikan->id) }}" method="POST" class="inline-block" onsubmit="return confirm('PERINGATAN: Yakin ingin menghapus permanen data Penarikan Unit ini? Aksi ini tidak dapat dibatalkan.');">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-sm font-black text-red-600 shadow-sm transition hover:bg-red-100">
+                        Hapus
+                    </button>
+                </form>
+
+                <a href="{{ route('penarikans.edit', $penarikan->id) }}" class="rounded-2xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white shadow-lg shadow-rose-900/20">Edit</a>
+            @endif
         </div>
     </div>
 
