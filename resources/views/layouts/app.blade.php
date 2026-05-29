@@ -72,9 +72,21 @@
             </a>
 
             @php
-                $sidebarRole = strtolower((string) (Auth::user()->role ?? Auth::user()->status_user ?? ''));
-                $sidebarRole = str_replace([' ', '-'], '_', trim($sidebarRole));
-                $canOpenCommandCenter = in_array($sidebarRole, ['koordinator', 'sect_head', 'admin', 'super_admin'], true);
+            $sidebarRoleText = strtolower(trim(implode(' ', array_filter([
+            (string) (Auth::user()->role ?? ''),
+            (string) (Auth::user()->status_user ?? ''),
+            ]))));
+
+            $sidebarRoleText = str_replace(['-', '_'], ' ', $sidebarRoleText);
+
+            $canOpenCommandCenter =
+            str_contains($sidebarRoleText, 'koordinator') ||
+            str_contains($sidebarRoleText, 'coordinator') ||
+            str_contains($sidebarRoleText, 'sect head') ||
+            str_contains($sidebarRoleText, 'secthead') ||
+            str_contains($sidebarRoleText, 'admin') ||
+            str_contains($sidebarRoleText, 'super admin') ||
+            str_contains($sidebarRoleText, 'superadmin');
             @endphp
 
             @if($canOpenCommandCenter)
@@ -83,7 +95,8 @@
                 <svg class="w-5 h-5 mr-3 {{ request()->routeIs('command-center.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }}"
                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M11 3a1 1 0 012 0v18a1 1 0 11-2 0V3zM4 13a1 1 0 012 0v8a1 1 0 11-2 0v-8zM18 7a1 1 0 012 0v14a1 1 0 11-2 0V7z"></path>
+                        d="M11 3a1 1 0 012 0v18a1 1 0 11-2 0V3zM4 13a1 1 0 012 0v8a1 1 0 11-2 0v-8zM18 7a1 1 0 012 0v14a1 1 0 11-2 0V7z">
+                    </path>
                 </svg>
                 Command Center
             </a>
@@ -347,8 +360,8 @@
 
                     <!-- Efek rotasi saat menu terbuka -->
                     <svg class="h-6 w-6 transition-transform duration-500 ease-out lg:h-5 lg:w-5"
-                        :class="openJobMenu ? 'rotate-360 scale-110 text-white' : ''" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
+                        :class="openJobMenu ? 'rotate-360 scale-110 text-white' : ''" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
                         </path>
