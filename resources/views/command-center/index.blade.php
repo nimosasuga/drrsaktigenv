@@ -162,8 +162,7 @@ $maxPic = max(array_column($picScores, 'total') ?: [1]);
             <div class="mb-5 flex items-center justify-between gap-3">
                 <div>
                     <h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Grafik Aktivitas Bulanan</h2>
-                    <p class="mt-1 text-xs font-bold text-slate-500">Gabungan seluruh modul pada tahun {{ $selectedYear
-                        }}.</p>
+                    <p class="mt-1 text-xs font-bold text-slate-500">Gabungan seluruh modul pada tahun {{ $filters['year'] }}.</p>
                 </div>
                 <span class="rounded-full bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">Peak: {{
                     number_format($summary['peak_month_total']) }}</span>
