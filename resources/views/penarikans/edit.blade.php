@@ -19,6 +19,16 @@
         </div>
     @endif
 
+    @php
+        $inTimeValue = old('in_time') !== null
+            ? substr((string) old('in_time'), 0, 5)
+            : ($penarikan->in_time ? substr((string) $penarikan->in_time, 0, 5) : '');
+
+        $outTimeValue = old('out_time') !== null
+            ? substr((string) old('out_time'), 0, 5)
+            : ($penarikan->out_time ? substr((string) $penarikan->out_time, 0, 5) : '');
+    @endphp
+
     <form action="{{ route('penarikans.update', $penarikan->id) }}" method="POST" class="space-y-6">
         @csrf
         @method('PUT')
@@ -37,7 +47,7 @@
             <h2 class="mb-5 text-sm font-black uppercase tracking-wider text-slate-800">Kendaraan & Waktu</h2>
             <div class="grid gap-5 md:grid-cols-2">
                 <div><label class="mb-1 block text-xs font-bold text-slate-600">Tanggal *</label><input type="date" name="date" value="{{ old('date', $penarikan->date) }}" required class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"></div>
-                <div class="grid grid-cols-2 gap-3"><div><label class="mb-1 block text-xs font-bold text-slate-600">IN</label><input type="time" name="in_time" value="{{ old('in_time', $penarikan->in_time) }}" class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"></div><div><label class="mb-1 block text-xs font-bold text-slate-600">OUT</label><input type="time" name="out_time" value="{{ old('out_time', $penarikan->out_time) }}" class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"></div></div>
+                <div class="grid grid-cols-2 gap-3"><div><label class="mb-1 block text-xs font-bold text-slate-600">IN</label><input type="time" name="in_time" value="{{ $inTimeValue }}" class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"></div><div><label class="mb-1 block text-xs font-bold text-slate-600">OUT</label><input type="time" name="out_time" value="{{ $outTimeValue }}" class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm"></div></div>
                 <div><label class="mb-1 block text-xs font-bold text-slate-600">Vehicle *</label><input type="text" name="vehicle" value="{{ old('vehicle', $penarikan->vehicle) }}" required class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm uppercase"></div>
                 <div><label class="mb-1 block text-xs font-bold text-slate-600">Nopol *</label><input type="text" name="nopol" value="{{ old('nopol', $penarikan->nopol) }}" required class="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm uppercase"></div>
             </div>
