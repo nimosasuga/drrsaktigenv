@@ -1,13 +1,6 @@
 // PATH FILE: resources/js/penarikan-form-enhancer.js
 
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('form[action*="penarikans"]');
-    const serialInput = form?.querySelector('input[name="serial_number"]');
-
-    if (!form || !serialInput) {
-        return;
-    }
-
     const isCreatePage = window.location.pathname === '/penarikans/create';
     const draftKey = 'drrsakti:penarikan:create:draft';
     const pendingClearKey = 'drrsakti:penarikan:create:pending-clear';
@@ -16,6 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem(draftKey);
         localStorage.removeItem(pendingClearKey);
     }
+
+    const form = document.querySelector('form[action*="penarikans"]');
+    const serialInput = form?.querySelector('input[name="serial_number"]');
+
+    if (!form || !serialInput) {
+        return;
+    }
+
+    let isSubmitting = false;
 
     const findInput = (name) => form.querySelector(`[name="${name}"]`);
     const autoFields = ['customer', 'location', 'unit_type', 'year', 'hour_meter'];
@@ -68,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const saveDraft = () => {
-        if (!isCreatePage) return;
+        if (!isCreatePage || isSubmitting) return;
 
         const data = getDraftData();
         if (!hasMeaningfulData(data)) return;
@@ -228,13 +230,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     form.addEventListener('submit', () => {
-        saveDraft();
+        isSubmitting = true;
         localStorage.setItem(pendingClearKey, '1');
     });
 
     document.querySelectorAll('a[href]').forEach((link) => {
         link.addEventListener('click', () => {
-            if (!isCreatePage) return;
+            if (!isCreatePage || isSubmitting) return;
             saveDraft();
             if (hasMeaningfulData(getDraftData())) {
                 createNotice('Progres Penarikan Unit sudah disimpan otomatis. Jika kembali ke form ini, data akan dipulihkan.', 'warning');
@@ -243,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     window.addEventListener('beforeunload', (event) => {
-        if (!isCreatePage) return;
+        if (!isCreatePage || isSubmitting) return;
         if (!hasMeaningfulData(getDraftData())) return;
 
         saveDraft();
