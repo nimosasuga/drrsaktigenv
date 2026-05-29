@@ -71,6 +71,24 @@
                 Manajemen Aset
             </a>
 
+            @php
+                $sidebarRole = strtolower((string) (Auth::user()->role ?? Auth::user()->status_user ?? ''));
+                $sidebarRole = str_replace([' ', '-'], '_', trim($sidebarRole));
+                $canOpenCommandCenter = in_array($sidebarRole, ['koordinator', 'sect_head', 'admin', 'super_admin'], true);
+            @endphp
+
+            @if($canOpenCommandCenter)
+            <a href="{{ route('command-center.index') }}"
+                class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors mt-1 {{ request()->routeIs('command-center.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="w-5 h-5 mr-3 {{ request()->routeIs('command-center.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }}"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 3a1 1 0 012 0v18a1 1 0 11-2 0V3zM4 13a1 1 0 012 0v8a1 1 0 11-2 0v-8zM18 7a1 1 0 012 0v14a1 1 0 11-2 0V7z"></path>
+                </svg>
+                Command Center
+            </a>
+            @endif
+
             <!-- Menu Item (Profil Saya) -->
             <a href="{{ route('profile.index') }}"
                 class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors mt-1 {{ request()->routeIs('profile.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
