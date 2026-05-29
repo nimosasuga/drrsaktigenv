@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
 
 class UpdateJobShareController extends Controller
 {
@@ -90,10 +89,9 @@ class UpdateJobShareController extends Controller
         $partner = $this->value($job->partner, '');
         $manPower = trim($this->value($job->pic, '') . ($partner !== '' ? ' - ' . $partner : ''));
         $vehicle = trim($this->value($job->vehicle_type, '') . ' - ' . $this->value($job->nopol, ''));
-        $sharedBy = $this->value(Auth::user()->name ?? null);
 
         return trim(implode("\n", [
-            '📝 *UPDATE JOB RENTAL* _' . $this->value($job->status_mekanik) . '_',
+            '*UPDATE JOB RENTAL* _' . $this->value($job->status_mekanik) . '_',
             $this->value($job->job_type),
             '',
             '*' . $this->value(strtoupper((string) $job->customer)) . '*',
@@ -124,8 +122,6 @@ class UpdateJobShareController extends Controller
             '',
             '> _*INSTALL PART*_',
             $this->installPartsText($job),
-            '',
-            '_Dibagikan dari DRR SAKTI GEN V oleh ' . $sharedBy . '_',
         ]));
     }
 }
