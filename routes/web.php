@@ -21,6 +21,7 @@ use App\Http\Controllers\UpdateJobShareController;
 use App\Http\Controllers\OperationalShareController;
 use App\Http\Controllers\UpdateJobExtraFieldController;
 use App\Http\Controllers\UpdateJobAssetSearchController;
+use App\Http\Controllers\UpdateJobPreventiveMaintenanceCheckController;
 use App\Http\Controllers\UpdateJobSaveController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
@@ -49,6 +50,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
         Route::resource('assets', UnitAssetController::class);
         Route::get('/update-jobs/search-assets', UpdateJobAssetSearchController::class)->name('update-jobs.search-assets');
+        Route::get('/update-jobs/check-preventive-maintenance', UpdateJobPreventiveMaintenanceCheckController::class)->name('update-jobs.check-preventive-maintenance');
         Route::get('/update-jobs/extra-fields/asset', [UpdateJobExtraFieldController::class, 'asset'])->name('update-jobs.extra-fields.asset');
         Route::get('/update-jobs/{id}/extra-fields', [UpdateJobExtraFieldController::class, 'job'])->name('update-jobs.extra-fields.job');
         Route::get('/update-jobs/recommendation-history', [\App\Http\Controllers\JobController::class, 'recommendationHistory'])->name('update-jobs.recommendation-history');
