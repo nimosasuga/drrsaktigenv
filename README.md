@@ -1,37 +1,40 @@
 # DRR SAKTI GEN V
 
-DRR SAKTI GEN V adalah aplikasi Laravel untuk manajemen pekerjaan field service, aset unit, battery, charger, delivery, dan penarikan unit. Project ini sudah berada di tahap produksi awal, sehingga setiap perubahan harus kecil, terukur, dan tidak merusak fitur stabil.
+DRR SAKTI GEN V adalah aplikasi Laravel untuk manajemen operasional field service, aset unit, update job, battery, charger, delivery unit, penarikan unit, subscription, dan command center statistik. Project ini **project lanjutan** dan sudah masuk **produksi awal**, sehingga setiap perubahan wajib kecil, aman, bertahap, dan bisa dites.
 
-Repository: `https://github.com/nimosasuga/drrsaktigenv.git`
+Repository:
 
----
+```text
+https://github.com/nimosasuga/drrsaktigenv.git
+```
 
-## 1. Status Project
-
-Project ini adalah project lanjutan, bukan project baru.
-
-Stack utama:
-
-- Laravel 13
-- PHP 8.3
-- MySQL
-- Blade
-- Tailwind CSS
-- Vite
-- Laragon local development
-- HeidiSQL untuk inspeksi database
-- PowerShell untuk command lokal
-
-Local path utama:
+Local path:
 
 ```text
 C:\laragon\www\drrsakti
 ```
 
-Command standar setelah perubahan kode:
+---
+
+## 1. Stack Project
+
+```text
+Laravel 13
+PHP 8.3
+MySQL
+Laragon
+HeidiSQL
+Blade
+Tailwind CSS
+Vite
+PowerShell
+```
+
+Command standar setelah pull/perubahan kode:
 
 ```powershell
 cd C:\laragon\www\drrsakti
+git pull origin main
 php artisan optimize:clear
 php artisan view:clear
 php artisan route:clear
@@ -49,17 +52,13 @@ php artisan migrate
 
 ## 2. Aturan Produksi
 
-Wajib dipatuhi:
-
-1. Jangan mulai ulang project.
+1. Project ini **bukan project baru**.
 2. Jangan ubah arsitektur besar tanpa alasan kuat.
-3. Jangan menghapus fitur, tombol, route, field, atau tampilan yang sudah stabil tanpa instruksi eksplisit.
-4. Jangan ubah database jika bisa diselesaikan di controller/view.
-5. Gunakan perubahan kecil, bertahap, dan mudah dites.
-6. Selalu cek file yang sudah ada sebelum memberi solusi.
-7. Untuk perubahan UI, ikuti gaya modul yang sudah stabil.
-8. Untuk relasi histori pekerjaan asset, gunakan `serial_number` terlebih dahulu. `unit_asset_id` dapat dibuat nanti setelah modul stabil.
-9. Gunakan kolom modern:
+3. Jangan hapus fitur, route, tombol, field, tampilan, atau alur yang sudah stabil tanpa instruksi eksplisit.
+4. Jangan ubah database kalau bisa diselesaikan di controller/view.
+5. Perubahan harus kecil, aman, bertahap, dan mudah dites.
+6. Baca struktur/file yang ada sebelum memberi solusi.
+7. Gunakan kolom modern:
 
 ```text
 customer
@@ -67,30 +66,42 @@ location
 serial_number
 unit_type
 status
+year
+nomor_lambung
 ```
 
-Jangan gunakan kolom lama:
+8. Jangan gunakan kolom lama sebagai standar utama:
 
 ```text
 nama_pelanggan
 lokasi
 ```
 
-Jika menemukan kode lama memakai `nama_pelanggan` atau `lokasi`, lakukan fallback seperlunya, tetapi standar baru tetap `customer` dan `location`.
+Fallback boleh hanya jika diperlukan untuk kompatibilitas data lama.
+
+9. Histori asset saat ini masih berdasarkan:
+
+```text
+unit_assets.serial_number = update_jobs.serial_number
+```
+
+10. `unit_asset_id` bisa dibuat nanti setelah modul utama benar-benar stabil.
 
 ---
 
-## 3. Aturan Canvas / File Saat Dibantu AI
+## 3. Aturan AI / Canvas / File
 
-Jika project dilanjutkan menggunakan ChatGPT, Gemini, Claude, atau AI coding assistant lain, pakai aturan ini:
+Jika project dilanjutkan dengan ChatGPT, Gemini, Claude, atau AI coding assistant lain, aturan wajib:
 
 1. Satu canvas hanya untuk satu file kode.
 2. Nama canvas harus sama persis dengan path file.
 3. Baris paling atas isi canvas wajib memuat path file.
-4. Jika path file sudah pernah ada, update canvas lama. Jangan buat canvas baru untuk file yang sama.
+4. Jika file sudah pernah ada, update file lama. Jangan buat file duplikat.
 5. Jangan campur controller, model, route, blade, migration, dan JavaScript dalam satu canvas.
-6. Jika perlu ubah tiga file, buat atau update tiga canvas terpisah.
-7. Selalu sertakan potongan target agar posisi tempel/perubahan jelas.
+6. Jika ubah tiga file, buat/update tiga file/canvas terpisah.
+7. Jangan memberi solusi sebelum membaca file target.
+8. Jangan pakai pendekatan tambal JS jika field bisa dipasang langsung di Blade.
+9. Jangan mengubah endpoint search asset yang sudah stabil kecuali memang diminta.
 
 Format jawaban wajib:
 
@@ -107,7 +118,7 @@ Format jawaban wajib:
 
 ---
 
-## 4. Role dan Akses
+## 4. Role dan Hak Akses
 
 Role utama:
 
@@ -126,64 +137,63 @@ Hak akses umum:
 - `admin`: full akses operasional.
 - `koordinator`: privileged access operasional.
 - `sect_head`: privileged access operasional.
-- user biasa / mekanik: akses terbatas sesuai modul.
+- mekanik/user biasa: akses terbatas sesuai data dan modul.
 - `PLANNER`: tidak boleh create Delivery Unit dan tidak boleh create Penarikan Unit.
 
 ---
 
-## 5. Modul Stabil Saat Ini
+## 5. Modul Stabil
 
 ### 5.1 Authentication
 
-Fitur:
+Stabil:
 
 - Login
 - Logout
 - Dashboard
 - Auth middleware
 
-Login menggunakan identitas internal seperti NRPP/password sesuai kebutuhan project.
+---
 
 ### 5.2 Subscription
 
-Fitur:
+Stabil:
 
-- Halaman pilih lisensi
+- Subscription index
 - Payment
 - Waiting approval
 - Middleware `CheckSubscription`
-- Konfirmasi pembayaran diarahkan ke WhatsApp admin:
+- Konfirmasi pembayaran redirect ke WhatsApp admin:
 
 ```text
 085133331467
 ```
 
-Halaman waiting memiliki tombol manual Chat Admin WhatsApp.
+- Waiting page punya tombol Chat Admin WhatsApp manual.
+
+---
 
 ### 5.3 Super Admin
 
-Fitur:
+Stabil:
 
 - Verifikasi lisensi
 - Manajemen pengguna
 - Middleware `CheckSuperAdmin`
-- Halaman verifikasi lisensi sudah dibuat lebih jelas agar admin melihat data pembayaran sebelum approve.
+- Verifikasi lisensi sudah dibuat lebih jelas agar admin melihat data pembayaran sebelum approve.
 
-### 5.4 Manajemen Aset / Unit Asset
+---
 
-Fitur:
+### 5.4 Unit Asset / Manajemen Aset
 
-- Index grouping berdasarkan customer/location.
-- Searchbox dan filter.
-- User biasa read-only.
-- CRUD hanya untuk role privileged.
-- Histori pekerjaan mekanik disambungkan awal menggunakan `serial_number`.
+Stabil:
 
-Relasi histori saat ini:
-
-```text
-unit_assets.serial_number = jobs.serial_number
-```
+- Grouping berdasarkan `customer/location`
+- Searchbox dan filter
+- User biasa read-only
+- CRUD hanya privileged role
+- Histori pekerjaan memakai `serial_number`
+- Status asset `DITARIK` dipakai untuk unit yang sudah ditarik
 
 Status asset penting:
 
@@ -191,31 +201,40 @@ Status asset penting:
 DITARIK
 ```
 
-Jika sebuah unit sudah masuk Penarikan Unit, status asset akan berubah menjadi `DITARIK`.
+Jika unit masuk Penarikan Unit, status asset berubah menjadi `DITARIK`.
+
+---
 
 ### 5.5 Update Job
 
-Fitur:
+Stabil:
 
-- Index
-- Create
-- Edit
-- Show
-- Search asset by serial number
-- UI grouped bertingkat:
+- Index/create/edit/show/destroy
+- Search asset by serial number stabil melalui:
+
+```text
+app/Http/Controllers/UpdateJobAssetSearchController.php
+```
+
+- Route search asset:
+
+```php
+Route::get('/update-jobs/search-assets', UpdateJobAssetSearchController::class)->name('update-jobs.search-assets');
+```
+
+- Search asset **jangan diutak-atik sembarangan** karena ini jalur vital form create/edit.
+- UI index grouped bertingkat:
 
 ```text
 Bulan & Tahun
 └── PIC
-    └── Customer / Lokasi
+    └── Customer / Location
         └── Detail Unit
 ```
 
-- Tampilan mobile dibuat compact seperti aplikasi Android.
-- Floating add button.
-- Info card disederhanakan: total unit BD dan troubleshooting bulan berjalan vs bulan sebelumnya.
-- Form Update Job memiliki histori rekomendasi part berdasarkan S/N.
-- Saat user input S/N, histori rekomendasi part muncul otomatis:
+- Mobile compact seperti aplikasi Android
+- Floating add button
+- Histori rekomendasi part berdasarkan serial number:
 
 ```text
 Tanggal
@@ -224,141 +243,137 @@ Part Name
 Qty
 ```
 
-- Jika asset dengan serial number tertentu sudah berstatus `DITARIK`, serial number tersebut tidak boleh dipakai di Update Job.
-- Pengamanan dilakukan dua lapis:
-  - UI: tombol simpan dikunci dan warning muncul.
-  - Controller: submit tetap ditolak walaupun user mengetik manual.
+- Asset dengan status `DITARIK` tidak boleh dipakai untuk Update Job.
+- Blocking dilakukan di UI dan controller.
+- Field `year` dan `nomor_lambung` sudah didukung.
+- Field `year` dan `nomor_lambung` **dipasang langsung di Blade**, bukan via JS injector.
+- File JS injector lama sudah dihapus:
+
+```text
+resources/js/update-job-extra-fields.js
+```
+
+- Jangan aktifkan ulang import ini:
+
+```js
+import "./update-job-extra-fields";
+```
+
+- Create/update save flow distabilkan melalui:
+
+```text
+app/Http/Controllers/UpdateJobSaveController.php
+```
+
+- Route store/update Update Job:
+
+```php
+Route::post('/update-jobs', [UpdateJobSaveController::class, 'store'])->name('update-jobs.store');
+Route::put('/update-jobs/{id}', [UpdateJobSaveController::class, 'update'])->name('update-jobs.update');
+Route::patch('/update-jobs/{id}', [UpdateJobSaveController::class, 'update']);
+Route::resource('update-jobs', JobController::class)->except(['store', 'update']);
+```
+
+- `index/create/show/edit/destroy` tetap memakai `JobController`.
+- `store/update` memakai `UpdateJobSaveController` agar edit tidak memaksa isi ulang field lama.
+- Saat edit action saja, field lama fallback dari database.
+- Install Part / Recommendation tidak dihapus jika form tidak mengirim array part.
+- Setelah create/update berhasil, redirect ke detail job:
+
+```text
+/update-jobs/{id}
+```
+
+- Preventive Maintenance dibatasi:
+
+```text
+1 serial_number hanya boleh 1x Preventive Maintenance dalam 1 bulan.
+```
+
+Tipe pekerjaan resmi Update Job:
+
+```text
+Preventive Maintenance
+Install Part
+Troubleshooting
+Inspection
+Repair
+```
+
+Status akhir unit resmi:
+
+```text
+RFU
+Breakdown
+Monitoring
+Waiting Part
+```
+
+---
 
 ### 5.6 Management Battery
 
-Fitur:
+Stabil:
 
-- Index
-- Create
-- Edit
-- Show
+- Index/create/edit/show
 - Autocomplete asset
-- UI mengikuti pola Update Job tetapi dengan nuansa berbeda.
-- Grouping bertingkat:
+- Install parts
+- Recommendation parts
+- UI mengikuti Update Job dengan nuansa emerald/lime/cyan
+- Grouping bertingkat
+- Card `Battery SN / Unique battery` sudah dihapus
+- Card `RFU / Ready battery unit` sudah dihapus
+- Ada `Pekerjaan Populer Top 1-3` dengan grafik batang responsive
+- Share WhatsApp floating button aktif di detail Battery
 
-```text
-Bulan & Tahun
-└── PIC
-    └── Customer / Lokasi
-        └── Detail Battery
-```
-
-- Card `Battery SN / Unique battery` dihapus.
-- Card `RFU / Ready battery unit` dihapus.
-- Ditambahkan card `Pekerjaan Populer Top 1-3` dengan rounded table dan grafik batang responsive.
-
-Nuansa visual:
-
-```text
-Electric Battery: emerald / lime / cyan
-```
+---
 
 ### 5.7 Management Charger
 
-Fitur:
+Stabil:
 
-- Index
-- Create
-- Edit
-- Show
-- Update
-- Destroy
+- Index/create/edit/show/update/destroy
+- Autocomplete asset
 - Install parts
 - Recommendation parts
-- Autocomplete asset
-- UI mengikuti pola Update Job tetapi dengan nuansa berbeda.
-- Grouping bertingkat:
+- UI mengikuti Update Job dengan nuansa amber/violet/indigo
+- Grouping bertingkat
+- Ada `Pekerjaan Populer Top 1-3`
+- Share WhatsApp floating button aktif di detail Charger
 
-```text
-Bulan & Tahun
-└── PIC
-    └── Customer / Lokasi
-        └── Detail Charger
-```
-
-- Summary:
-  - Charger Job
-  - Charger BD
-  - Pekerjaan Populer Top 1-3
-
-Nuansa visual:
-
-```text
-Voltage Charger: amber / violet / indigo
-```
+---
 
 ### 5.8 Delivery Unit
 
-Fitur:
+Stabil:
 
-- Migration deliveries
-- Model Delivery
-- DeliveryController
-- Route deliveries
-- Index/create/show/edit
-- Store/update/destroy
+- Migration/model/controller/route/view sudah dibuat
+- Index/create/show/edit/store/update/destroy
 - Search asset serial number
 - `job_type` fixed: `DELIVERY UNIT`
-- `status_unit`: `RFU` / `BREAKDOWN`
+- `status_unit`: `RFU / BREAKDOWN`
 - PLANNER tidak boleh create Delivery Unit
 - Edit/delete hanya PIC atau privileged role
-- UI mengikuti pola Update Job tetapi dengan nuansa berbeda.
-- Grouping bertingkat:
+- UI mengikuti Update Job dengan nuansa purple/sky/cyan
+- Grouping bertingkat
+- Share WhatsApp floating button aktif di detail Delivery
 
-```text
-Bulan & Tahun
-└── PIC
-    └── Customer / Lokasi
-        └── Detail Delivery
-```
-
-Nuansa visual:
-
-```text
-Logistic Route: purple / sky / cyan
-```
+---
 
 ### 5.9 Penarikan Unit
 
-Modul baru sudah dibuat.
+Stabil:
 
-File utama:
-
-```text
-database/migrations/2026_05_30_000000_create_penarikans_table.php
-database/migrations/2026_05_30_010000_add_extra_battery_and_trolly_to_penarikans_table.php
-database/migrations/2026_05_30_020000_add_penarikan_asset_status_triggers.php
-app/Http/Controllers/PenarikanController.php
-resources/views/penarikans/index.blade.php
-resources/views/penarikans/create.blade.php
-resources/views/penarikans/show.blade.php
-resources/views/penarikans/edit.blade.php
-resources/js/penarikan-menu-link.js
-resources/js/penarikan-form-enhancer.js
-```
-
-Catatan:
-
-- Model `app/Models/Penarikan.php` sempat gagal dibuat karena push file diblokir, sehingga controller sementara memakai `DB::table('penarikans')`.
-- Ini stabil untuk tahap sekarang, tetapi nanti bisa dirapikan ke Eloquent model jika diperlukan.
-
-Fitur:
-
-- PLANNER tidak boleh create Penarikan Unit.
-- Edit/delete hanya PIC pembuat data atau role privileged.
-- `job_type` fixed: `TARIK UNIT`.
-- `status_unit`: `RFU` / `BREAKDOWN`.
-- Data teknisi otomatis dari user login.
-- Partner dari user satu branch.
-- Search asset berdasarkan serial number.
-- Customer/location/unit_type/year/hour_meter diisi otomatis dan readonly.
-- Autocomplete S/N berjalan mulai 1 karakter.
-- Mendukung kebutuhan lapangan:
+- Migration/controller/route/view sudah dibuat
+- Controller sementara memakai `DB::table('penarikans')`
+- Index/create/show/edit/store/update/destroy
+- PLANNER tidak boleh create
+- Edit/delete hanya PIC atau privileged role
+- `job_type` fixed: `TARIK UNIT`
+- `status_unit`: `RFU / BREAKDOWN`
+- Autocomplete S/N mulai 1 karakter
+- Customer/location/unit_type/year/hour_meter otomatis dan readonly
+- Mendukung:
 
 ```text
 Battery Type 1
@@ -370,41 +385,161 @@ Trolly 2
 Trolly 3
 ```
 
-- Draft form otomatis disimpan di browser localStorage agar progres tidak hilang jika user keluar tanpa sengaja.
-- Saat user kembali ke form, data dipulihkan dan muncul notifikasi.
-- Warning keluar halaman tidak muncul ketika user benar-benar klik Simpan.
-- Saat Penarikan Unit berhasil disimpan atau diupdate, status `unit_assets.status` berdasarkan `serial_number` otomatis berubah menjadi:
-
-```text
-DITARIK
-```
-
-Implementasi status asset saat ini memakai MySQL trigger:
+- Autosave draft via localStorage
+- Warning keluar halaman tidak muncul saat klik Simpan
+- Bug edit `in_time/out_time` format `H:i` sudah diperbaiki
+- Detail Penarikan menampilkan Battery 2 dan Trolly 2-3
+- Tombol delete Penarikan ada di detail dengan permission sama seperti Update Job
+- Setelah simpan/update Penarikan, status `unit_assets.status` sesuai serial_number berubah menjadi `DITARIK`
+- Saat ini update status asset memakai MySQL trigger:
 
 ```text
 trg_penarikans_after_insert_status
 trg_penarikans_after_update_status
 ```
 
-Jika hosting/cPanel menolak trigger, pindahkan logika update status ke `PenarikanController` sebagai backup.
+- Backup update status DITARIK juga sudah disiapkan di controller agar aman jika cPanel menolak trigger.
+- Share WhatsApp floating button aktif di detail Penarikan.
+- Report Penarikan tidak memakai `PENARIKAN CODE`.
 
-Nuansa visual:
+---
+
+## 6. Command Center
+
+Command Center sudah dibuat untuk role:
 
 ```text
-Return Route: rose / red / slate
+koordinator
+sect_head
+super_admin
+admin
+```
+
+Fitur:
+
+- Menu Command Center muncul di sidebar untuk role fleksibel seperti controller.
+- Statistik performa operasional.
+- Export CSV Excel-friendly.
+- Import CSV insert-only.
+- Filter:
+
+```text
+modul
+PIC
+customer
+location
+status
+bulan
+tahun
+```
+
+Analisa performa tajam:
+
+- Produktivitas per bulan
+- Beban kerja per customer/location
+- Rasio RFU vs Breakdown
+- Unit paling sering bermasalah
+- Rekomendasi part terbanyak
+- Status per PIC
+
+Indikator warna risiko:
+
+```text
+Hijau  = RFU tinggi / aman
+Merah  = Breakdown tinggi / risiko
+Amber  = Monitoring / Waiting Part perlu diawasi
+```
+
+Status analisa resmi:
+
+```text
+RFU
+Breakdown
+Monitoring
+Waiting Part
+```
+
+Tipe pekerjaan analisa resmi:
+
+```text
+Preventive Maintenance
+Install Part
+Troubleshooting
+Inspection
+Repair
 ```
 
 ---
 
-## 6. Bottom Navigation
+## 7. WhatsApp Share Report
 
-Urutan floating bottom navigation saat ini:
+Share WhatsApp sudah aktif untuk detail:
+
+```text
+/update-jobs/{id}
+/batteries/{id}
+/chargers/{id}
+/deliveries/{id}
+/penarikans/{id}
+```
+
+Pola:
+
+```text
+Halaman detail/view
+→ tombol floating WhatsApp
+→ route share-message
+→ controller susun report
+→ redirect langsung ke WhatsApp
+```
+
+Icon floating memakai Bootstrap WhatsApp SVG.
+
+Report tidak memakai emoji karena sebagian perangkat/WhatsApp tidak membaca emoji dengan baik.
+
+Report tidak memakai footer:
+
+```text
+Dibagikan dari DRR SAKTI GEN V oleh ...
+```
+
+Controller share:
+
+```text
+app/Http/Controllers/UpdateJobShareController.php
+app/Http/Controllers/OperationalShareController.php
+```
+
+JS floating button:
+
+```text
+resources/js/update-job-copy-report.js
+resources/js/operational-share-report.js
+```
+
+Format report sudah disamakan antar modul:
+
+```text
+HEADER
+CUSTOMER / LOCATION / DATE / IN / OUT / MAN POWER / KENDARAAN
+DETAIL UNIT
+JOB DESCRIPTIONS / EQUIPMENT
+RECOMMENDATIONS
+INSTALL PART
+NOTE
+```
+
+---
+
+## 8. Bottom Navigation
+
+Urutan bottom nav:
 
 ```text
 Home | Kalender | Job | Ingat | Profile
 ```
 
-Menu Job membuka popup:
+Popup Job:
 
 ```text
 Update Job
@@ -414,113 +549,62 @@ Delivery Unit
 Penarikan Unit
 ```
 
-Penarikan Unit saat ini diarahkan melalui JS patch `penarikan-menu-link.js` dari `href="#"` ke `/penarikans`.
+Penarikan Unit awalnya diarahkan lewat JS patch:
 
-Nanti jika layout sudah aman, patch langsung di `resources/views/layouts/app.blade.php`:
+```text
+resources/js/penarikan-menu-link.js
+```
+
+Jika layout sudah benar-benar aman, bisa dipatch langsung di:
+
+```text
+resources/views/layouts/app.blade.php
+```
+
+menjadi:
 
 ```blade
-<a href="{{ route('penarikans.index') }}">
+route('penarikans.index')
 ```
 
 ---
 
-## 7. Route Penting
+## 9. File Penting Terakhir
 
-Update Job:
+Jangan hapus tanpa alasan:
 
-```php
-Route::get('/update-jobs/search-assets', [JobController::class, 'searchAssets'])->name('update-jobs.search-assets');
-Route::get('/update-jobs/recommendation-history', [JobController::class, 'recommendationHistory'])->name('update-jobs.recommendation-history');
-Route::resource('update-jobs', JobController::class);
+```text
+app/Http/Controllers/UpdateJobAssetSearchController.php
+app/Http/Controllers/UpdateJobSaveController.php
+app/Http/Controllers/UpdateJobShareController.php
+app/Http/Controllers/OperationalShareController.php
+app/Http/Controllers/CommandCenterController.php
+app/Http/Controllers/PenarikanController.php
+resources/js/update-job-copy-report.js
+resources/js/operational-share-report.js
+resources/js/update-job-detail-extra-fields.js
+resources/js/update-job-withdrawn-asset-blocker.js
+resources/js/update-job-field-options.js
+resources/js/penarikan-menu-link.js
+resources/js/penarikan-form-enhancer.js
 ```
 
-Battery:
+File yang sudah dihapus dan jangan dibuat/import lagi:
 
-```php
-Route::get('/batteries/search-assets', [BatteryController::class, 'searchAssets'])->name('batteries.search-assets');
-Route::resource('batteries', BatteryController::class);
-```
-
-Charger:
-
-```php
-Route::get('/chargers/search-assets', [ChargerController::class, 'searchAssets'])->name('chargers.search-assets');
-Route::resource('chargers', ChargerController::class);
-```
-
-Delivery:
-
-```php
-Route::get('/deliveries/search-assets', [DeliveryController::class, 'searchAssets'])->name('deliveries.search-assets');
-Route::resource('deliveries', DeliveryController::class);
-```
-
-Penarikan:
-
-```php
-Route::get('/penarikans/search-assets', [PenarikanController::class, 'searchAssets'])->name('penarikans.search-assets');
-Route::resource('penarikans', PenarikanController::class);
-```
-
-Assets:
-
-```php
-Route::resource('assets', UnitAssetController::class);
+```text
+resources/js/update-job-extra-fields.js
+resources/js/update-job-extra-fields-stable.js
 ```
 
 ---
 
-## 8. Timeline Pekerjaan Terakhir
+## 10. Testing Minimum Setelah Pull
 
-Ringkasan perubahan penting yang sudah dilakukan:
-
-1. Instruksi pembayaran diarahkan ke WhatsApp admin.
-2. Halaman waiting diberi tombol Chat Admin WhatsApp manual.
-3. Super Admin verifikasi lisensi diperjelas agar data pembayaran terlihat sebelum approve.
-4. Update Job index dibuat grouped bertingkat dan mobile friendly.
-5. Header Update Job tidak sticky.
-6. Battery index dibuat mengikuti pola Update Job, lalu card yang tidak perlu dihapus.
-7. Battery ditambah Pekerjaan Populer Top 1-3 dengan grafik batang.
-8. Charger index dibuat mengikuti pola Update Job dengan nuansa Voltage Charger.
-9. Delivery Unit index dibuat mengikuti pola Update Job dengan nuansa Logistic Route.
-10. Form Update Job ditambah histori rekomendasi part berdasarkan serial number.
-11. Floating bottom navigation diubah menjadi Home, Kalender, Job, Ingat, Profile.
-12. Modul Penarikan Unit dibuat dari alur Dart.
-13. Penarikan Unit diberi autocomplete serial number dan field asset readonly.
-14. Penarikan Unit mendukung dua battery dan tiga trolly.
-15. Penarikan Unit diberi autosave draft dan warning keluar halaman.
-16. Bug warning saat klik Simpan diperbaiki.
-17. Bug format `in_time/out_time` saat edit Penarikan diperbaiki.
-18. Status asset otomatis menjadi `DITARIK` saat Penarikan Unit disimpan.
-19. Update Job diblokir untuk asset dengan status `DITARIK`.
-
----
-
-## 9. Plan Selanjutnya
-
-Prioritas aman berikutnya:
-
-1. Rapikan `PenarikanController` dari `DB::table` ke model Eloquent `Penarikan` jika pembuatan model sudah aman.
-2. Tambahkan backup update status `DITARIK` di controller selain trigger, supaya aman untuk cPanel/shared hosting yang menolak trigger.
-3. Tampilkan Battery 2 dan Trolly 2-3 di halaman detail Penarikan Unit.
-4. Tambahkan tombol delete Penarikan Unit di halaman detail dengan permission yang sudah ada.
-5. Patch langsung menu Job di `resources/views/layouts/app.blade.php` agar Penarikan Unit tidak bergantung pada JS link patch.
-6. Audit seluruh form create/edit agar field waktu selalu format `H:i`.
-7. Audit seluruh fitur terhadap status asset `DITARIK` supaya tidak bisa dipakai di proses operasional yang tidak sesuai.
-8. Stabilkan export/import data jika diperlukan setelah modul inti terkunci.
-9. Buat dokumentasi deployment cPanel setelah lokal benar-benar stabil.
-10. Jangan menambah modul besar baru sebelum modul Penarikan, Update Job, Battery, Charger, Delivery, dan Asset benar-benar dites end-to-end.
-
----
-
-## 10. Checklist Testing Produksi Lokal
-
-Setelah pull perubahan terbaru:
+Jalankan:
 
 ```powershell
 cd C:\laragon\www\drrsakti
 git pull origin main
-php artisan migrate
 php artisan optimize:clear
 php artisan view:clear
 php artisan route:clear
@@ -528,57 +612,46 @@ composer dump-autoload
 npm run dev
 ```
 
-Cek route:
+Test wajib:
 
-```powershell
-php artisan route:list | findstr update-jobs
-php artisan route:list | findstr batteries
-php artisan route:list | findstr chargers
-php artisan route:list | findstr deliveries
-php artisan route:list | findstr penarikans
-```
-
-Cek trigger Penarikan:
-
-```sql
-SHOW TRIGGERS LIKE 'penarikans';
-```
-
-Cek asset ditarik:
-
-```sql
-SELECT serial_number, status, updated_at
-FROM unit_assets
-WHERE status = 'DITARIK'
-ORDER BY updated_at DESC;
-```
-
-Cek asset tidak bisa dipakai di Update Job:
-
-```text
-/update-jobs/create
-```
-
-Input S/N dengan status `DITARIK`. Hasil benar:
-
-- Warning merah muncul.
-- Tombol Simpan terkunci.
-- Jika submit dipaksa, controller menolak.
+1. Login sebagai mekanik.
+2. Buka `/update-jobs/create`.
+3. Ketik serial number minimal 2 karakter.
+4. Pastikan dropdown asset muncul.
+5. Pilih asset.
+6. Pastikan customer/location/unit_type terisi.
+7. Isi `year` dan `nomor_lambung` manual jika perlu.
+8. Simpan.
+9. Pastikan redirect ke detail job.
+10. Edit job, ubah `action` saja.
+11. Simpan.
+12. Pastikan tidak diminta isi ulang partner/job type/status/part.
+13. Klik floating WhatsApp di detail.
+14. Pastikan report terbuka di WhatsApp.
+15. Test Preventive Maintenance: satu S/N hanya boleh 1x dalam 1 bulan.
 
 ---
 
-## 11. Prinsip Utama
+## 11. Plan Berikutnya
 
-Project ini bukan demo. Project ini sudah masuk fase produksi awal.
+Prioritas aman berikutnya:
 
-Yang harus dijaga:
+1. Audit semua form create/edit agar value lama selalu muncul saat edit.
+2. Rapikan `JobController` setelah `UpdateJobSaveController` terbukti stabil.
+3. Patch menu Penarikan langsung di `app.blade.php` jika layout aman, agar tidak bergantung JS patch.
+4. Audit report WhatsApp agar field kosong `-` tidak terlalu banyak.
+5. Stabilkan export/import Command Center jika sudah dibutuhkan.
+6. Buat dokumentasi deployment cPanel setelah lokal benar-benar stabil.
+
+Jangan tambah modul besar baru sebelum modul ini dites end-to-end:
 
 ```text
-Stabilitas > gaya baru
-Perubahan kecil > bongkar besar
-Validasi server > hanya UI
-Mobile first > desktop belakangan
-Serial number sekarang > unit_asset_id nanti
+Asset
+Update Job
+Battery
+Charger
+Delivery
+Penarikan
+Command Center
+WhatsApp Share
 ```
-
-Setiap fitur baru harus tetap mengikuti struktur project yang sudah berjalan.
