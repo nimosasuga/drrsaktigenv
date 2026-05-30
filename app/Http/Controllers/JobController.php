@@ -109,6 +109,35 @@ class JobController extends Controller
         return null;
     }
 
+    private function rejectDuplicatePreventiveMaintenance(array $validated, ?int $exceptJobId = null)
+    {
+        if (($validated['job_type'] ?? null) !== 'Preventive Maintenance') {
+            return null;
+        }
+
+        $workDate = Carbon::parse($validated['work_date']);
+        $serialNumber = $validated['serial_number'];
+
+        $query = Job::where('serial_number', $serialNumber)
+            ->where('job_type', 'Preventive Maintenance')
+            ->whereYear('work_date', $workDate->year)
+            ->whereMonth('work_date', $workDate->month);
+
+        if ($exceptJobId) {
+            $query->where('id', '!=', $exceptJobId);
+        }
+
+        if (!$query->exists()) {
+            return null;
+        }
+
+        return back()
+            ->withInput()
+            ->withErrors([
+                'job_type' => 'Preventive Maintenance untuk S/N ' . $serialNumber . ' hanya boleh 1x dalam bulan ' . $workDate->translatedFormat('F Y') . '.',
+            ]);
+    }
+
     private function isTroubleshootingJob($job): bool
     {
         $haystack = strtoupper(trim(implode(' ', [
@@ -179,6 +208,8 @@ class JobController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('serial_number', 'like', "%{$search}%")
                     ->orWhere('unit_type', 'like', "%{$search}%")
+                    ->orWhere('nomor_lambung', 'like', "%{$search}%")
+                    ->orWhere('year', 'like', "%{$search}%")
                     ->orWhere('customer', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%")
                     ->orWhere('pic', 'like', "%{$search}%")
@@ -346,6 +377,8 @@ class JobController extends Controller
         $assets = UnitAsset::where(function ($query) use ($search) {
                 $query->where('serial_number', 'LIKE', "%{$search}%")
                     ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                    ->orWhere('nomor_lambung', 'LIKE', "%{$search}%")
+                    ->orWhere('year', 'LIKE', "%{$search}%")
                     ->orWhere('customer', 'LIKE', "%{$search}%")
                     ->orWhere('location', 'LIKE', "%{$search}%");
             })
@@ -361,6 +394,8 @@ class JobController extends Controller
             return [
                 'serial_number' => $asset->serial_number,
                 'unit_type'     => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
+                'nomor_lambung' => $asset->nomor_lambung ?? '',
+                'year'          => $asset->year ?? '',
                 'customer'      => $asset->customer ?? $asset->nama_pelanggan ?? '',
                 'location'      => $asset->location ?? $asset->lokasi ?? '',
                 'status'        => $asset->status ?? '',
@@ -418,6 +453,8 @@ class JobController extends Controller
             'out_time'      => 'nullable|date_format:H:i',
             'serial_number' => 'required|string|max:100',
             'unit_type'     => 'required|string|max:100',
+            'nomor_lambung' => 'nullable|string|max:100',
+            'year'          => 'nullable|string|max:20',
             'hour_meter'    => 'required|numeric|min:0',
             'customer'      => 'required|string|max:150',
             'location'      => 'required|string|max:150',
@@ -434,6 +471,10 @@ class JobController extends Controller
 
         if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
             return $blockedResponse;
+        }
+
+        if ($duplicatePmResponse = $this->rejectDuplicatePreventiveMaintenance($validated)) {
+            return $duplicatePmResponse;
         }
 
         DB::beginTransaction();
@@ -475,7 +516,7 @@ class JobController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('update-jobs.index')->with('success', 'Update Job berhasil disimpan.');
+            return redirect()->route('update-jobs.show', $job->id)->with('success', 'Update Job berhasil disimpan.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->withErrors(['error' => 'Gagal menyimpan data: ' . $e->getMessage()]);
@@ -532,6 +573,8 @@ class JobController extends Controller
             'out_time'      => 'nullable|date_format:H:i',
             'serial_number' => 'required|string|max:100',
             'unit_type'     => 'required|string|max:100',
+            'nomor_lambung' => 'nullable|string|max:100',
+            'year'          => 'nullable|string|max:20',
             'hour_meter'    => 'required|numeric|min:0',
             'customer'      => 'required|string|max:150',
             'location'      => 'required|string|max:150',
@@ -548,6 +591,10 @@ class JobController extends Controller
 
         if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
             return $blockedResponse;
+        }
+
+        if ($duplicatePmResponse = $this->rejectDuplicatePreventiveMaintenance($validated, $job->id)) {
+            return $duplicatePmResponse;
         }
 
         DB::beginTransaction();
