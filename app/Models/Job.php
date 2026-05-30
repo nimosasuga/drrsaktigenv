@@ -57,6 +57,19 @@ class Job extends Model
         'lead_time_rfu' => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Job $job) {
+            if (request()->has('year')) {
+                $job->year = request()->input('year');
+            }
+
+            if (request()->has('nomor_lambung')) {
+                $job->nomor_lambung = request()->input('nomor_lambung');
+            }
+        });
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
