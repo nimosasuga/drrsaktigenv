@@ -21,6 +21,7 @@ use App\Http\Controllers\UpdateJobShareController;
 use App\Http\Controllers\OperationalShareController;
 use App\Http\Controllers\UpdateJobExtraFieldController;
 use App\Http\Controllers\UpdateJobAssetSearchController;
+use App\Http\Controllers\UpdateJobSaveController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
 
@@ -52,7 +53,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/update-jobs/{id}/extra-fields', [UpdateJobExtraFieldController::class, 'job'])->name('update-jobs.extra-fields.job');
         Route::get('/update-jobs/recommendation-history', [\App\Http\Controllers\JobController::class, 'recommendationHistory'])->name('update-jobs.recommendation-history');
         Route::get('/update-jobs/{id}/share-message', [UpdateJobShareController::class, 'message'])->name('update-jobs.share-message');
-        Route::resource('update-jobs', \App\Http\Controllers\JobController::class);
+        Route::post('/update-jobs', [UpdateJobSaveController::class, 'store'])->name('update-jobs.store');
+        Route::put('/update-jobs/{id}', [UpdateJobSaveController::class, 'update'])->name('update-jobs.update');
+        Route::patch('/update-jobs/{id}', [UpdateJobSaveController::class, 'update']);
+        Route::resource('update-jobs', \App\Http\Controllers\JobController::class)->except(['store', 'update']);
         Route::get('/batteries/search-assets', [\App\Http\Controllers\BatteryController::class, 'searchAssets'])->name('batteries.search-assets');
         Route::get('/batteries/{id}/share-message', [OperationalShareController::class, 'battery'])->name('batteries.share-message');
         Route::resource('batteries', \App\Http\Controllers\BatteryController::class);
