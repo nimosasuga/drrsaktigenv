@@ -4,6 +4,10 @@ function isUpdateJobFormPage() {
     return /^\/update-jobs\/(create|\d+\/edit)$/.test(window.location.pathname);
 }
 
+function isEditPage() {
+    return /^\/update-jobs\/\d+\/edit$/.test(window.location.pathname);
+}
+
 function getEditJobId() {
     const match = window.location.pathname.match(/^\/update-jobs\/(\d+)\/edit$/);
     return match ? match[1] : null;
@@ -55,17 +59,28 @@ function insertExtraFields() {
     unitTypeWrapper.insertAdjacentElement('afterend', nomorLambungField);
 }
 
-function fillExtraFields(data, force = false) {
+function setInputValue(input, value, { force = false, allowBlank = false } = {}) {
+    if (!input) {
+        return;
+    }
+
+    const normalizedValue = String(value || '').trim();
+
+    if (!allowBlank && normalizedValue === '') {
+        return;
+    }
+
+    if (force || input.value.trim() === '') {
+        input.value = normalizedValue;
+    }
+}
+
+function fillExtraFields(data, options = {}) {
     const nomorLambungInput = document.getElementById('nomor_lambung');
     const yearInput = document.getElementById('year');
 
-    if (nomorLambungInput && (force || nomorLambungInput.value.trim() === '')) {
-        nomorLambungInput.value = data.nomor_lambung || '';
-    }
-
-    if (yearInput && (force || yearInput.value.trim() === '')) {
-        yearInput.value = data.year || '';
-    }
+    setInputValue(nomorLambungInput, data.nomor_lambung, options);
+    setInputValue(yearInput, data.year, options);
 }
 
 async function loadEditJobExtraFields() {
@@ -84,13 +99,13 @@ async function loadEditJobExtraFields() {
         }
 
         const data = await response.json();
-        fillExtraFields(data, true);
+        fillExtraFields(data, { force: true, allowBlank: true });
     } catch (error) {
         console.error(error);
     }
 }
 
-async function loadAssetExtraFields(serialNumber) {
+async function loadAssetExtraFields(serialNumber, { force = false } = {}) {
     if (!serialNumber) {
         return;
     }
@@ -105,7 +120,7 @@ async function loadAssetExtraFields(serialNumber) {
         }
 
         const data = await response.json();
-        fillExtraFields(data, true);
+        fillExtraFields(data, { force, allowBlank: false });
     } catch (error) {
         console.error(error);
     }
@@ -117,15 +132,29 @@ function observeSerialNumberSelection() {
         return;
     }
 
+    const initialValue = serialNumberInput.value.trim();
     let previousValue = serialNumberInput.value;
-    serialNumberInput.addEventListener('change', () => loadAssetExtraFields(serialNumberInput.value.trim()));
-    serialNumberInput.addEventListener('blur', () => loadAssetExtraFields(serialNumberInput.value.trim()));
+
+    const maybeLoadAssetFields = () => {
+        const currentValue = serialNumberInput.value.trim();
+        if (!currentValue) {
+            return;
+        }
+
+        const serialChangedFromInitial = currentValue !== initialValue;
+        const shouldForce = !isEditPage() || serialChangedFromInitial;
+
+        loadAssetExtraFields(currentValue, { force: shouldForce });
+    };
+
+    serialNumberInput.addEventListener('change', maybeLoadAssetFields);
+    serialNumberInput.addEventListener('blur', maybeLoadAssetFields);
 
     setInterval(() => {
         const currentValue = serialNumberInput.value;
         if (currentValue !== previousValue) {
             previousValue = currentValue;
-            loadAssetExtraFields(currentValue.trim());
+            maybeLoadAssetFields();
         }
     }, 500);
 }
