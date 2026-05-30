@@ -1,5 +1,5 @@
 <?php
-// app/Http/Controllers/UnitAssetController.php
+// PATH FILE: app/Http/Controllers/UnitAssetController.php
 
 namespace App\Http\Controllers;
 
@@ -36,6 +36,10 @@ class UnitAssetController extends Controller
         }
     }
 
+    private function assetStatusOptions(): array
+    {
+        return ['RENTAL', 'BACKUP', 'DITARIK'];
+    }
 
     public function index(Request $request)
     {
@@ -186,7 +190,7 @@ class UnitAssetController extends Controller
             'location' => 'nullable|string|max:255',
             'branch' => 'nullable|string|max:255',
             'year' => 'nullable|string|max:4',
-            'status' => 'required|string|max:255',
+            'status' => 'required|string|in:' . implode(',', $this->assetStatusOptions()),
             'delivery' => 'nullable|string|max:255',
             'supported_by' => 'nullable|string|max:255',
             'note' => 'nullable|string',
@@ -300,7 +304,7 @@ class UnitAssetController extends Controller
             'location' => 'nullable|string|max:255',
             'branch' => 'nullable|string|max:255',
             'year' => 'nullable|string|max:4',
-            'status' => 'required|string|max:255',
+            'status' => 'required|string|in:' . implode(',', $this->assetStatusOptions()),
             'delivery' => 'nullable|string|max:255',
             'supported_by' => 'nullable|string|max:255',
             'note' => 'nullable|string',
@@ -308,7 +312,7 @@ class UnitAssetController extends Controller
 
         $asset->update($validated);
 
-        return redirect()->route('assets.index')->with('success', 'Data aset berhasil diperbarui.');
+        return redirect()->route('assets.show', $asset->id)->with('success', 'Data aset berhasil diperbarui.');
     }
 
     public function destroy(UnitAsset $asset)
