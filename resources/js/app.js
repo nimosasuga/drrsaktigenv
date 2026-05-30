@@ -8,5 +8,4 @@ import "./update-job-withdrawn-asset-blocker";
 import "./update-job-field-options";
 import "./update-job-copy-report";
 import "./operational-share-report";
-import "./update-job-extra-fields";
 import "./update-job-detail-extra-fields";
