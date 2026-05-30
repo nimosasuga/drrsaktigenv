@@ -117,7 +117,7 @@ class OperationalShareController extends Controller
         })->implode("\n\n");
     }
 
-    private function headerLines($title, $item): array
+    private function headerLines(string $title, object $item): array
     {
         $partner = $this->value($item->partner ?? null, '');
         $manPower = trim($this->value($item->pic ?? null, '') . ($partner !== '' ? ' - ' . $partner : ''));
@@ -137,6 +137,41 @@ class OperationalShareController extends Controller
         ];
     }
 
+    private function detailUnitLines(object $item): array
+    {
+        return [
+            '',
+            '> _*DETAIL UNIT*_',
+            '*UNIT TYPE :* ' . $this->value($item->unit_type ?? null),
+            '*SERIAL NUMBER :* ' . $this->value($item->serial_number ?? null),
+            '*YEAR :* ' . $this->value($item->year ?? null),
+            '*HOUR METER :* ' . $this->value($item->hour_meter ?? null),
+        ];
+    }
+
+    private function jobDescriptionLines(object $item): array
+    {
+        return [
+            '',
+            '> _*JOB DESCRIPTIONS*_',
+            '*JOB TYPE :* ' . $this->value($item->job_type ?? null),
+            '*PROBLEM DATE :* ' . $this->dateValue($item->problem_date ?? null),
+            '*PROBLEM :* ' . $this->value($item->problem ?? null),
+            '*STATUS :* ' . $this->value($item->status_unit ?? null),
+            '*RFU DATE :* ' . $this->dateValue($item->rfu_date ?? null),
+            '*ACTION :* ' . $this->value($item->action ?? null),
+        ];
+    }
+
+    private function noteLines($note): array
+    {
+        return [
+            '',
+            '> _*NOTE*_',
+            $this->value($note),
+        ];
+    }
+
     private function formatBattery(Battery $battery): string
     {
         return trim(implode("\n", array_merge(
@@ -149,15 +184,9 @@ class OperationalShareController extends Controller
                 '*BATTERY TYPE :* ' . $this->value($battery->battery_type),
                 '*BATTERY SN :* ' . $this->value($battery->sn_battery),
                 '*BATTERY YEAR :* ' . $this->value($battery->battery_year),
-                '',
-                '> _*JOB DESCRIPTIONS*_',
-                '*CATEGORY :* ' . $this->value($battery->category_job),
-                '*JOB TYPE :* ' . $this->value($battery->job_type),
-                '*PROBLEM DATE :* ' . $this->dateValue($battery->problem_date),
-                '*PROBLEM :* ' . $this->value($battery->problem),
-                '*STATUS :* ' . $this->value($battery->status_unit),
-                '*RFU DATE :* ' . $this->dateValue($battery->rfu_date),
-                '*ACTION :* ' . $this->value($battery->action),
+            ],
+            $this->jobDescriptionLines($battery),
+            [
                 '',
                 '> _*RECOMMENDATIONS*_',
                 $this->recommendationsText($battery),
@@ -180,15 +209,9 @@ class OperationalShareController extends Controller
                 '*CHARGER TYPE :* ' . $this->value($charger->charger_type),
                 '*CHARGER SN :* ' . $this->value($charger->sn_charger),
                 '*CHARGER YEAR :* ' . $this->value($charger->charger_year),
-                '',
-                '> _*JOB DESCRIPTIONS*_',
-                '*CATEGORY :* ' . $this->value($charger->category_job),
-                '*JOB TYPE :* ' . $this->value($charger->job_type),
-                '*PROBLEM DATE :* ' . $this->dateValue($charger->problem_date),
-                '*PROBLEM :* ' . $this->value($charger->problem),
-                '*STATUS :* ' . $this->value($charger->status_unit),
-                '*RFU DATE :* ' . $this->dateValue($charger->rfu_date),
-                '*ACTION :* ' . $this->value($charger->action),
+            ],
+            $this->jobDescriptionLines($charger),
+            [
                 '',
                 '> _*RECOMMENDATIONS*_',
                 $this->recommendationsText($charger),
@@ -203,25 +226,18 @@ class OperationalShareController extends Controller
     {
         return trim(implode("\n", array_merge(
             $this->headerLines('DELIVERY UNIT', $delivery),
+            $this->detailUnitLines($delivery),
             [
+                '*STATUS :* ' . $this->value($delivery->status_unit),
                 '',
-                '> _*DETAIL UNIT*_',
-                '*UNIT TYPE :* ' . $this->value($delivery->unit_type),
-                '*SERIAL NUMBER :* ' . $this->value($delivery->serial_number),
-                '*YEAR :* ' . $this->value($delivery->year),
-                '*HOUR METER :* ' . $this->value($delivery->hour_meter),
-                '*STATUS UNIT :* ' . $this->value($delivery->status_unit),
-                '',
-                '> _*EQUIPMENT DELIVERY*_',
+                '> _*EQUIPMENT*_',
                 '*BATTERY TYPE :* ' . $this->value($delivery->battery_type),
                 '*BATTERY SN :* ' . $this->value($delivery->battery_sn),
                 '*CHARGER TYPE :* ' . $this->value($delivery->charger_type),
                 '*CHARGER SN :* ' . $this->value($delivery->charger_sn),
                 '*TROLLY :* ' . $this->value($delivery->trolly),
-                '',
-                '> _*NOTE*_',
-                $this->value($delivery->note),
-            ]
+            ],
+            $this->noteLines($delivery->note)
         )));
     }
 
@@ -229,18 +245,11 @@ class OperationalShareController extends Controller
     {
         return trim(implode("\n", array_merge(
             $this->headerLines('PENARIKAN UNIT', $penarikan),
+            $this->detailUnitLines($penarikan),
             [
+                '*STATUS :* ' . $this->value($penarikan->status_unit ?? null),
                 '',
-                '*PENARIKAN CODE :* ' . $this->value($penarikan->penarikan_code ?? null),
-                '',
-                '> _*DETAIL UNIT*_',
-                '*UNIT TYPE :* ' . $this->value($penarikan->unit_type ?? null),
-                '*SERIAL NUMBER :* ' . $this->value($penarikan->serial_number ?? null),
-                '*YEAR :* ' . $this->value($penarikan->year ?? null),
-                '*HOUR METER :* ' . $this->value($penarikan->hour_meter ?? null),
-                '*STATUS UNIT :* ' . $this->value($penarikan->status_unit ?? null),
-                '',
-                '> _*EQUIPMENT PENARIKAN*_',
+                '> _*EQUIPMENT*_',
                 '*BATTERY TYPE 1 :* ' . $this->value($penarikan->battery_type ?? null),
                 '*BATTERY SN 1 :* ' . $this->value($penarikan->battery_sn ?? null),
                 '*BATTERY TYPE 2 :* ' . $this->value($penarikan->battery_type_2 ?? null),
@@ -250,10 +259,8 @@ class OperationalShareController extends Controller
                 '*TROLLY 1 :* ' . $this->value($penarikan->trolly ?? null),
                 '*TROLLY 2 :* ' . $this->value($penarikan->trolly_2 ?? null),
                 '*TROLLY 3 :* ' . $this->value($penarikan->trolly_3 ?? null),
-                '',
-                '> _*NOTE*_',
-                $this->value($penarikan->note ?? null),
-            ]
+            ],
+            $this->noteLines($penarikan->note ?? null)
         )));
     }
 }
