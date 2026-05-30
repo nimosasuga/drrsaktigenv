@@ -50,6 +50,11 @@ class UpdateJobShareController extends Controller
         return $value !== '' ? $value : $fallback;
     }
 
+    private function upper($value, string $fallback = '-'): string
+    {
+        return strtoupper($this->value($value, $fallback));
+    }
+
     private function recommendationsText(Job $job): string
     {
         if ($job->recommendations->isEmpty()) {
@@ -84,30 +89,42 @@ class UpdateJobShareController extends Controller
         })->implode("\n\n");
     }
 
-    private function formatMessage(Job $job): string
+    private function headerLines(Job $job): array
     {
         $partner = $this->value($job->partner, '');
         $manPower = trim($this->value($job->pic, '') . ($partner !== '' ? ' - ' . $partner : ''));
         $vehicle = trim($this->value($job->vehicle_type, '') . ' - ' . $this->value($job->nopol, ''));
 
-        return trim(implode("\n", [
+        return [
             '*UPDATE JOB RENTAL* _' . $this->value($job->status_mekanik) . '_',
             $this->value($job->job_type),
             '',
-            '*' . $this->value(strtoupper((string) $job->customer)) . '*',
-            '*LOCATION :* ' . $this->value(strtoupper((string) $job->location)),
+            '*' . $this->upper($job->customer) . '*',
+            '*LOCATION :* ' . $this->upper($job->location),
             '*DATE :* ' . $this->formatDate($job->work_date),
             '*IN :* ' . $this->formatTime($job->in_time),
             '*OUT :* ' . $this->formatTime($job->out_time),
             '*MAN POWER :* ' . $this->value($manPower),
             '*KENDARAAN :* ' . $this->value($vehicle),
+        ];
+    }
+
+    private function detailUnitLines(Job $job): array
+    {
+        return [
             '',
             '> _*DETAIL UNIT*_',
             '*NOMOR LAMBUNG :* ' . $this->value($job->nomor_lambung),
             '*UNIT TYPE :* ' . $this->value($job->unit_type),
             '*SERIAL NUMBER :* ' . $this->value($job->serial_number),
-            '*HOUR METER :* ' . $this->value($job->hour_meter),
             '*YEAR :* ' . $this->value($job->year),
+            '*HOUR METER :* ' . $this->value($job->hour_meter),
+        ];
+    }
+
+    private function jobDescriptionLines(Job $job): array
+    {
+        return [
             '',
             '> _*JOB DESCRIPTIONS*_',
             '*JOB TYPE :* ' . $this->value($job->job_type),
@@ -116,12 +133,23 @@ class UpdateJobShareController extends Controller
             '*STATUS :* ' . $this->value($job->status_unit),
             '*RFU DATE :* ' . $this->formatDate($job->rfu_date),
             '*ACTION :* ' . $this->value($job->action),
-            '',
-            '> _*RECOMMENDATIONS*_',
-            $this->recommendationsText($job),
-            '',
-            '> _*INSTALL PART*_',
-            $this->installPartsText($job),
-        ]));
+        ];
+    }
+
+    private function formatMessage(Job $job): string
+    {
+        return trim(implode("\n", array_merge(
+            $this->headerLines($job),
+            $this->detailUnitLines($job),
+            $this->jobDescriptionLines($job),
+            [
+                '',
+                '> _*RECOMMENDATIONS*_',
+                $this->recommendationsText($job),
+                '',
+                '> _*INSTALL PART*_',
+                $this->installPartsText($job),
+            ]
+        )));
     }
 }
