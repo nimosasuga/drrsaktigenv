@@ -60,12 +60,12 @@ class ChargerController extends Controller
 
     private function countRfu($chargers): int
     {
-        return $chargers->filter(fn ($charger) => $this->isRfuStatus($charger->status_unit))->count();
+        return $chargers->filter(fn($charger) => $this->isRfuStatus($charger->status_unit))->count();
     }
 
     private function countBreakdown($chargers): int
     {
-        return $chargers->filter(fn ($charger) => $this->isBreakdownStatus($charger->status_unit))->count();
+        return $chargers->filter(fn($charger) => $this->isBreakdownStatus($charger->status_unit))->count();
     }
 
     public function index(Request $request)
@@ -132,28 +132,28 @@ class ChargerController extends Controller
         ];
 
         $groupedChargers = $chargers
-            ->groupBy(fn ($charger) => $charger->date ? Carbon::parse($charger->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
+            ->groupBy(fn($charger) => $charger->date ? Carbon::parse($charger->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
             ->map(function ($monthChargers, $monthName) {
                 return [
                     'name' => $monthName,
                     'total' => $monthChargers->count(),
                     'pic_total' => $monthChargers->pluck('pic')->filter()->unique()->count(),
                     'charger_total' => $monthChargers->pluck('sn_charger')->filter()->unique()->count(),
-                    'customer_location_total' => $monthChargers->unique(fn ($charger) => ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi'))->count(),
+                    'customer_location_total' => $monthChargers->unique(fn($charger) => ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi'))->count(),
                     'rfu_total' => $this->countRfu($monthChargers),
                     'breakdown_total' => $this->countBreakdown($monthChargers),
                     'pics' => $monthChargers
-                        ->groupBy(fn ($charger) => $charger->pic ?: 'Tanpa PIC')
+                        ->groupBy(fn($charger) => $charger->pic ?: 'Tanpa PIC')
                         ->map(function ($picChargers, $picName) {
                             return [
                                 'name' => $picName,
                                 'total' => $picChargers->count(),
                                 'charger_total' => $picChargers->pluck('sn_charger')->filter()->unique()->count(),
-                                'customer_location_total' => $picChargers->unique(fn ($charger) => ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi'))->count(),
+                                'customer_location_total' => $picChargers->unique(fn($charger) => ($charger->customer ?: 'Tanpa Customer') . '|' . ($charger->location ?: 'Tanpa Lokasi'))->count(),
                                 'rfu_total' => $this->countRfu($picChargers),
                                 'breakdown_total' => $this->countBreakdown($picChargers),
                                 'customer_locations' => $picChargers
-                                    ->groupBy(fn ($charger) => ($charger->customer ?: 'Tanpa Customer') . ' / ' . ($charger->location ?: 'Tanpa Lokasi'))
+                                    ->groupBy(fn($charger) => ($charger->customer ?: 'Tanpa Customer') . ' / ' . ($charger->location ?: 'Tanpa Lokasi'))
                                     ->map(function ($locationChargers, $customerLocationName) {
                                         return [
                                             'name' => $customerLocationName,
@@ -198,16 +198,16 @@ class ChargerController extends Controller
         }
 
         $assets = UnitAsset::where(function ($query) use ($search) {
-                $query->where('serial_number', 'LIKE', "%{$search}%")
-                    ->orWhere('unit_type', 'LIKE', "%{$search}%")
-                    ->orWhere('customer', 'LIKE', "%{$search}%")
-                    ->orWhere('location', 'LIKE', "%{$search}%");
-            })
+            $query->where('serial_number', 'LIKE', "%{$search}%")
+                ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                ->orWhere('customer', 'LIKE', "%{$search}%")
+                ->orWhere('location', 'LIKE', "%{$search}%");
+        })
             ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")
             ->take(10)
             ->get();
 
-        return response()->json($assets->map(fn ($asset) => [
+        return response()->json($assets->map(fn($asset) => [
             'serial_number' => $asset->serial_number,
             'unit_type' => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
             'customer' => $asset->customer ?? $asset->nama_pelanggan ?? '',
@@ -288,7 +288,7 @@ class ChargerController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('chargers.index')->with('success', 'Data Management Charger berhasil disimpan.');
+            return redirect()->route('chargers.show', $charger->id)->with('success', 'Data Management Charger berhasil disimpan.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->withErrors(['error' => 'Gagal menyimpan data: ' . $e->getMessage()]);

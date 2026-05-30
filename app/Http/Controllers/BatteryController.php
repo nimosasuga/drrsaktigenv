@@ -60,12 +60,12 @@ class BatteryController extends Controller
 
     private function countRfu($batteries): int
     {
-        return $batteries->filter(fn ($battery) => $this->isRfuStatus($battery->status_unit))->count();
+        return $batteries->filter(fn($battery) => $this->isRfuStatus($battery->status_unit))->count();
     }
 
     private function countBreakdown($batteries): int
     {
-        return $batteries->filter(fn ($battery) => $this->isBreakdownStatus($battery->status_unit))->count();
+        return $batteries->filter(fn($battery) => $this->isBreakdownStatus($battery->status_unit))->count();
     }
 
     public function index(Request $request)
@@ -132,28 +132,28 @@ class BatteryController extends Controller
         ];
 
         $groupedBatteries = $batteries
-            ->groupBy(fn ($battery) => $battery->date ? Carbon::parse($battery->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
+            ->groupBy(fn($battery) => $battery->date ? Carbon::parse($battery->date)->translatedFormat('F Y') : 'Tanpa Tanggal')
             ->map(function ($monthBatteries, $monthName) {
                 return [
                     'name' => $monthName,
                     'total' => $monthBatteries->count(),
                     'pic_total' => $monthBatteries->pluck('pic')->filter()->unique()->count(),
                     'battery_total' => $monthBatteries->pluck('sn_battery')->filter()->unique()->count(),
-                    'customer_location_total' => $monthBatteries->unique(fn ($battery) => ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi'))->count(),
+                    'customer_location_total' => $monthBatteries->unique(fn($battery) => ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi'))->count(),
                     'rfu_total' => $this->countRfu($monthBatteries),
                     'breakdown_total' => $this->countBreakdown($monthBatteries),
                     'pics' => $monthBatteries
-                        ->groupBy(fn ($battery) => $battery->pic ?: 'Tanpa PIC')
+                        ->groupBy(fn($battery) => $battery->pic ?: 'Tanpa PIC')
                         ->map(function ($picBatteries, $picName) {
                             return [
                                 'name' => $picName,
                                 'total' => $picBatteries->count(),
                                 'battery_total' => $picBatteries->pluck('sn_battery')->filter()->unique()->count(),
-                                'customer_location_total' => $picBatteries->unique(fn ($battery) => ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi'))->count(),
+                                'customer_location_total' => $picBatteries->unique(fn($battery) => ($battery->customer ?: 'Tanpa Customer') . '|' . ($battery->location ?: 'Tanpa Lokasi'))->count(),
                                 'rfu_total' => $this->countRfu($picBatteries),
                                 'breakdown_total' => $this->countBreakdown($picBatteries),
                                 'customer_locations' => $picBatteries
-                                    ->groupBy(fn ($battery) => ($battery->customer ?: 'Tanpa Customer') . ' / ' . ($battery->location ?: 'Tanpa Lokasi'))
+                                    ->groupBy(fn($battery) => ($battery->customer ?: 'Tanpa Customer') . ' / ' . ($battery->location ?: 'Tanpa Lokasi'))
                                     ->map(function ($locationBatteries, $customerLocationName) {
                                         return [
                                             'name' => $customerLocationName,
@@ -198,16 +198,16 @@ class BatteryController extends Controller
         }
 
         $assets = UnitAsset::where(function ($query) use ($search) {
-                $query->where('serial_number', 'LIKE', "%{$search}%")
-                    ->orWhere('unit_type', 'LIKE', "%{$search}%")
-                    ->orWhere('customer', 'LIKE', "%{$search}%")
-                    ->orWhere('location', 'LIKE', "%{$search}%");
-            })
+            $query->where('serial_number', 'LIKE', "%{$search}%")
+                ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                ->orWhere('customer', 'LIKE', "%{$search}%")
+                ->orWhere('location', 'LIKE', "%{$search}%");
+        })
             ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")
             ->take(10)
             ->get();
 
-        return response()->json($assets->map(fn ($asset) => [
+        return response()->json($assets->map(fn($asset) => [
             'serial_number' => $asset->serial_number,
             'unit_type' => $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '',
             'customer' => $asset->customer ?? $asset->nama_pelanggan ?? '',
@@ -288,7 +288,7 @@ class BatteryController extends Controller
             }
 
             DB::commit();
-            return redirect()->route('batteries.index')->with('success', 'Data Battery berhasil disimpan.');
+            return redirect()->route('batteries.show', $battery->id)->with('success', 'Data Battery berhasil disimpan.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->withInput()->withErrors(['error' => 'Gagal menyimpan data: ' . $e->getMessage()]);
