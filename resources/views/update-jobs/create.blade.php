@@ -154,6 +154,25 @@
                             placeholder="Terisi otomatis..." required readonly
                             class="w-full px-4 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm text-slate-500 cursor-not-allowed outline-none select-none">
                     </div>
+
+                    <!-- Nomor Lambung -->
+                    <div>
+                        <label for="nomor_lambung" class="block text-xs font-medium text-slate-700 mb-1">
+                            Nomor Lambung
+                        </label>
+                        <input type="text" name="nomor_lambung" id="nomor_lambung" value="{{ old('nomor_lambung') }}"
+                            placeholder="Isi nomor lambung..."
+                            class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+                    </div>
+
+                    <!-- Year -->
+                    <div>
+                        <label for="year" class="block text-xs font-medium text-slate-700 mb-1">
+                            Year
+                        </label>
+                        <input type="text" name="year" id="year" value="{{ old('year') }}" placeholder="Contoh: 2021"
+                            class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+                    </div>
                 </div>
 
                 <!-- KOLOM KANAN: Data Pekerjaan -->
