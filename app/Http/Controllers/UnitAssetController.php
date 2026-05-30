@@ -281,6 +281,13 @@ class UnitAssetController extends Controller
         return view('assets.show', compact('asset', 'timeline'));
     }
 
+    public function edit(UnitAsset $asset)
+    {
+        $this->blockAssetMutation(); // Proteksi Mutasi Aset
+
+        return view('assets.edit', compact('asset'));
+    }
+
     public function update(Request $request, UnitAsset $asset)
     {
         $this->blockAssetMutation(); // Proteksi Mutasi Aset
