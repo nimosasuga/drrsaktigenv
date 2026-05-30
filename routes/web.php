@@ -17,6 +17,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\PenarikanController;
 use App\Http\Controllers\CommandCenterController;
+use App\Http\Controllers\CommandCenterCsvController;
 use App\Http\Controllers\UpdateJobShareController;
 use App\Http\Controllers\OperationalShareController;
 use App\Http\Controllers\UpdateJobExtraFieldController;
@@ -72,8 +73,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/penarikans/{id}/share-message', [OperationalShareController::class, 'penarikan'])->name('penarikans.share-message');
         Route::resource('penarikans', PenarikanController::class);
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
-        Route::get('/command-center/export/{module}', [CommandCenterController::class, 'export'])->name('command-center.export');
-        Route::post('/command-center/import/{module}', [CommandCenterController::class, 'import'])->name('command-center.import');
+        Route::get('/command-center/export/{module}', [CommandCenterCsvController::class, 'export'])->name('command-center.export');
+        Route::post('/command-center/import/{module}', [CommandCenterCsvController::class, 'import'])->name('command-center.import');
         Route::get('/calendar', fn() => view('calendar.index'))->name('calendar.index');
         Route::get('/reminders', fn() => view('reminders.index'))->name('reminders.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
