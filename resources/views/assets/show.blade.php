@@ -1,3 +1,4 @@
+<!-- PATH FILE: resources/views/assets/show.blade.php -->
 @extends('layouts.app')
 
 @section('content')
@@ -8,7 +9,33 @@ $assetManageRoles = ['super_admin', 'admin', 'koordinator', 'sect_head'];
 
 $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManageRoles, true)
 || in_array(strtolower((string) ($user->status_user ?? '')), $assetManageRoles, true);
+
+$statusClass = match ($asset->status) {
+    'RENTAL' => 'bg-blue-50 text-blue-700 border-blue-100',
+    'BACKUP' => 'bg-amber-50 text-amber-700 border-amber-100',
+    'DITARIK' => 'bg-rose-50 text-rose-700 border-rose-100',
+    default => 'bg-slate-50 text-slate-700 border-slate-100',
+};
+
+$assetFields = [
+    'id' => $asset->id,
+    'supported_by' => $asset->supported_by,
+    'customer' => $asset->customer,
+    'location' => $asset->location,
+    'branch' => $asset->branch,
+    'serial_number' => $asset->serial_number,
+    'unit_type' => $asset->unit_type,
+    'year' => $asset->year,
+    'status' => $asset->status,
+    'delivery' => $asset->delivery,
+    'jenis_unit' => $asset->jenis_unit,
+    'note' => $asset->note,
+    'qr_token' => $asset->qr_token,
+    'created_at' => $asset->created_at ? $asset->created_at->format('Y-m-d H:i:s') : null,
+    'updated_at' => $asset->updated_at ? $asset->updated_at->format('Y-m-d H:i:s') : null,
+];
 @endphp
+
 <div class="mx-auto max-w-6xl space-y-8 px-1 pb-28 sm:px-2 lg:px-0">
 
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -20,7 +47,7 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
                 {{ $asset->serial_number ?? '-' }}
             </h1>
             <p class="mt-1 text-sm text-slate-500">
-                Informasi lengkap unit dan histori pekerjaan mekanik.
+                Informasi lengkap semua kolom unit asset dan histori pekerjaan mekanik.
             </p>
         </div>
 
@@ -41,84 +68,28 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
     <div class="grid gap-4 lg:grid-cols-3">
 
         <div class="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
-            <div
-                class="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div class="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900">
-                        Data Unit
+                        Semua Kolom Unit Asset
                     </h2>
                     <p class="text-sm text-slate-500">
-                        Identitas utama asset.
+                        Mengikuti struktur: id, supported_by, customer, location, branch, serial_number, unit_type, year, status, delivery, jenis_unit, note, qr_token, created_at, updated_at.
                     </p>
                 </div>
 
-                <span class="rounded-full px-3 py-1 text-xs font-bold
-                    {{ $asset->status === 'RFU'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-amber-50 text-amber-700' }}">
+                <span class="rounded-full border px-3 py-1 text-xs font-bold {{ $statusClass }}">
                     {{ $asset->status ?? '-' }}
                 </span>
             </div>
 
-            <div class="rounded-2xl bg-slate-50 p-4 sm:p-5">
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Customer</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->customer ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Lokasi</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->location ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Serial Number</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->serial_number ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Unit Type</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->unit_type ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Year</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->year ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Branch</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->branch ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Supported By</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->supported_by ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Delivery</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->delivery ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">Jenis Unit</p>
-                    <p class="mt-1 font-semibold text-slate-900">{{ $asset->jenis_unit ?? '-' }}</p>
-                </div>
-
-                <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs text-slate-500">QR Token</p>
-                    <p class="mt-1 break-all font-semibold text-slate-900">{{ $asset->qr_token ?? '-' }}</p>
-                </div>
-
-            </div>
-
-            <div class="mt-4 rounded-xl bg-amber-50 p-4">
-                <p class="text-xs font-bold text-amber-700">Catatan</p>
-                <p class="mt-1 text-sm text-amber-800">
-                    {{ $asset->note ?? 'Tidak ada catatan.' }}
-                </p>
+            <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                @foreach($assetFields as $field => $value)
+                    <div class="rounded-2xl bg-slate-50 p-4 {{ in_array($field, ['note', 'qr_token'], true) ? 'sm:col-span-2' : '' }}">
+                        <p class="text-xs font-black uppercase tracking-wide text-slate-500">{{ $field }}</p>
+                        <p class="mt-1 break-words text-sm font-semibold text-slate-900 whitespace-pre-line">{{ filled($value) ? $value : '-' }}</p>
+                    </div>
+                @endforeach
             </div>
         </div>
 
@@ -130,7 +101,7 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
             <div class="mt-4 space-y-3">
                 <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
                     <span class="text-sm text-slate-500">Status</span>
-                    <span class="text-sm font-bold text-slate-900">{{ $asset->status ?? '-' }}</span>
+                    <span class="rounded-full border px-3 py-1 text-xs font-bold {{ $statusClass }}">{{ $asset->status ?? '-' }}</span>
                 </div>
 
                 <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
@@ -139,8 +110,13 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
                 </div>
 
                 <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
-                    <span class="text-sm text-slate-500">Lokasi</span>
+                    <span class="text-sm text-slate-500">Location</span>
                     <span class="text-right text-sm font-bold text-slate-900">{{ $asset->location ?? '-' }}</span>
+                </div>
+
+                <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
+                    <span class="text-sm text-slate-500">Delivery</span>
+                    <span class="text-right text-sm font-bold text-slate-900">{{ $asset->delivery ?? '-' }}</span>
                 </div>
             </div>
         </div>
@@ -159,8 +135,7 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
                 </p>
             </div>
 
-            <span
-                class="inline-flex items-center rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 border border-blue-100">
+            <span class="inline-flex items-center rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 border border-blue-100">
                 {{ $asset->jobHistories->count() }} Job
             </span>
         </div>
@@ -169,34 +144,27 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
             @if($asset->jobHistories->count() > 0)
             <div class="space-y-4">
                 @foreach($asset->jobHistories as $job)
-                <div
-                    class="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div class="absolute left-0 top-4 bottom-4 w-1.5 rounded-r-full
-                            {{ ($job->status_unit ?? '') === 'RFU' ? 'bg-emerald-500' : 'bg-red-500' }}">
-                    </div>
+                <div class="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+                    <div class="absolute left-0 top-4 bottom-4 w-1.5 rounded-r-full {{ ($job->status_unit ?? '') === 'RFU' ? 'bg-emerald-500' : 'bg-red-500' }}"></div>
 
                     <div class="pl-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <span
-                                        class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase text-slate-600">
+                                    <span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase text-slate-600">
                                         {{ $job->job_type ?? 'JOB' }}
                                     </span>
 
                                     @if(($job->status_unit ?? '') === 'RFU')
-                                    <span
-                                        class="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase text-emerald-700">
+                                    <span class="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase text-emerald-700">
                                         RFU
                                     </span>
                                     @elseif(($job->status_unit ?? '') === 'BREAKDOWN')
-                                    <span
-                                        class="inline-flex rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase text-red-700">
+                                    <span class="inline-flex rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase text-red-700">
                                         BREAKDOWN
                                     </span>
                                     @else
-                                    <span
-                                        class="inline-flex rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase text-amber-700">
+                                    <span class="inline-flex rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase text-amber-700">
                                         {{ $job->status_unit ?? 'MONITORING' }}
                                     </span>
                                     @endif
@@ -216,48 +184,30 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
                                     Tanggal Kerja
                                 </p>
                                 <p class="mt-1 text-sm font-bold text-slate-800">
-                                    {{ $job->work_date ? \Carbon\Carbon::parse($job->work_date)->translatedFormat('d M
-                                    Y') :
-                                    '-' }}
+                                    {{ $job->work_date ? \Carbon\Carbon::parse($job->work_date)->translatedFormat('d M Y') : '-' }}
                                 </p>
                             </div>
                         </div>
 
                         <div class="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-4">
                             <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                                    PIC
-                                </p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">
-                                    {{ $job->pic ?? '-' }}
-                                </p>
+                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">PIC</p>
+                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->pic ?? '-' }}</p>
                             </div>
 
                             <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                                    HM
-                                </p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">
-                                    {{ $job->hour_meter ?? '-' }}
-                                </p>
+                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">HM</p>
+                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->hour_meter ?? '-' }}</p>
                             </div>
 
                             <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                                    Customer
-                                </p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">
-                                    {{ $job->customer ?? '-' }}
-                                </p>
+                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Customer</p>
+                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->customer ?? '-' }}</p>
                             </div>
 
                             <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                                    Lokasi
-                                </p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">
-                                    {{ $job->location ?? '-' }}
-                                </p>
+                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Location</p>
+                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->location ?? '-' }}</p>
                             </div>
                         </div>
 
