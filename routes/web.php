@@ -88,6 +88,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/rental-spareparts/import/confirm', [RentalSparepartImportController::class, 'confirm'])->name('rental-spareparts.import.confirm');
         Route::post('/rental-spareparts/import/cancel', [RentalSparepartImportController::class, 'cancel'])->name('rental-spareparts.import.cancel');
         Route::get('/rental-spareparts/import/template', [RentalSparepartImportController::class, 'template'])->name('rental-spareparts.import.template');
+        Route::get('/rental-spareparts/import-batches', [\App\Http\Controllers\RentalSparepartImportBatchController::class, 'index'])->name('rental-spareparts.import-batches.index');
         Route::get('/rental-spareparts/assets/search', RentalSparepartAssetSearchController::class)->name('rental-spareparts.assets.search');
         Route::get('/rental-spareparts/in/create', [RentalSparepartController::class, 'createIn'])->name('rental-spareparts.in.create');
         Route::post('/rental-spareparts/in', [RentalSparepartController::class, 'storeIn'])->name('rental-spareparts.in.store');
