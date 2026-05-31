@@ -947,3 +947,36 @@ Command Center
 WhatsApp Share
 Department Isolation
 ```
+
+DRR SAKTI GEN VDRR SAKTI GEN V adalah aplikasi Laravel untuk manajemen operasional field service, aset unit, update job, battery, charger, delivery unit, penarikan unit, subscription, kalender planning kerja, dan command center statistik.Project ini adalah project lanjutan, bukan project baru, dan sudah masuk produksi awal. Setiap perubahan wajib kecil, aman, bertahap, bisa dites, dan tidak boleh merusak fitur stabil.Repository:[https://github.com/nimosasuga/drrsaktigenv.git](https://github.com/nimosasuga/drrsaktigenv.git)
+Local path:C:\laragon\www\drrsakti
+
+1. Stack ProjectLaravel 13
+   PHP 8.3
+   MySQL
+   Laragon
+   HeidiSQL
+   Blade
+   Tailwind CSS
+   Vite
+   PowerShell
+   cPanel Production
+   Command standar setelah pull/perubahan kode:cd C:\laragon\www\drrsakti
+   git pull origin main
+   php artisan optimize:clear
+   php artisan view:clear
+   php artisan route:clear
+   composer dump-autoload
+   npm run dev
+   Jika ada migration baru:php artisan migrate
+   Command production/cPanel setelah upload:php artisan optimize:clear
+   php artisan config:clear
+   php artisan route:clear
+   php artisan view:clear
+   composer dump-autoload
+2. Aturan ProduksiProject ini bukan project baru.Jangan ubah arsitektur besar tanpa alasan kuat.Jangan hapus fitur, route, tombol, field, tampilan, atau alur yang sudah stabil tanpa instruksi eksplisit.Perubahan harus kecil, aman, bertahap, dan mudah dites.Jika menyentuh database (migrasi/tabel/kolom), jelaskan dulu risikonya dan minta ACC eksplisit.Selalu patuhi Scope Department (RENTAL / SERVICE) untuk keamanan data.3. Status Terakhir & Tahapan ProjectTAHAP 1 (Selesai)Tambah users.position dan users.department.Validasi form admin user selesai.TAHAP 2 (Selesai)Pembuatan tabel work_plannings & model WorkPlanning.Form calendar planning (Tanggal, Mekanik, Partner, Customer, Lokasi, Jenis Pekerjaan, Catatan).TAHAP 3A - 3D (Hardening Department Scope - Selesai)Global scope department diterapkan ke UnitAsset, Job, Battery, Charger, Delivery, Penarikan.Isolasi data di Command Center & CSV Export/Import berdasarkan department.Backfill script tersedia untuk sinkronisasi data lama.Visibilitas Kalender diisolasi (RENTAL hanya lihat RENTAL, SERVICE hanya lihat SERVICE, Super Admin lihat semua).TAHAP 4 (Penyempurnaan UI & Smart Planning Piket - Selesai)Manajemen Pengguna: Penambahan filter cerdas (Sort A-Z/Z-A, Department, Position) yang terintegrasi dengan Live Search.Database Piket: Pembuatan tabel pikets dan model Piket untuk memisahkan data piket hari Sabtu dari pekerjaan harian.Smart Planning Piket: Fitur khusus RENTAL FIELD di hari Sabtu. Sistem merekomendasikan mekanik berdasarkan prioritas:Hutang Piket (Terakhir kali statusnya 'berhalangan').Terlama tidak piket (Riwayat tanggal terakhir 'jalan').UI Kalender: Tampilan kalender dibagi menjadi dua Tab dinamis (Planning Kerja & Jadwal Piket).4. Role & Hak Akses (Rules Terbaru)users.department = RENTAL atau SERVICE.users.position = FIELD atau FMC.Koordinator & Sect_Head: Hanya mengelola (Create/Update/Delete) data di department-nya sendiri.Mekanik: Read-only pada data department-nya sendiri.Admin & Super_Admin: Bisa lintas department (Global Access).5. Commit Penting Terakhir[TERBARU] - feat: add smart planning piket for RENTAL FIELD, fix work_plannings column mapping and calendar routes
+   4516ce29fb7497efed79b169a79dbbc98b177742 - Calendar: semua user department melihat planning department-nya
+   166198023ef2cafa9cd45b3441aa588ae1bddcc9 - Calendar hardening customer/lokasi department
+   70a84c91e9c8c916414a143f0fe4161d297d6b13 - Backfill command department
+   885f254a07d6846ad283483c1d429736db8e0d42 - Command Center dashboard isolation
+3. Plan BerikutnyaPrioritas aman berikutnya:Test end-to-end fitur Smart Planning Piket di user mekanik (memastikan fitur Read-only berjalan baik).Audit form create/edit pada modul operasional lain untuk memastikan dropdown pilihan mekanik difilter sesuai department scope.Persiapan rilis pembaruan ke server Production / cPanel.
