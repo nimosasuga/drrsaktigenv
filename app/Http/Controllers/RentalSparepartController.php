@@ -105,9 +105,11 @@ class RentalSparepartController extends Controller
             'shelf' => 'nullable|string|max:100',
             'box' => 'nullable|string|max:100',
             'source_customer' => 'nullable|string|max:150',
+            'source_location' => 'nullable|string|max:150',
             'source_type_unit' => 'nullable|string|max:150',
             'source_sn_unit' => 'nullable|string|max:150',
             'allocation_customer' => 'nullable|string|max:150',
+            'allocation_location' => 'nullable|string|max:150',
             'allocation_type_unit' => 'nullable|string|max:150',
             'allocation_sn_unit' => 'nullable|string|max:150',
             'remarks' => 'nullable|string',
@@ -146,9 +148,11 @@ class RentalSparepartController extends Controller
                 'location_id' => $location->id,
                 'source_no_job' => $this->nullableUpper($validated['no_job'] ?? null),
                 'source_customer' => $this->nullableUpper($validated['source_customer'] ?? null),
+                'source_location' => $this->nullableUpper($validated['source_location'] ?? null),
                 'source_type_unit' => $this->nullableUpper($validated['source_type_unit'] ?? null),
                 'source_sn_unit' => $this->nullableUpper($validated['source_sn_unit'] ?? null),
                 'allocation_customer' => $this->nullableUpper($validated['allocation_customer'] ?? null),
+                'allocation_location' => $this->nullableUpper($validated['allocation_location'] ?? null),
                 'allocation_type_unit' => $this->nullableUpper($validated['allocation_type_unit'] ?? null),
                 'allocation_sn_unit' => $this->nullableUpper($validated['allocation_sn_unit'] ?? null),
             ]);
@@ -171,15 +175,13 @@ class RentalSparepartController extends Controller
                 'qty' => (int) $validated['qty_masuk'],
                 'no_job' => $this->nullableUpper($validated['no_job'] ?? null),
                 'source_customer' => $stock->source_customer,
+                'source_location' => $stock->source_location,
                 'source_type_unit' => $stock->source_type_unit,
                 'source_sn_unit' => $stock->source_sn_unit,
                 'allocation_customer' => $stock->allocation_customer,
+                'allocation_location' => $stock->allocation_location,
                 'allocation_type_unit' => $stock->allocation_type_unit,
                 'allocation_sn_unit' => $stock->allocation_sn_unit,
-                'actual_customer' => null,
-                'actual_type_unit' => null,
-                'actual_sn_unit' => null,
-                'is_cross_allocation' => false,
                 'pic_user_id' => $user->id,
                 'pic_name' => $user->name,
                 'remarks' => $validated['remarks'] ?? null,
@@ -196,8 +198,10 @@ class RentalSparepartController extends Controller
             $query->where(function ($subQuery) use ($search) {
                 $subQuery->where('source_no_job', 'like', "%{$search}%")
                     ->orWhere('source_customer', 'like', "%{$search}%")
+                    ->orWhere('source_location', 'like', "%{$search}%")
                     ->orWhere('source_sn_unit', 'like', "%{$search}%")
                     ->orWhere('allocation_customer', 'like', "%{$search}%")
+                    ->orWhere('allocation_location', 'like', "%{$search}%")
                     ->orWhere('allocation_sn_unit', 'like', "%{$search}%")
                     ->orWhereHas('item', function ($itemQuery) use ($search) {
                         $itemQuery->where('part_number', 'like', "%{$search}%")
