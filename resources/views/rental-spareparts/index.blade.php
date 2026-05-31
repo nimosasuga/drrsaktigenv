@@ -9,7 +9,7 @@
                 <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Dashboard Stok Sparepart Rental</h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                     Monitoring stok aktif sparepart RENTAL berdasarkan part, lokasi penyimpanan, no job, customer, dan alokasi unit.
-                    Barang Masuk, Barang Keluar, Histori Movement, Review Usage, Audit Stok Bermasalah, dan Export Stok sudah aktif.
+                    Barang Masuk, Barang Keluar, Histori Movement, Review Usage, Audit Stok Bermasalah, Export Stok, dan Import CSV sudah aktif.
                 </p>
             </div>
 
@@ -22,6 +22,12 @@
                 <a href="{{ route('rental-spareparts.export', request()->query()) }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700">
                     Export Stok CSV
                 </a>
+
+                @if($canManageSparepart)
+                    <a href="{{ route('rental-spareparts.import.template') }}" class="inline-flex items-center justify-center rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700">
+                        Template Import
+                    </a>
+                @endif
 
                 <a href="{{ route('rental-spareparts.reviews.index') }}" class="inline-flex items-center justify-center rounded-2xl bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-purple-700">
                     Review Usage
@@ -46,6 +52,46 @@
     @if(session('success'))
         <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
             {{ session('success') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
+    @if($canManageSparepart)
+        <div class="rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-600">Import CSV</p>
+                    <h2 class="mt-2 text-xl font-black text-cyan-950">Import Stok Awal / Barang Masuk Massal</h2>
+                    <p class="mt-1 max-w-3xl text-sm leading-6 text-cyan-800">
+                        Upload CSV akan diproses sebagai Barang Masuk. Semua baris divalidasi dulu; jika ada satu baris error, import dibatalkan total.
+                    </p>
+                </div>
+
+                <a href="{{ route('rental-spareparts.import.template') }}" class="inline-flex items-center justify-center rounded-2xl border border-cyan-300 bg-white px-5 py-3 text-sm font-black text-cyan-800 hover:bg-cyan-100">
+                    Download Template CSV
+                </a>
+            </div>
+
+            <form method="POST" action="{{ route('rental-spareparts.import.store') }}" enctype="multipart/form-data" class="mt-5 grid gap-3 lg:grid-cols-6">
+                @csrf
+                <div class="lg:col-span-4">
+                    <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-cyan-700">File CSV</label>
+                    <input type="file" name="csv_file" accept=".csv,.txt" required class="w-full rounded-2xl border border-cyan-200 bg-white px-4 py-3 text-sm text-slate-800 file:mr-4 file:rounded-xl file:border-0 file:bg-cyan-600 file:px-4 file:py-2 file:text-sm file:font-black file:text-white focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-100">
+                    <p class="mt-2 text-xs font-semibold text-cyan-700">
+                        Header wajib: tanggal, part_number, part_name, qty_masuk, location_code. Maksimal file 5MB.
+                    </p>
+                </div>
+                <div class="flex items-end lg:col-span-2">
+                    <button type="submit" onclick="return confirm('Import CSV ini sebagai Barang Masuk massal? Jika ada error, semua data akan dibatalkan.')" class="inline-flex w-full items-center justify-center rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700">
+                        Import CSV
+                    </button>
+                </div>
+            </form>
         </div>
     @endif
 
@@ -269,7 +315,7 @@
         @empty
             <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
                 <p class="text-lg font-black text-slate-800">Belum ada stok sparepart rental.</p>
-                <p class="mt-2 text-sm text-slate-500">Gunakan menu Barang Masuk untuk mulai mengisi stok.</p>
+                <p class="mt-2 text-sm text-slate-500">Gunakan menu Barang Masuk atau Import CSV untuk mulai mengisi stok.</p>
             </div>
         @endforelse
     </div>
