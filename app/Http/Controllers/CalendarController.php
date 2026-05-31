@@ -12,9 +12,9 @@ namespace App\Http\Controllers;
 use App\Models\UnitAsset;
 use App\Models\User;
 use App\Models\WorkPlanning;
+use App\Support\DepartmentScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 
 class CalendarController extends Controller
 {
@@ -46,22 +46,7 @@ class CalendarController extends Controller
             ->orderBy('name')
             ->get();
 
-        $assetOptionsQuery = UnitAsset::query()
-            ->whereNotNull('customer')
-            ->where('customer', '!=', '')
-            ->whereNotNull('location')
-            ->where('location', '!=', '');
-
-        if (!$this->canSeeAllDepartments($user) && !empty($user->department) && Schema::hasColumn('unit_assets', 'department')) {
-            $assetOptionsQuery->where('department', $user->department);
-        }
-
-        $assetOptions = $assetOptionsQuery
-            ->select('customer', 'location')
-            ->distinct()
-            ->orderBy('customer')
-            ->orderBy('location')
-            ->get();
+        $assetOptions = $this->assetOptionsForUser();
 
         $customers = $assetOptions
             ->pluck('customer')
@@ -160,21 +145,30 @@ class CalendarController extends Controller
 
         $mechanic = User::findOrFail($validated['mechanic_id']);
         $partner = !empty($validated['partner_id']) ? User::findOrFail($validated['partner_id']) : null;
+        $planningDepartment = strtoupper(trim((string) ($mechanic->department ?: $user->department)));
+
+        abort_if($planningDepartment === '', 403, 'Department mekanik belum diisi.');
 
         if (!$this->canSeeAllDepartments($user)) {
-            abort_if($mechanic->department !== $user->department, 403);
-
-            if ($partner && $partner->department !== $user->department) {
-                abort(403);
-            }
+            abort_if(strtoupper(trim((string) $mechanic->department)) !== strtoupper(trim((string) $user->department)), 403);
         }
+
+        if ($partner) {
+            abort_if(strtoupper(trim((string) $partner->department)) !== $planningDepartment, 403, 'Partner harus berada di department yang sama dengan mekanik.');
+        }
+
+        abort_unless(
+            $this->customerLocationAllowed($validated['customer'], $validated['location'], $planningDepartment),
+            403,
+            'Customer/lokasi tidak sesuai dengan department planning.'
+        );
 
         WorkPlanning::create([
             'created_by' => $user->id,
             'mechanic_id' => $mechanic->id,
             'partner_id' => $partner?->id,
             'branch' => $mechanic->branch ?: $user->branch,
-            'department' => $mechanic->department ?: $user->department,
+            'department' => $planningDepartment,
             'planned_date' => $validated['planned_date'],
             'planned_time' => null,
             'customer' => $validated['customer'],
@@ -229,6 +223,30 @@ class CalendarController extends Controller
         return back()->with('success', 'Planning kerja berhasil dihapus.');
     }
 
+    private function assetOptionsForUser()
+    {
+        return UnitAsset::query()
+            ->whereNotNull('customer')
+            ->where('customer', '!=', '')
+            ->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->select('customer', 'location')
+            ->distinct()
+            ->orderBy('customer')
+            ->orderBy('location')
+            ->get();
+    }
+
+    private function customerLocationAllowed(string $customer, string $location, string $department): bool
+    {
+        return UnitAsset::query()
+            ->withoutGlobalScope('department')
+            ->where('department', $department)
+            ->where('customer', $customer)
+            ->where('location', $location)
+            ->exists();
+    }
+
     private function canManagePlanning(?User $user): bool
     {
         if (!$user) {
@@ -245,14 +263,6 @@ class CalendarController extends Controller
 
     private function canSeeAllDepartments(?User $user): bool
     {
-        if (!$user) {
-            return false;
-        }
-
-        return in_array($user->status_user, [
-            'sect_head',
-            'admin',
-            'super_admin',
-        ], true);
+        return DepartmentScope::userCanSeeAllDepartments($user);
     }
 }
