@@ -29,6 +29,7 @@ use App\Http\Controllers\RentalSparepartController;
 use App\Http\Controllers\RentalSparepartAssetSearchController;
 use App\Http\Controllers\RentalSparepartOutController;
 use App\Http\Controllers\RentalSparepartMovementController;
+use App\Http\Controllers\RentalSparepartMovementExportController;
 use App\Http\Controllers\RentalSparepartUsageReviewController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
@@ -85,6 +86,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/rental-spareparts/out/create', [RentalSparepartOutController::class, 'create'])->name('rental-spareparts.out.create');
         Route::post('/rental-spareparts/out', [RentalSparepartOutController::class, 'store'])->name('rental-spareparts.out.store');
         Route::get('/rental-spareparts/movements', [RentalSparepartMovementController::class, 'index'])->name('rental-spareparts.movements.index');
+        Route::get('/rental-spareparts/movements/export', RentalSparepartMovementExportController::class)->name('rental-spareparts.movements.export');
         Route::get('/rental-spareparts/reviews', [RentalSparepartUsageReviewController::class, 'index'])->name('rental-spareparts.reviews.index');
         Route::post('/rental-spareparts/reviews/{review}/approve', [RentalSparepartUsageReviewController::class, 'approve'])->name('rental-spareparts.reviews.approve');
         Route::post('/rental-spareparts/reviews/{review}/reject', [RentalSparepartUsageReviewController::class, 'reject'])->name('rental-spareparts.reviews.reject');
