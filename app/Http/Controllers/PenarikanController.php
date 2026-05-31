@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 
 use App\Models\UnitAsset;
 use App\Models\User;
+use App\Support\DepartmentScope;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +33,24 @@ class PenarikanController extends Controller
         }
 
         return ($penarikan->pic === $user->name) || ((int) $penarikan->user_id === (int) $user->id);
+    }
+
+    private function applyDepartmentScope(Builder $query): void
+    {
+        DepartmentScope::apply($query, 'penarikans');
+    }
+
+    private function penarikanQuery(): Builder
+    {
+        $query = DB::table('penarikans');
+        $this->applyDepartmentScope($query);
+
+        return $query;
+    }
+
+    private function findPenarikan(int|string $id): ?object
+    {
+        return $this->penarikanQuery()->where('id', $id)->first();
     }
 
     private function isRfuStatus($status): bool
@@ -106,7 +126,7 @@ class PenarikanController extends Controller
 
     public function index(Request $request)
     {
-        $query = DB::table('penarikans');
+        $query = $this->penarikanQuery();
         $selectedYear = (int) $request->input('year_filter', now()->year);
 
         if ($request->filled('month_filter')) {
@@ -200,11 +220,17 @@ class PenarikanController extends Controller
                 ];
             });
 
-        $customers = DB::table('penarikans')->whereNotNull('customer')->where('customer', '!=', '')->distinct()->orderBy('customer')->pluck('customer');
-        $pics = DB::table('penarikans')->whereNotNull('pic')->where('pic', '!=', '')->distinct()->orderBy('pic')->pluck('pic');
-        $locations = DB::table('penarikans')->whereNotNull('location')->where('location', '!=', '')->distinct()->orderBy('location')->pluck('location');
-        $statuses = DB::table('penarikans')->whereNotNull('status_unit')->where('status_unit', '!=', '')->distinct()->orderBy('status_unit')->pluck('status_unit');
-        $years = DB::table('penarikans')->whereNotNull('date')->selectRaw('YEAR(date) as year')->distinct()->orderByDesc('year')->pluck('year')->filter()->values();
+        $customersQuery = $this->penarikanQuery()->whereNotNull('customer')->where('customer', '!=', '');
+        $picsQuery = $this->penarikanQuery()->whereNotNull('pic')->where('pic', '!=', '');
+        $locationsQuery = $this->penarikanQuery()->whereNotNull('location')->where('location', '!=', '');
+        $statusesQuery = $this->penarikanQuery()->whereNotNull('status_unit')->where('status_unit', '!=', '');
+        $yearsQuery = $this->penarikanQuery()->whereNotNull('date');
+
+        $customers = $customersQuery->distinct()->orderBy('customer')->pluck('customer');
+        $pics = $picsQuery->distinct()->orderBy('pic')->pluck('pic');
+        $locations = $locationsQuery->distinct()->orderBy('location')->pluck('location');
+        $statuses = $statusesQuery->distinct()->orderBy('status_unit')->pluck('status_unit');
+        $years = $yearsQuery->selectRaw('YEAR(date) as year')->distinct()->orderByDesc('year')->pluck('year')->filter()->values();
 
         return view('penarikans.index', compact('groupedPenarikans', 'summary', 'customers', 'pics', 'locations', 'statuses', 'years', 'selectedYear'));
     }
@@ -231,10 +257,12 @@ class PenarikanController extends Controller
             return response()->json([]);
         }
 
-        $assets = UnitAsset::where('serial_number', 'like', "%{$search}%")
-            ->orWhere('unit_type', 'like', "%{$search}%")
-            ->orWhere('customer', 'like', "%{$search}%")
-            ->orWhere('location', 'like', "%{$search}%")
+        $assets = UnitAsset::where(function ($query) use ($search) {
+            $query->where('serial_number', 'like', "%{$search}%")
+                ->orWhere('unit_type', 'like', "%{$search}%")
+                ->orWhere('customer', 'like', "%{$search}%")
+                ->orWhere('location', 'like', "%{$search}%");
+        })
             ->limit(12)
             ->get();
 
@@ -260,6 +288,7 @@ class PenarikanController extends Controller
         $validated['penarikan_code'] = $this->generatePenarikanCode();
         $validated['user_id'] = $user->id;
         $validated['branch'] = $user->branch ?? 'HO / Pusat';
+        $validated['department'] = DepartmentScope::valueForCreate($user);
         $validated['status_mekanik'] = $this->statusMekanikFromUser();
         $validated['pic'] = $user->name;
         $validated['job_type'] = 'TARIK UNIT';
@@ -276,7 +305,7 @@ class PenarikanController extends Controller
 
     public function show($id)
     {
-        $penarikan = DB::table('penarikans')->where('id', $id)->first();
+        $penarikan = $this->findPenarikan($id);
         abort_if(!$penarikan, 404);
 
         return view('penarikans.show', compact('penarikan'));
@@ -284,7 +313,7 @@ class PenarikanController extends Controller
 
     public function edit($id)
     {
-        $penarikan = DB::table('penarikans')->where('id', $id)->first();
+        $penarikan = $this->findPenarikan($id);
         abort_if(!$penarikan, 404);
 
         if (!$this->canEditPenarikan($penarikan)) {
@@ -301,7 +330,7 @@ class PenarikanController extends Controller
 
     public function update(Request $request, $id)
     {
-        $penarikan = DB::table('penarikans')->where('id', $id)->first();
+        $penarikan = $this->findPenarikan($id);
         abort_if(!$penarikan, 404);
 
         if (!$this->canEditPenarikan($penarikan)) {
@@ -309,11 +338,12 @@ class PenarikanController extends Controller
         }
 
         $validated = $this->validatePenarikan($request);
+        $validated['department'] = $penarikan->department ?: DepartmentScope::valueForCreate(Auth::user());
         $validated['job_type'] = 'TARIK UNIT';
         $validated['updated_at'] = now();
 
         $penarikanData = $this->normalizePenarikanData($validated);
-        DB::table('penarikans')->where('id', $id)->update($penarikanData);
+        $this->penarikanQuery()->where('id', $id)->update($penarikanData);
 
         $this->markAssetAsDitarik($penarikanData['serial_number'] ?? null);
 
@@ -322,14 +352,14 @@ class PenarikanController extends Controller
 
     public function destroy($id)
     {
-        $penarikan = DB::table('penarikans')->where('id', $id)->first();
+        $penarikan = $this->findPenarikan($id);
         abort_if(!$penarikan, 404);
 
         if (!$this->canEditPenarikan($penarikan)) {
             return redirect()->route('penarikans.show', $id)->withErrors(['error' => 'Anda hanya bisa hapus record yang Anda buat sebagai PIC.']);
         }
 
-        DB::table('penarikans')->where('id', $id)->delete();
+        $this->penarikanQuery()->where('id', $id)->delete();
 
         return redirect()->route('penarikans.index')->with('success', 'Data Penarikan Unit berhasil dihapus.');
     }
