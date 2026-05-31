@@ -332,16 +332,59 @@ class CalendarController extends Controller
             ->get();
 
         foreach ($mechanics as $mechanic) {
-            $latestPiket = Piket::where('user_id', $mechanic->id)
-                ->whereIn('status', ['jalan', 'berhalangan'])
+            $history = Piket::where('user_id', $mechanic->id)
                 ->orderBy('date', 'desc')
-                ->first();
+                ->get();
 
-            $mechanic->piket_priority = ($latestPiket && $latestPiket->status === 'berhalangan') ? 1 : 2;
-            $mechanic->last_piket_date = $latestPiket ? $latestPiket->date->format('Y-m-d') : '2000-01-01';
+            $activeHistory = $history->whereIn('status', ['jalan', 'berhalangan']);
+            $latestActivePiket = $activeHistory->first();
+            $latestJalanPiket = $history->firstWhere('status', 'jalan');
+
+            $jalanCount = $history->where('status', 'jalan')->count();
+            $berhalanganCount = $history->where('status', 'berhalangan')->count();
+            $noWorkCount = $history->where('status', 'tidak_ada_kerjaan')->count();
+            $hasDebt = $latestActivePiket && $latestActivePiket->status === 'berhalangan';
+            $neverActivePiket = $activeHistory->isEmpty();
+
+            $daysSinceLastActive = $latestActivePiket
+                ? Carbon::parse($latestActivePiket->date)->diffInDays(now())
+                : 9999;
+
+            $fairnessScore = 0;
+            $fairnessScore += $neverActivePiket ? 120 : 0;
+            $fairnessScore += $hasDebt ? 100 : 0;
+            $fairnessScore += min($daysSinceLastActive, 180) / 7;
+            $fairnessScore -= $jalanCount * 6;
+            $fairnessScore += $berhalanganCount * 8;
+            $fairnessScore -= $noWorkCount * 2;
+
+            $mechanic->piket_priority = $hasDebt ? 1 : ($neverActivePiket ? 2 : 3);
+            $mechanic->jalan_count = $jalanCount;
+            $mechanic->berhalangan_count = $berhalanganCount;
+            $mechanic->tidak_ada_kerjaan_count = $noWorkCount;
+            $mechanic->fairness_score = round($fairnessScore, 1);
+            $mechanic->last_piket_date = $latestActivePiket ? $latestActivePiket->date->format('Y-m-d') : '2000-01-01';
+            $mechanic->last_piket_label = $latestActivePiket ? $latestActivePiket->date->format('d M Y') : 'Belum pernah';
+            $mechanic->last_jalan_label = $latestJalanPiket ? $latestJalanPiket->date->format('d M Y') : 'Belum pernah jalan';
+            $mechanic->recommendation_reason = match (true) {
+                $hasDebt => 'Prioritas hutang piket karena terakhir berhalangan.',
+                $neverActivePiket => 'Belum pernah masuk piket aktif.',
+                $daysSinceLastActive >= 28 => 'Sudah lama tidak mendapat giliran piket.',
+                default => 'Skor dihitung dari riwayat dan pemerataan beban.',
+            };
         }
 
-        return $mechanics->sortBy(fn ($mechanic) => $mechanic->piket_priority . '_' . $mechanic->last_piket_date)->values();
+        return $mechanics
+            ->sortBy([
+                ['piket_priority', 'asc'],
+                ['jalan_count', 'asc'],
+                ['last_piket_date', 'asc'],
+                ['name', 'asc'],
+            ])
+            ->values()
+            ->each(function ($mechanic, $index) {
+                $mechanic->fairness_rank = $index + 1;
+            });
     }
 
     private function assetOptionsForUser()
