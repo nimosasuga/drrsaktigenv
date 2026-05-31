@@ -9,6 +9,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\RentalSparepartImportBatch;
 use App\Models\RentalSparepartItem;
 use App\Models\RentalSparepartLocation;
 use App\Models\RentalSparepartMovement;
@@ -73,7 +74,6 @@ class RentalSparepartImportController extends Controller
 
         if (!empty($parsed['errors'])) {
             session()->forget(self::SESSION_KEY);
-
             return back()->withErrors(['csv_file' => implode(' | ', array_slice($parsed['errors'], 0, 10))]);
         }
 
@@ -81,7 +81,6 @@ class RentalSparepartImportController extends Controller
 
         if (count($rows) === 0) {
             session()->forget(self::SESSION_KEY);
-
             return back()->withErrors(['csv_file' => 'CSV kosong. Minimal harus ada 1 baris data.']);
         }
 
@@ -105,12 +104,35 @@ class RentalSparepartImportController extends Controller
                 ->withErrors(['csv_file' => 'Preview import tidak ditemukan atau sudah kedaluwarsa. Upload ulang CSV.']);
         }
 
+        $batchCode = null;
+
         try {
-            DB::transaction(function () use ($rows) {
+            DB::transaction(function () use ($rows, &$batchCode) {
                 $user = Auth::user();
+                $summary = $this->previewSummary($rows);
+                $batchCode = 'RSP-IMP-' . now()->format('YmdHis') . '-' . str_pad((string) random_int(1, 999), 3, '0', STR_PAD_LEFT);
+
+                $batch = RentalSparepartImportBatch::create([
+                    'batch_code' => $batchCode,
+                    'department' => self::DEPARTMENT,
+                    'imported_by' => $user->id,
+                    'imported_by_name' => $user->name,
+                    'status' => RentalSparepartImportBatch::STATUS_IMPORTED,
+                    'total_rows' => $summary['total_rows'],
+                    'total_qty' => $summary['total_qty'],
+                    'unique_parts' => $summary['unique_parts'],
+                    'existing_parts' => $summary['existing_parts'],
+                    'new_parts' => $summary['new_parts'],
+                    'unique_locations' => $summary['unique_locations'],
+                    'existing_locations' => $summary['existing_locations'],
+                    'new_locations' => $summary['new_locations'],
+                    'merge_stock_rows' => $summary['merge_stock_rows'],
+                    'new_stock_rows' => $summary['new_stock_rows'],
+                    'summary_json' => $summary,
+                ]);
 
                 foreach ($rows as $row) {
-                    $this->importRow($row, $user);
+                    $this->importRow($row, $user, $batch->id);
                 }
             });
         } catch (Throwable $exception) {
@@ -121,13 +143,12 @@ class RentalSparepartImportController extends Controller
 
         return redirect()
             ->route('rental-spareparts.index')
-            ->with('success', count($rows) . ' baris sparepart berhasil di-import sebagai Barang Masuk.');
+            ->with('success', count($rows) . ' baris sparepart berhasil di-import. Batch: ' . $batchCode);
     }
 
     public function cancel()
     {
         abort_unless($this->canManage(), 403);
-
         session()->forget(self::SESSION_KEY);
 
         return redirect()
@@ -140,27 +161,10 @@ class RentalSparepartImportController extends Controller
         abort_unless($this->canManage(), 403);
 
         $example = [
-            now()->toDateString(),
-            'JOB-001',
-            'PN-001',
-            'FILTER HYDRAULIC',
-            '1',
-            'FD30',
-            '1',
-            'LEMARI-1',
-            'LEMARI 1',
-            'LEMARI 1',
-            'RAK A',
-            'BOX 1',
-            'CUSTOMER A',
-            'SITE A',
-            'FD30',
-            'SN123456',
-            'CUSTOMER A',
-            'SITE A',
-            'FD30',
-            'SN123456',
-            'STOK AWAL IMPORT',
+            now()->toDateString(), 'JOB-001', 'PN-001', 'FILTER HYDRAULIC', '1', 'FD30', '1',
+            'LEMARI-1', 'LEMARI 1', 'LEMARI 1', 'RAK A', 'BOX 1',
+            'CUSTOMER A', 'SITE A', 'FD30', 'SN123456',
+            'CUSTOMER A', 'SITE A', 'FD30', 'SN123456', 'STOK AWAL IMPORT',
         ];
 
         $rows = [self::TEMPLATE_HEADERS, $example];
@@ -196,15 +200,8 @@ class RentalSparepartImportController extends Controller
             ->values();
 
         $mergeStockRows = collect($rows)->filter(function ($row) {
-            $item = RentalSparepartItem::query()
-                ->where('department', self::DEPARTMENT)
-                ->where('part_number', $this->upper($row['part_number']))
-                ->first();
-
-            $location = RentalSparepartLocation::query()
-                ->where('department', self::DEPARTMENT)
-                ->where('location_code', $this->upper($row['location_code']))
-                ->first();
+            $item = RentalSparepartItem::query()->where('department', self::DEPARTMENT)->where('part_number', $this->upper($row['part_number']))->first();
+            $location = RentalSparepartLocation::query()->where('department', self::DEPARTMENT)->where('location_code', $this->upper($row['location_code']))->first();
 
             if (!$item || !$location) {
                 return false;
@@ -240,7 +237,7 @@ class RentalSparepartImportController extends Controller
         ];
     }
 
-    private function importRow(array $row, $user): void
+    private function importRow(array $row, $user, ?int $importBatchId = null): void
     {
         $partNumber = $this->upper($row['part_number']);
         $partName = trim((string) $row['part_name']);
@@ -248,21 +245,13 @@ class RentalSparepartImportController extends Controller
         $locationName = trim((string) ($row['location_name'] ?? '')) ?: $locationCode;
         $qtyMasuk = (int) $row['qty_masuk'];
 
-        $item = RentalSparepartItem::query()->firstOrNew([
-            'department' => self::DEPARTMENT,
-            'part_number' => $partNumber,
-        ]);
-
+        $item = RentalSparepartItem::query()->firstOrNew(['department' => self::DEPARTMENT, 'part_number' => $partNumber]);
         $item->part_name = $partName;
         $item->default_type_unit = $this->nullableUpper($row['default_type_unit'] ?? null);
         $item->min_stock = (int) ($row['min_stock'] ?? $item->min_stock ?? 0);
         $item->save();
 
-        $location = RentalSparepartLocation::query()->firstOrNew([
-            'department' => self::DEPARTMENT,
-            'location_code' => $locationCode,
-        ]);
-
+        $location = RentalSparepartLocation::query()->firstOrNew(['department' => self::DEPARTMENT, 'location_code' => $locationCode]);
         $location->location_name = $locationName;
         $location->cabinet = $this->nullableUpper($row['cabinet'] ?? null);
         $location->shelf = $this->nullableUpper($row['shelf'] ?? null);
@@ -291,6 +280,7 @@ class RentalSparepartImportController extends Controller
 
         RentalSparepartMovement::create([
             'department' => self::DEPARTMENT,
+            'import_batch_id' => $importBatchId,
             'movement_type' => RentalSparepartMovement::TYPE_IN,
             'movement_date' => $row['tanggal'],
             'sparepart_item_id' => $item->id,
