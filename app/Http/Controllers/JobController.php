@@ -4,6 +4,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Job;
+use App\Models\RentalSparepartUsageReview;
 use App\Models\User;
 use App\Models\UnitAsset;
 use Carbon\Carbon;
@@ -526,7 +527,19 @@ class JobController extends Controller
     public function show($id)
     {
         $job = Job::with(['user', 'installParts', 'recommendations'])->findOrFail($id);
-        return view('update-jobs.show', compact('job'));
+
+        $sparepartReviews = RentalSparepartUsageReview::query()
+            ->with(['stock.item', 'stock.location', 'movement'])
+            ->where('department', 'RENTAL')
+            ->where('job_id', $job->id)
+            ->orderByDesc('id')
+            ->get();
+
+        $sparepartReviewsByInstallPart = $sparepartReviews
+            ->whereNotNull('job_install_part_id')
+            ->groupBy('job_install_part_id');
+
+        return view('update-jobs.show', compact('job', 'sparepartReviews', 'sparepartReviewsByInstallPart'));
     }
 
     public function edit($id)
