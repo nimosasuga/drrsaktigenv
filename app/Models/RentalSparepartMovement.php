@@ -25,6 +25,7 @@ class RentalSparepartMovement extends Model
 
     protected $fillable = [
         'department',
+        'import_batch_id',
         'movement_type',
         'movement_date',
         'sparepart_item_id',
@@ -72,5 +73,10 @@ class RentalSparepartMovement extends Model
     public function pic(): BelongsTo
     {
         return $this->belongsTo(User::class, 'pic_user_id');
+    }
+
+    public function importBatch(): BelongsTo
+    {
+        return $this->belongsTo(RentalSparepartImportBatch::class, 'import_batch_id');
     }
 }
