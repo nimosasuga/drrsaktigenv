@@ -26,6 +26,7 @@ use App\Http\Controllers\UpdateJobPreventiveMaintenanceCheckController;
 use App\Http\Controllers\UpdateJobSaveController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
+use App\Http\Controllers\CalendarController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -75,7 +76,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
         Route::get('/command-center/export/{module}', [CommandCenterCsvController::class, 'export'])->name('command-center.export');
         Route::post('/command-center/import/{module}', [CommandCenterCsvController::class, 'import'])->name('command-center.import');
-        Route::get('/calendar', fn() => view('calendar.index'))->name('calendar.index');
+        Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+        Route::post('/calendar/plannings', [CalendarController::class, 'store'])->name('calendar.plannings.store');
+        Route::patch('/calendar/plannings/{planning}/status', [CalendarController::class, 'updateStatus'])->name('calendar.plannings.status');
+        Route::delete('/calendar/plannings/{planning}', [CalendarController::class, 'destroy'])->name('calendar.plannings.destroy');
         Route::get('/reminders', fn() => view('reminders.index'))->name('reminders.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
         Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
