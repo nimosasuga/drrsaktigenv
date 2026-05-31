@@ -9,16 +9,31 @@
                 <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Dashboard Stok Sparepart Rental</h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                     Monitoring stok aktif sparepart RENTAL berdasarkan part, lokasi penyimpanan, no job, customer, dan alokasi unit.
-                    Tahap ini masih read-only; transaksi IN/OUT dibuat pada tahap berikutnya.
+                    Barang Masuk sudah aktif; transaksi OUT dan smart engine Update Job dibuat pada tahap berikutnya.
                 </p>
             </div>
 
-            <div class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-                <p class="text-[11px] font-bold uppercase tracking-wide text-blue-500">Department</p>
-                <p class="mt-1 text-xl font-black text-blue-700">RENTAL</p>
+            <div class="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                <div class="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                    <p class="text-[11px] font-bold uppercase tracking-wide text-blue-500">Department</p>
+                    <p class="mt-1 text-xl font-black text-blue-700">RENTAL</p>
+                </div>
+
+                @if($canManageSparepart)
+                <a href="{{ route('rental-spareparts.in.create') }}"
+                    class="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700">
+                    + Barang Masuk
+                </a>
+                @endif
             </div>
         </div>
     </div>
+
+    @if(session('success'))
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+        {{ session('success') }}
+    </div>
+    @endif
 
     <div class="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
         <div class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -195,7 +210,7 @@
         @empty
         <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
             <p class="text-lg font-black text-slate-800">Belum ada stok sparepart rental.</p>
-            <p class="mt-2 text-sm text-slate-500">Tahap berikutnya akan membuat Barang Masuk agar stok bisa mulai diisi.</p>
+            <p class="mt-2 text-sm text-slate-500">Gunakan menu Barang Masuk untuk mulai mengisi stok.</p>
         </div>
         @endforelse
     </div>
