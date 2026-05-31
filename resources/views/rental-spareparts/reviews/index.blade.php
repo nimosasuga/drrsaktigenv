@@ -12,9 +12,14 @@
                 </p>
             </div>
 
-            <a href="{{ route('rental-spareparts.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-                Kembali ke Stok
-            </a>
+            <div class="flex flex-col gap-2 sm:flex-row lg:flex-col">
+                <a href="{{ route('rental-spareparts.reviews.export', request()->query()) }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700">
+                    Export CSV
+                </a>
+                <a href="{{ route('rental-spareparts.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
+                    Kembali ke Stok
+                </a>
+            </div>
         </div>
     </div>
 
@@ -73,8 +78,9 @@
             </div>
             <div><label class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Dari</label><input type="date" name="date_from" value="{{ $filters['date_from'] }}" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-100"></div>
             <div><label class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Sampai</label><input type="date" name="date_to" value="{{ $filters['date_to'] }}" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-purple-500 focus:outline-none focus:ring-4 focus:ring-purple-100"></div>
-            <div class="flex gap-2 lg:col-span-8 lg:justify-end">
+            <div class="flex flex-wrap gap-2 lg:col-span-8 lg:justify-end">
                 <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-purple-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-purple-700 sm:flex-none">Filter</button>
+                <a href="{{ route('rental-spareparts.reviews.export', request()->query()) }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700">Export CSV</a>
                 <a href="{{ route('rental-spareparts.reviews.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Reset</a>
             </div>
         </form>
