@@ -12,3 +12,4 @@ import "./command-center-import-trigger";
 import "./update-job-copy-report";
 import "./operational-share-report";
 import "./update-job-detail-extra-fields";
+import "./rental-sparepart-sidebar-link";
