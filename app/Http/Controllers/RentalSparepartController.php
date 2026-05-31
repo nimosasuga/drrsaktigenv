@@ -260,17 +260,33 @@ class RentalSparepartController extends Controller
             ->where('department', self::DEPARTMENT)
             ->get();
 
+        $qtyEmpty = $stocks->filter(fn ($stock) => $stock->qty_available <= 0)->count();
+        $qtyLow = $stocks->filter(function ($stock) {
+            $minStock = (int) ($stock->item->min_stock ?? 0);
+            return $minStock > 0 && $stock->qty_available > 0 && $stock->qty_available <= $minStock;
+        })->count();
+        $reservedRows = $stocks->filter(fn ($stock) => (int) $stock->qty_reserved > 0)->count();
+        $missingSn = $stocks->filter(fn ($stock) => blank($stock->allocation_sn_unit) && blank($stock->source_sn_unit))->count();
+        $missingCustomer = $stocks->filter(fn ($stock) => blank($stock->allocation_customer) && blank($stock->source_customer))->count();
+        $missingLocation = $stocks->filter(fn ($stock) => blank($stock->allocation_location) && blank($stock->source_location))->count();
+        $negativeAvailable = $stocks->filter(fn ($stock) => (int) $stock->qty_on_hand < (int) $stock->qty_reserved)->count();
+
         return [
             'total_part' => $stocks->pluck('sparepart_item_id')->filter()->unique()->count(),
             'total_stock_row' => $stocks->count(),
             'qty_on_hand' => $stocks->sum('qty_on_hand'),
             'qty_reserved' => $stocks->sum('qty_reserved'),
             'qty_available' => $stocks->sum(fn ($stock) => $stock->qty_available),
-            'qty_empty' => $stocks->filter(fn ($stock) => $stock->qty_available <= 0)->count(),
-            'qty_low' => $stocks->filter(function ($stock) {
-                $minStock = (int) ($stock->item->min_stock ?? 0);
-                return $minStock > 0 && $stock->qty_available > 0 && $stock->qty_available <= $minStock;
-            })->count(),
+            'qty_empty' => $qtyEmpty,
+            'qty_low' => $qtyLow,
+            'problem_total' => $qtyEmpty + $qtyLow + $reservedRows + $missingSn + $missingCustomer + $missingLocation + $negativeAvailable,
+            'problem_empty' => $qtyEmpty,
+            'problem_low' => $qtyLow,
+            'problem_reserved_rows' => $reservedRows,
+            'problem_missing_sn' => $missingSn,
+            'problem_missing_customer' => $missingCustomer,
+            'problem_missing_location' => $missingLocation,
+            'problem_negative_available' => $negativeAvailable,
         ];
     }
 
