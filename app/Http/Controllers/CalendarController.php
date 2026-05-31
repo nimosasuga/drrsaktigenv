@@ -9,148 +9,33 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Piket;
 use App\Models\UnitAsset;
 use App\Models\User;
 use App\Models\WorkPlanning;
-use App\Models\Piket;
 use App\Support\DepartmentScope;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class CalendarController extends Controller
 {
     public function index(Request $request)
     {
-        $user = Auth::user();
+        return view('calendar.index', $this->calendarPayload($request));
+    }
 
-        $canManagePlanning = $this->canManagePlanning($user);
+    public function planning(Request $request)
+    {
+        return view('calendar.planning', $this->calendarPayload($request));
+    }
 
-        $month = (int) $request->input('month', now()->month);
-        $year = (int) $request->input('year', now()->year);
+    public function piket(Request $request)
+    {
+        $payload = $this->calendarPayload($request);
+        abort_unless($payload['canViewPiket'], 403);
 
-        if ($month < 1 || $month > 12) {
-            $month = now()->month;
-        }
-
-        if ($year < 2020 || $year > 2100) {
-            $year = now()->year;
-        }
-
-        $mechanicId = $request->input('mechanic_id');
-        $status = strtoupper((string) $request->input('status', ''));
-
-        if (!in_array($status, ['PLANNED', 'DONE', 'CANCELLED'], true)) {
-            $status = null;
-        }
-
-        $mechanics = User::query()
-            ->where('status_user', 'mekanik')
-            ->when(!$this->canSeeAllDepartments($user), function ($query) use ($user) {
-                $query->where('department', $user->department);
-            })
-            ->orderBy('name')
-            ->get();
-
-        $assetOptions = $this->assetOptionsForUser();
-
-        $customers = $assetOptions
-            ->pluck('customer')
-            ->filter()
-            ->unique()
-            ->values();
-
-        $customerLocations = [];
-        foreach ($assetOptions as $asset) {
-            $customerLocations[$asset->customer][] = $asset->location;
-        }
-
-        foreach ($customerLocations as $cust => $locs) {
-            $customerLocations[$cust] = array_values(array_unique($locs));
-        }
-
-        $plannings = WorkPlanning::with(['mechanic', 'partner', 'creator'])
-            ->whereYear('planned_date', $year)
-            ->whereMonth('planned_date', $month)
-            ->when($mechanicId, function ($query, $mechanicId) {
-                $query->where(function ($sub) use ($mechanicId) {
-                    $sub->where('mechanic_id', $mechanicId)
-                        ->orWhere('partner_id', $mechanicId);
-                });
-            })
-            ->when($status, function ($query, $status) {
-                $query->where('status', $status);
-            })
-            ->orderBy('planned_date', 'asc')
-            ->get();
-
-        $groupedPlannings = $plannings->groupBy(function ($planning) {
-            return $planning->planned_date->format('Y-m-d');
-        });
-
-        $saturdays = [];
-        $daysInMonth = Carbon::create($year, $month)->daysInMonth;
-        for ($i = 1; $i <= $daysInMonth; $i++) {
-            $dateObj = Carbon::create($year, $month, $i);
-            if ($dateObj->isSaturday()) {
-                $saturdays[] = $dateObj->format('Y-m-d');
-            }
-        }
-
-        $canViewPiket = $user->department === 'RENTAL' || $this->canSeeAllDepartments($user);
-        $pikets = collect();
-        $recommendedMechanics = collect();
-
-        if ($canViewPiket) {
-            $pikets = Piket::with(['user', 'creator'])
-                ->whereYear('date', $year)
-                ->whereMonth('date', $month)
-                ->orderBy('date', 'asc')
-                ->get()
-                ->groupBy(function ($piket) {
-                    return Carbon::parse($piket->date)->format('Y-m-d');
-                });
-
-            $rentalFieldMechanics = User::where('department', 'RENTAL')
-                ->where('position', 'FIELD')
-                ->where('status_user', 'mekanik')
-                ->orderBy('name')
-                ->get();
-
-            foreach ($rentalFieldMechanics as $mechanic) {
-                $latestPiket = Piket::where('user_id', $mechanic->id)
-                    ->whereIn('status', ['jalan', 'berhalangan'])
-                    ->orderBy('date', 'desc')
-                    ->first();
-
-                if ($latestPiket && $latestPiket->status === 'berhalangan') {
-                    $mechanic->piket_priority = 1;
-                    $mechanic->last_piket_date = $latestPiket->date->format('Y-m-d');
-                } else {
-                    $mechanic->piket_priority = 2;
-                    $mechanic->last_piket_date = $latestPiket ? $latestPiket->date->format('Y-m-d') : '2000-01-01';
-                }
-            }
-
-            $recommendedMechanics = $rentalFieldMechanics->sortBy(function ($m) {
-                return $m->piket_priority . '_' . $m->last_piket_date;
-            })->values();
-        }
-
-        return view('calendar.index', compact(
-            'month',
-            'year',
-            'mechanics',
-            'customers',
-            'customerLocations',
-            'groupedPlannings',
-            'plannings',
-            'canManagePlanning',
-            'saturdays',
-            'pikets',
-            'recommendedMechanics',
-            'canViewPiket'
-        ));
+        return view('calendar.piket', $payload);
     }
 
     public function store(Request $request)
@@ -193,7 +78,7 @@ class CalendarController extends Controller
             'created_by' => $user->id,
         ]);
 
-        return back()->with('success', 'Planning kerja berhasil ditambahkan.');
+        return redirect()->route('calendar.planning')->with('success', 'Planning kerja berhasil ditambahkan.');
     }
 
     public function destroy(WorkPlanning $planning)
@@ -338,6 +223,127 @@ class CalendarController extends Controller
         return back()->with('success', 'Status planning kerja berhasil diubah.');
     }
 
+    private function calendarPayload(Request $request): array
+    {
+        $user = Auth::user();
+        $month = (int) $request->input('month', now()->month);
+        $year = (int) $request->input('year', now()->year);
+
+        if ($month < 1 || $month > 12) {
+            $month = now()->month;
+        }
+
+        if ($year < 2020 || $year > 2100) {
+            $year = now()->year;
+        }
+
+        $status = strtoupper((string) $request->input('status', ''));
+        if (!in_array($status, ['PLANNED', 'DONE', 'CANCELLED'], true)) {
+            $status = null;
+        }
+
+        $mechanicId = $request->input('mechanic_id');
+        $canManagePlanning = $this->canManagePlanning($user);
+        $canViewPiket = $user->department === 'RENTAL' || $this->canSeeAllDepartments($user);
+
+        $mechanics = User::query()
+            ->where('status_user', 'mekanik')
+            ->when(!$this->canSeeAllDepartments($user), fn ($query) => $query->where('department', $user->department))
+            ->orderBy('name')
+            ->get();
+
+        $assetOptions = $this->assetOptionsForUser();
+        $customers = $assetOptions->pluck('customer')->filter()->unique()->values();
+        $customerLocations = [];
+
+        foreach ($assetOptions as $asset) {
+            $customerLocations[$asset->customer][] = $asset->location;
+        }
+
+        foreach ($customerLocations as $customer => $locations) {
+            $customerLocations[$customer] = array_values(array_unique($locations));
+        }
+
+        $plannings = WorkPlanning::with(['mechanic', 'partner', 'creator'])
+            ->whereYear('planned_date', $year)
+            ->whereMonth('planned_date', $month)
+            ->when($mechanicId, function ($query, $mechanicId) {
+                $query->where(function ($sub) use ($mechanicId) {
+                    $sub->where('mechanic_id', $mechanicId)->orWhere('partner_id', $mechanicId);
+                });
+            })
+            ->when($status, fn ($query, $status) => $query->where('status', $status))
+            ->orderBy('planned_date')
+            ->get();
+
+        $groupedPlannings = $plannings->groupBy(fn ($planning) => $planning->planned_date->format('Y-m-d'));
+        $saturdays = $this->saturdaysInMonth($year, $month);
+        $pikets = collect();
+        $recommendedMechanics = collect();
+
+        if ($canViewPiket) {
+            $pikets = Piket::with(['user', 'creator'])
+                ->whereYear('date', $year)
+                ->whereMonth('date', $month)
+                ->orderBy('date')
+                ->get()
+                ->groupBy(fn ($piket) => Carbon::parse($piket->date)->format('Y-m-d'));
+
+            $recommendedMechanics = $this->recommendedPiketMechanics();
+        }
+
+        return compact(
+            'month',
+            'year',
+            'mechanics',
+            'customers',
+            'customerLocations',
+            'groupedPlannings',
+            'plannings',
+            'canManagePlanning',
+            'saturdays',
+            'pikets',
+            'recommendedMechanics',
+            'canViewPiket'
+        );
+    }
+
+    private function saturdaysInMonth(int $year, int $month): array
+    {
+        $saturdays = [];
+        $daysInMonth = Carbon::create($year, $month)->daysInMonth;
+
+        for ($i = 1; $i <= $daysInMonth; $i++) {
+            $date = Carbon::create($year, $month, $i);
+            if ($date->isSaturday()) {
+                $saturdays[] = $date->format('Y-m-d');
+            }
+        }
+
+        return $saturdays;
+    }
+
+    private function recommendedPiketMechanics()
+    {
+        $mechanics = User::where('department', 'RENTAL')
+            ->where('position', 'FIELD')
+            ->where('status_user', 'mekanik')
+            ->orderBy('name')
+            ->get();
+
+        foreach ($mechanics as $mechanic) {
+            $latestPiket = Piket::where('user_id', $mechanic->id)
+                ->whereIn('status', ['jalan', 'berhalangan'])
+                ->orderBy('date', 'desc')
+                ->first();
+
+            $mechanic->piket_priority = ($latestPiket && $latestPiket->status === 'berhalangan') ? 1 : 2;
+            $mechanic->last_piket_date = $latestPiket ? $latestPiket->date->format('Y-m-d') : '2000-01-01';
+        }
+
+        return $mechanics->sortBy(fn ($mechanic) => $mechanic->piket_priority . '_' . $mechanic->last_piket_date)->values();
+    }
+
     private function assetOptionsForUser()
     {
         return UnitAsset::query()
@@ -368,12 +374,7 @@ class CalendarController extends Controller
             return false;
         }
 
-        return in_array($user->status_user, [
-            'koordinator',
-            'sect_head',
-            'admin',
-            'super_admin',
-        ], true);
+        return in_array($user->status_user, ['koordinator', 'sect_head', 'admin', 'super_admin'], true);
     }
 
     private function canSeeAllDepartments(?User $user): bool
