@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DepartmentScope;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,8 +12,6 @@ use Illuminate\Support\Facades\Schema;
 
 class CommandCenterCsvController extends Controller
 {
-    private const EXPORT_DELIMITER = ';';
-
     private function roleText(): string
     {
         $user = Auth::user();
@@ -44,54 +43,12 @@ class CommandCenterCsvController extends Controller
     private function modules(): array
     {
         return [
-            'assets' => [
-                'label' => 'Manajemen Aset',
-                'table' => 'unit_assets',
-                'date_column' => 'created_at',
-                'unit_column' => 'serial_number',
-                'status_column' => 'status',
-                'route' => 'assets.index',
-            ],
-            'update-jobs' => [
-                'label' => 'Update Job',
-                'table' => 'update_jobs',
-                'date_column' => 'work_date',
-                'unit_column' => 'serial_number',
-                'status_column' => 'status_unit',
-                'route' => 'update-jobs.index',
-            ],
-            'batteries' => [
-                'label' => 'Management Battery',
-                'table' => 'batteries',
-                'date_column' => 'date',
-                'unit_column' => 'serial_number',
-                'status_column' => 'status_unit',
-                'route' => 'batteries.index',
-            ],
-            'chargers' => [
-                'label' => 'Management Charger',
-                'table' => 'chargers',
-                'date_column' => 'date',
-                'unit_column' => 'serial_number',
-                'status_column' => 'status_unit',
-                'route' => 'chargers.index',
-            ],
-            'deliveries' => [
-                'label' => 'Delivery Unit',
-                'table' => 'deliveries',
-                'date_column' => 'date',
-                'unit_column' => 'serial_number',
-                'status_column' => 'status_unit',
-                'route' => 'deliveries.index',
-            ],
-            'penarikans' => [
-                'label' => 'Penarikan Unit',
-                'table' => 'penarikans',
-                'date_column' => 'date',
-                'unit_column' => 'serial_number',
-                'status_column' => 'status_unit',
-                'route' => 'penarikans.index',
-            ],
+            'assets' => ['label' => 'Manajemen Aset', 'table' => 'unit_assets', 'date_column' => 'created_at', 'status_column' => 'status'],
+            'update-jobs' => ['label' => 'Update Job', 'table' => 'update_jobs', 'date_column' => 'work_date', 'status_column' => 'status_unit'],
+            'batteries' => ['label' => 'Management Battery', 'table' => 'batteries', 'date_column' => 'date', 'status_column' => 'status_unit'],
+            'chargers' => ['label' => 'Management Charger', 'table' => 'chargers', 'date_column' => 'date', 'status_column' => 'status_unit'],
+            'deliveries' => ['label' => 'Delivery Unit', 'table' => 'deliveries', 'date_column' => 'date', 'status_column' => 'status_unit'],
+            'penarikans' => ['label' => 'Penarikan Unit', 'table' => 'penarikans', 'date_column' => 'date', 'status_column' => 'status_unit'],
         ];
     }
 
@@ -99,46 +56,38 @@ class CommandCenterCsvController extends Controller
     {
         $this->authorizeCommandCenter();
 
-        $modules = $this->modules();
         $moduleConfig = $this->moduleOrFail($module);
-        $filters = $this->filters($request, $modules);
         $table = $moduleConfig['table'];
 
         abort_unless(Schema::hasTable($table), 404, 'Tabel tidak ditemukan.');
 
         $columns = Schema::getColumnListing($table);
+        $filters = $this->filters($request);
         $filename = $module . '-' . now()->format('Ymd-His') . '.csv';
-        $delimiter = self::EXPORT_DELIMITER;
 
-        return response()->streamDownload(function () use ($table, $columns, $moduleConfig, $filters, $delimiter) {
+        return response()->streamDownload(function () use ($table, $columns, $moduleConfig, $filters) {
             $handle = fopen('php://output', 'w');
-
-            fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, $columns, $delimiter);
+            fputcsv($handle, $columns, ';');
 
             $query = DB::table($table);
-            $this->applyFilters($query, $moduleConfig, $columns, $filters, true);
+            $this->applyFilters($query, $moduleConfig, $columns, $filters);
 
             if (in_array('id', $columns, true)) {
                 $query->orderBy('id');
             }
 
-            $query->chunk(500, function ($rows) use ($handle, $columns, $delimiter) {
+            $query->chunk(500, function ($rows) use ($handle, $columns) {
                 foreach ($rows as $row) {
                     $line = [];
-
                     foreach ($columns as $column) {
                         $line[] = $row->{$column} ?? null;
                     }
-
-                    fputcsv($handle, $line, $delimiter);
+                    fputcsv($handle, $line, ';');
                 }
             });
 
             fclose($handle);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function import(Request $request, string $module)
@@ -150,45 +99,45 @@ class CommandCenterCsvController extends Controller
 
         abort_unless(Schema::hasTable($table), 404, 'Tabel tidak ditemukan.');
 
-        $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:10240',
-        ]);
+        $request->validate(['file' => 'required|file|mimes:csv,txt|max:10240']);
 
         $path = $request->file('file')->getRealPath();
-        $delimiter = $this->detectDelimiter($path);
         $handle = fopen($path, 'r');
 
         if (!$handle) {
             return back()->withErrors(['error' => 'File import tidak bisa dibaca.']);
         }
 
-        $headers = fgetcsv($handle, 0, $delimiter);
+        $headers = fgetcsv($handle, 0, ';');
 
         if (!$headers) {
             fclose($handle);
             return back()->withErrors(['error' => 'Header CSV tidak ditemukan.']);
         }
 
-        $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]);
-        $headers = array_map(fn ($header) => trim((string) $header), $headers);
-
+        $headers = array_map(fn ($header) => trim((string) preg_replace('/^\xEF\xBB\xBF/', '', (string) $header)), $headers);
         $columns = Schema::getColumnListing($table);
         $allowedColumns = array_values(array_diff(array_intersect($headers, $columns), ['id']));
 
+        if (!DepartmentScope::userCanSeeAllDepartments() && in_array('department', $columns, true) && !in_array('department', $allowedColumns, true)) {
+            $allowedColumns[] = 'department';
+        }
+
         if (empty($allowedColumns)) {
             fclose($handle);
-            return back()->withErrors(['error' => 'Tidak ada kolom CSV yang cocok dengan tabel tujuan. Pastikan header CSV tidak menyatu dalam satu kolom dan memakai nama kolom database.']);
+            return back()->withErrors(['error' => 'Tidak ada kolom CSV yang cocok dengan tabel tujuan.']);
         }
 
         $inserted = 0;
         $skipped = 0;
         $batch = [];
         $now = now();
+        $forcedDepartment = DepartmentScope::userCanSeeAllDepartments() ? null : DepartmentScope::currentDepartment();
 
         DB::beginTransaction();
 
         try {
-            while (($line = fgetcsv($handle, 0, $delimiter)) !== false) {
+            while (($line = fgetcsv($handle, 0, ';')) !== false) {
                 if (count(array_filter($line, fn ($value) => $value !== null && $value !== '')) === 0) {
                     $skipped++;
                     continue;
@@ -201,6 +150,10 @@ class CommandCenterCsvController extends Controller
                 foreach ($allowedColumns as $column) {
                     $value = $rowAssoc[$column] ?? null;
                     $row[$column] = $value === '' ? null : $value;
+                }
+
+                if ($forcedDepartment && in_array('department', $columns, true)) {
+                    $row['department'] = $forcedDepartment;
                 }
 
                 if (in_array('created_at', $columns, true) && empty($row['created_at'])) {
@@ -232,7 +185,6 @@ class CommandCenterCsvController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             fclose($handle);
-
             return back()->withErrors(['error' => 'Import gagal: ' . $e->getMessage()]);
         }
     }
@@ -240,45 +192,16 @@ class CommandCenterCsvController extends Controller
     private function moduleOrFail(string $module): array
     {
         $modules = $this->modules();
-
         abort_unless(isset($modules[$module]), 404, 'Modul tidak ditemukan.');
-
         return $modules[$module];
     }
 
-    private function detectDelimiter(string $path): string
+    private function filters(Request $request): array
     {
-        $sample = (string) file_get_contents($path, false, null, 0, 4096);
-        $firstLine = strtok($sample, "\r\n") ?: '';
-
-        $semicolonCount = substr_count($firstLine, ';');
-        $commaCount = substr_count($firstLine, ',');
-        $tabCount = substr_count($firstLine, "\t");
-
-        if ($tabCount > $semicolonCount && $tabCount > $commaCount) {
-            return "\t";
-        }
-
-        return $semicolonCount >= $commaCount ? ';' : ',';
-    }
-
-    private function filters(Request $request, array $modules): array
-    {
-        $module = (string) $request->input('module', 'all');
-
-        if ($module !== 'all' && !isset($modules[$module])) {
-            $module = 'all';
-        }
-
         $month = $request->input('month');
         $month = is_numeric($month) ? (int) $month : null;
 
-        if ($month !== null && ($month < 1 || $month > 12)) {
-            $month = null;
-        }
-
         return [
-            'module' => $module,
             'year' => (int) $request->input('year', now()->year),
             'month' => $month,
             'pic' => trim((string) $request->input('pic', '')),
@@ -301,45 +224,30 @@ class CommandCenterCsvController extends Controller
         };
     }
 
-    private function applyFilters(
-        Builder $query,
-        array $module,
-        array $columns,
-        array $filters,
-        bool $applyMonth = true,
-        bool $applyStatus = true,
-        bool $applyPic = true
-    ): void {
+    private function applyFilters(Builder $query, array $module, array $columns, array $filters): void
+    {
+        DepartmentScope::apply($query, $module['table']);
+
         $dateColumn = $module['date_column'];
         $statusColumn = $module['status_column'];
 
         if (in_array($dateColumn, $columns, true)) {
             $query->whereYear($dateColumn, $filters['year']);
 
-            if ($applyMonth && !empty($filters['month'])) {
+            if (!empty($filters['month'])) {
                 $query->whereMonth($dateColumn, $filters['month']);
             }
         }
 
-        if ($applyPic && $filters['pic'] !== '') {
-            in_array('pic', $columns, true)
-                ? $query->where('pic', $filters['pic'])
-                : $query->whereRaw('1 = 0');
+        foreach (['pic', 'customer', 'location'] as $column) {
+            if (($filters[$column] ?? '') !== '') {
+                in_array($column, $columns, true)
+                    ? $query->where($column, $filters[$column])
+                    : $query->whereRaw('1 = 0');
+            }
         }
 
-        if ($filters['customer'] !== '') {
-            in_array('customer', $columns, true)
-                ? $query->where('customer', $filters['customer'])
-                : $query->whereRaw('1 = 0');
-        }
-
-        if ($filters['location'] !== '') {
-            in_array('location', $columns, true)
-                ? $query->where('location', $filters['location'])
-                : $query->whereRaw('1 = 0');
-        }
-
-        if ($applyStatus && $filters['status'] !== '' && $filters['status'] !== 'Tanpa Status') {
+        if ($filters['status'] !== '' && $filters['status'] !== 'Tanpa Status') {
             in_array($statusColumn, $columns, true)
                 ? $this->applyStatusFilter($query, $statusColumn, $filters['status'])
                 : $query->whereRaw('1 = 0');
