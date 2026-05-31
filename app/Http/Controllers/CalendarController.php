@@ -119,6 +119,7 @@ class CalendarController extends Controller
 
             foreach ($rentalFieldMechanics as $mechanic) {
                 $latestPiket = Piket::where('user_id', $mechanic->id)
+                    ->whereIn('status', ['jalan', 'berhalangan'])
                     ->orderBy('date', 'desc')
                     ->first();
 
@@ -237,6 +238,7 @@ class CalendarController extends Controller
 
         $exists = Piket::where('date', $request->date)
             ->where('user_id', $request->user_id)
+            ->whereIn('status', ['jalan', 'berhalangan'])
             ->exists();
 
         if ($exists) {
@@ -265,6 +267,10 @@ class CalendarController extends Controller
 
         abort_if($piket->department !== 'RENTAL', 403);
 
+        if ($piket->status !== 'jalan') {
+            return back()->with('error', 'Hanya jadwal piket berstatus JALAN yang bisa ditandai tidak ada pekerjaan.');
+        }
+
         $currentDate = Carbon::parse($piket->date);
         if (!$currentDate->isSaturday()) {
             return back()->with('error', 'Jadwal piket ini bukan hari Sabtu.');
@@ -274,20 +280,27 @@ class CalendarController extends Controller
 
         $alreadyExists = Piket::where('date', $nextSaturday)
             ->where('user_id', $piket->user_id)
-            ->whereKeyNot($piket->id)
+            ->whereIn('status', ['jalan', 'berhalangan'])
             ->exists();
 
         if ($alreadyExists) {
-            return back()->with('error', 'Mekanik yang sama sudah memiliki jadwal piket pada Sabtu berikutnya.');
+            return back()->with('error', 'Mekanik yang sama sudah memiliki jadwal aktif pada Sabtu berikutnya.');
         }
 
         $piket->update([
-            'date' => $nextSaturday,
-            'status' => 'jalan',
+            'status' => 'tidak_ada_kerjaan',
             'created_by' => $user->id,
         ]);
 
-        return back()->with('success', 'Sabtu ditandai tidak ada pekerjaan. Jadwal piket digeser ke Sabtu berikutnya dengan mekanik yang sama.');
+        Piket::create([
+            'date' => $nextSaturday,
+            'user_id' => $piket->user_id,
+            'status' => 'jalan',
+            'department' => 'RENTAL',
+            'created_by' => $user->id,
+        ]);
+
+        return back()->with('success', 'Sabtu ditandai tidak ada pekerjaan. Jadwal baru dibuat di Sabtu berikutnya dengan mekanik yang sama.');
     }
 
     public function destroyPiket(Piket $piket)
