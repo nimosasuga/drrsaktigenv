@@ -26,7 +26,6 @@ class DepartmentScope
         }
 
         return in_array($user->status_user, [
-            'sect_head',
             'admin',
             'super_admin',
         ], true);
