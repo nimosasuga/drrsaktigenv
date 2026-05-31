@@ -35,13 +35,33 @@
             <div>
                 <p class="text-xs font-black uppercase tracking-[0.22em] text-emerald-600">Rental Field</p>
                 <h1 class="mt-2 text-3xl font-black tracking-tight text-slate-950">Jadwal Piket Sabtu</h1>
-                <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Kelola piket Sabtu. Histori status tidak ada kerjaan tetap tersimpan untuk audit.</p>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Smart rekomendasi menghitung hutang piket, jumlah piket jalan, riwayat berhalangan, dan mekanik yang paling lama tidak mendapat giliran.</p>
             </div>
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <p class="text-[11px] font-black uppercase tracking-wide text-emerald-700">Sabtu Bulan Ini</p>
                 <p class="mt-1 text-2xl font-black text-emerald-950">{{ count($saturdays) }}</p>
             </div>
         </div>
+    </div>
+
+    <div class="grid gap-3 lg:grid-cols-3">
+        @foreach($recommendedMechanics->take(3) as $rm)
+            <div class="rounded-2xl border {{ $loop->first ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white' }} p-4 shadow-sm">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-wider {{ $loop->first ? 'text-emerald-700' : 'text-slate-400' }}">Rekomendasi #{{ $rm->fairness_rank }}</p>
+                        <p class="mt-1 text-sm font-black text-slate-950">{{ $rm->name }}</p>
+                    </div>
+                    <span class="rounded-full bg-white px-3 py-1 text-[10px] font-black text-slate-700 shadow-sm">Skor {{ $rm->fairness_score }}</span>
+                </div>
+                <p class="mt-3 text-xs font-semibold leading-5 text-slate-600">{{ $rm->recommendation_reason }}</p>
+                <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Jalan</p><p class="font-black text-slate-900">{{ $rm->jalan_count }}</p></div>
+                    <div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Hutang</p><p class="font-black text-slate-900">{{ $rm->berhalangan_count }}</p></div>
+                    <div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Terakhir</p><p class="truncate text-xs font-black text-slate-900">{{ $rm->last_piket_label }}</p></div>
+                </div>
+            </div>
+        @endforeach
     </div>
 
     <form method="GET" action="{{ route('calendar.piket') }}" class="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-3 sm:items-end">
@@ -68,8 +88,8 @@
     </form>
 
     <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        <p class="font-black">Alur tidak ada kerjaan:</p>
-        <p class="mt-1">Status Sabtu lama menjadi <b>tidak_ada_kerjaan</b>, lalu jadwal baru dibuat pada Sabtu berikutnya dengan mekanik yang sama.</p>
+        <p class="font-black">Formula rekomendasi adil:</p>
+        <p class="mt-1">Prioritas naik untuk mekanik yang punya hutang piket, belum pernah piket, dan paling lama tidak mendapat giliran. Prioritas turun untuk mekanik yang sudah sering piket jalan.</p>
     </div>
 
     <div class="space-y-5">
@@ -149,13 +169,18 @@
                         @csrf
                         <input type="hidden" name="date" value="{{ $saturday }}">
                         <div class="lg:col-span-7">
-                            <label class="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">Mekanik Rekomendasi</label>
+                            <label class="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">Smart Rekomendasi Mekanik</label>
                             <select name="user_id" required class="block w-full rounded-xl border-slate-300 bg-white text-sm shadow-sm">
-                                <option value="">Pilih mekanik</option>
+                                <option value="">Pilih mekanik rekomendasi</option>
                                 @foreach($recommendedMechanics as $rm)
-                                    <option value="{{ $rm->id }}">{{ $rm->name }}</option>
+                                    <option value="{{ $rm->id }}">
+                                        #{{ $rm->fairness_rank }} - {{ $rm->name }} | Skor {{ $rm->fairness_score }} | Jalan {{ $rm->jalan_count }} | Hutang {{ $rm->berhalangan_count }} | Terakhir {{ $rm->last_piket_label }}
+                                    </option>
                                 @endforeach
                             </select>
+                            @if($recommendedMechanics->isNotEmpty())
+                                <p class="mt-2 text-xs font-semibold text-slate-500">Teratas saat ini: {{ $recommendedMechanics->first()->name }} — {{ $recommendedMechanics->first()->recommendation_reason }}</p>
+                            @endif
                         </div>
                         <div class="lg:col-span-3">
                             <label class="mb-1 block text-[11px] font-black uppercase tracking-wider text-slate-500">Status</label>
