@@ -105,10 +105,16 @@
             @if($canManagePlanning)
             <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 class="text-base font-black text-slate-900">Buat Planning</h2>
-                <p class="mt-1 text-xs text-slate-500">Kolom dibuat minimal: mekanik, partner, customer, lokasi, dan jenis pekerjaan.</p>
+                <p class="mt-1 text-xs text-slate-500">Kolom utama: tanggal, mekanik, partner, customer, lokasi, jenis pekerjaan, dan catatan.</p>
 
                 <form method="POST" action="{{ route('calendar.plannings.store') }}" class="mt-4 space-y-4" x-data="calendarPlanningForm({{ Js::from($customerLocations) }})">
                     @csrf
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500">Tanggal <span class="text-red-500">*</span></label>
+                        <input type="date" name="planned_date" value="{{ old('planned_date', now()->toDateString()) }}" required
+                            class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                    </div>
 
                     <div>
                         <label class="text-xs font-bold text-slate-500">Mekanik <span class="text-red-500">*</span></label>
@@ -162,6 +168,13 @@
                             <option value="{{ $jobType }}" {{ old('job_type') == $jobType ? 'selected' : '' }}>{{ $jobType }}</option>
                             @endforeach
                         </select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-slate-500">Catatan</label>
+                        <textarea name="note" rows="3"
+                            class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="Catatan planning kerja">{{ old('note') }}</textarea>
                     </div>
 
                     <button type="submit"
@@ -221,6 +234,12 @@
                                         {{ $planning->location ?: '-' }}
                                     </div>
                                 </div>
+
+                                @if($planning->note)
+                                <p class="mt-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+                                    {{ $planning->note }}
+                                </p>
+                                @endif
                             </div>
 
                             @if($canManagePlanning)
