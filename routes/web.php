@@ -27,9 +27,10 @@ use App\Http\Controllers\UpdateJobSaveController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\RentalSparepartController;
 use App\Http\Controllers\RentalSparepartAssetSearchController;
+use App\Http\Controllers\RentalSparepartOutController;
+use App\Http\Controllers\RentalSparepartMovementController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
-use App\Http\Controllers\RentalSparepartOutController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -82,6 +83,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/rental-spareparts/in', [RentalSparepartController::class, 'storeIn'])->name('rental-spareparts.in.store');
         Route::get('/rental-spareparts/out/create', [RentalSparepartOutController::class, 'create'])->name('rental-spareparts.out.create');
         Route::post('/rental-spareparts/out', [RentalSparepartOutController::class, 'store'])->name('rental-spareparts.out.store');
+        Route::get('/rental-spareparts/movements', [RentalSparepartMovementController::class, 'index'])->name('rental-spareparts.movements.index');
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
         Route::get('/command-center/export/{module}', [CommandCenterCsvController::class, 'export'])->name('command-center.export');
         Route::post('/command-center/import/{module}', [CommandCenterCsvController::class, 'import'])->name('command-center.import');
