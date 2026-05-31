@@ -20,12 +20,10 @@
                 </div>
 
                 @if($canManageSparepart)
-                    <a href="{{ route('rental-spareparts.in.create') }}"
-                        class="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700">
+                    <a href="{{ route('rental-spareparts.in.create') }}" class="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700">
                         + Barang Masuk
                     </a>
-                    <a href="{{ route('rental-spareparts.out.create') }}"
-                        class="inline-flex items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-red-700">
+                    <a href="{{ route('rental-spareparts.out.create') }}" class="inline-flex items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-red-700">
                         - Barang Keluar
                     </a>
                 @endif
@@ -74,9 +72,7 @@
         <form method="GET" action="{{ route('rental-spareparts.index') }}" class="grid gap-3 lg:grid-cols-6">
             <div class="lg:col-span-2">
                 <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Cari Sparepart</label>
-                <input type="text" name="search" value="{{ $filters['search'] }}"
-                    placeholder="Part number, part name, no job, customer, SN, lokasi..."
-                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100">
+                <input type="text" name="search" value="{{ $filters['search'] }}" placeholder="Part number, part name, no job, customer, SN, lokasi..." class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100">
             </div>
 
             <div>
@@ -84,9 +80,7 @@
                 <select name="location_id" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100">
                     <option value="">Semua Lokasi</option>
                     @foreach($filterOptions['locations'] as $location)
-                        <option value="{{ $location->id }}" @selected((string) $filters['location_id'] === (string) $location->id)>
-                            {{ $location->location_name }}
-                        </option>
+                        <option value="{{ $location->id }}" @selected((string) $filters['location_id'] === (string) $location->id)>{{ $location->location_name }}</option>
                     @endforeach
                 </select>
             </div>
@@ -115,9 +109,10 @@
                 <label class="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-500">Status</label>
                 <select name="stock_status" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100">
                     <option value="">Semua Status</option>
-                    @foreach(['AMAN' => 'Aman', 'MENIPIS' => 'Menipis', 'RESERVED' => 'Reserved', 'HABIS' => 'Habis'] as $value => $label)
-                        <option value="{{ $value }}" @selected($filters['stock_status'] === $value)>{{ $label }}</option>
-                    @endforeach
+                    <option value="AMAN" @selected($filters['stock_status'] === 'AMAN')>Aman</option>
+                    <option value="MENIPIS" @selected($filters['stock_status'] === 'MENIPIS')>Menipis</option>
+                    <option value="RESERVED" @selected($filters['stock_status'] === 'RESERVED')>Reserved</option>
+                    <option value="HABIS" @selected($filters['stock_status'] === 'HABIS')>Habis</option>
                 </select>
             </div>
 
@@ -132,12 +127,8 @@
             </div>
 
             <div class="flex gap-2 lg:col-span-4 lg:justify-end">
-                <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 sm:flex-none">
-                    Filter
-                </button>
-                <a href="{{ route('rental-spareparts.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">
-                    Reset
-                </a>
+                <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 sm:flex-none">Filter</button>
+                <a href="{{ route('rental-spareparts.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Reset</a>
             </div>
         </form>
     </div>
