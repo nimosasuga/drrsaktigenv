@@ -3,21 +3,15 @@
 
 namespace App\Models;
 
+use App\Models\Job;
+use App\Support\DepartmentScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Job;
+use Illuminate\Support\Facades\Auth;
 
 class UnitAsset extends Model
 {
-
-    public function jobHistories(): HasMany
-    {
-        return $this->hasMany(Job::class, 'serial_number', 'serial_number')
-            ->orderByDesc('work_date')
-            ->orderByDesc('created_at');
-    }
-
     use HasFactory;
 
     protected $fillable = [
@@ -35,4 +29,24 @@ class UnitAsset extends Model
         'note',
         'qr_token',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('department', function ($query) {
+            DepartmentScope::apply($query, (new static())->getTable());
+        });
+
+        static::creating(function (UnitAsset $asset) {
+            if (empty($asset->department)) {
+                $asset->department = DepartmentScope::valueForCreate(Auth::user());
+            }
+        });
+    }
+
+    public function jobHistories(): HasMany
+    {
+        return $this->hasMany(Job::class, 'serial_number', 'serial_number')
+            ->orderByDesc('work_date')
+            ->orderByDesc('created_at');
+    }
 }
