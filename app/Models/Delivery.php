@@ -9,6 +9,7 @@
 
 namespace App\Models;
 
+use App\Support\DepartmentScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -55,6 +56,19 @@ class Delivery extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('department', function ($query) {
+            DepartmentScope::apply($query, (new static())->getTable());
+        });
+
+        static::creating(function (Delivery $delivery) {
+            if (empty($delivery->department)) {
+                $delivery->department = DepartmentScope::valueForCreate();
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {
