@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\DepartmentScope;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,46 +38,6 @@ class CommandCenterController extends Controller
     private function authorizeCommandCenter(): void
     {
         abort_unless($this->canAccessCommandCenter(), 403, 'Akses Command Center hanya untuk Koordinator, Sect Head, Admin, dan Super Admin.');
-    }
-
-    private function statusUnitOptions(): array
-    {
-        return ['RFU', 'Breakdown', 'Monitoring', 'Waiting Part'];
-    }
-
-    private function jobTypeOptions(): array
-    {
-        return ['Preventive Maintenance', 'Install Part', 'Troubleshooting', 'Inspection', 'Repair'];
-    }
-
-    private function normalizeStatus(?string $status): string
-    {
-        $value = strtoupper(trim((string) $status));
-
-        return match (true) {
-            $value === 'RFU' => 'RFU',
-            in_array($value, ['B/D', 'BD', 'BREAKDOWN'], true) || str_contains($value, 'BREAKDOWN') => 'Breakdown',
-            in_array($value, ['MONITORING', 'STANDBY'], true) => 'Monitoring',
-            in_array($value, ['WAITING PART', 'WAITING_PART', 'WAITING-PART'], true) || str_contains($value, 'WAITING PART') => 'Waiting Part',
-            default => trim((string) $status) !== '' ? trim((string) $status) : 'Tanpa Status',
-        };
-    }
-
-    private function normalizeJobType(?string $jobType): string
-    {
-        $value = strtoupper(trim((string) $jobType));
-
-        return match ($value) {
-            'PM' => 'Preventive Maintenance',
-            'BM' => 'Troubleshooting',
-            'PDI' => 'Inspection',
-            'PREVENTIVE MAINTENANCE' => 'Preventive Maintenance',
-            'INSTALL PART' => 'Install Part',
-            'TROUBLESHOOTING' => 'Troubleshooting',
-            'INSPECTION' => 'Inspection',
-            'REPAIR' => 'Repair',
-            default => trim((string) $jobType) !== '' ? trim((string) $jobType) : 'Tanpa Tipe',
-        };
     }
 
     private function modules(): array
@@ -158,7 +119,10 @@ class CommandCenterController extends Controller
             $unitColumn = $module['unit_column'];
             $statusColumn = $module['status_column'];
 
-            $total = DB::table($table)->count();
+            $totalQuery = DB::table($table);
+            $this->applyDepartmentScope($totalQuery, $table);
+            $total = $totalQuery->count();
+
             $filteredQuery = DB::table($table);
             $this->applyFilters($filteredQuery, $module, $columns, $filters, true);
 
@@ -169,46 +133,11 @@ class CommandCenterController extends Controller
                 ? (clone $filteredQuery)->whereNotNull($unitColumn)->where($unitColumn, '!=', '')->distinct()->count($unitColumn)
                 : 0;
 
-            $statusCounts = [];
-            if (in_array($statusColumn, $columns, true)) {
-                $statusQuery = DB::table($table);
-                $this->applyFilters($statusQuery, $module, $columns, $filters, true, false);
+            $statusCounts = $this->statusCounts($module, $columns, $filters);
+            $monthly = $this->monthlyCounts($module, $columns, $filters);
 
-                $rows = $statusQuery
-                    ->select($statusColumn, DB::raw('COUNT(*) as total'))
-                    ->whereNotNull($statusColumn)
-                    ->where($statusColumn, '!=', '')
-                    ->groupBy($statusColumn)
-                    ->get();
-
-                foreach ($rows as $row) {
-                    $status = $this->normalizeStatus($row->{$statusColumn});
-                    $statusCounts[$status] = ($statusCounts[$status] ?? 0) + (int) $row->total;
-                }
-
-                arsort($statusCounts);
-            }
-
-            $monthly = array_fill(1, 12, 0);
-            if (in_array($dateColumn, $columns, true)) {
-                $monthlyQuery = DB::table($table);
-                $this->applyFilters($monthlyQuery, $module, $columns, $filters, false);
-
-                $rows = $monthlyQuery
-                    ->selectRaw("MONTH({$dateColumn}) as month_number, COUNT(*) as total")
-                    ->whereYear($dateColumn, $filters['year'])
-                    ->whereNotNull($dateColumn)
-                    ->groupBy('month_number')
-                    ->pluck('total', 'month_number')
-                    ->toArray();
-
-                foreach ($rows as $month => $count) {
-                    $monthNumber = (int) $month;
-                    if ($monthNumber >= 1 && $monthNumber <= 12) {
-                        $monthly[$monthNumber] = (int) $count;
-                        $monthlyTotals[$monthNumber] += (int) $count;
-                    }
-                }
+            foreach ($monthly as $month => $count) {
+                $monthlyTotals[(int) $month] += (int) $count;
             }
 
             if (in_array('pic', $columns, true)) {
@@ -224,6 +153,7 @@ class CommandCenterController extends Controller
 
                 foreach ($picRows as $picRow) {
                     $picName = $picRow->pic ?: 'Tanpa PIC';
+
                     if (!isset($picScores[$picName])) {
                         $picScores[$picName] = [
                             'name' => $picName,
@@ -251,15 +181,15 @@ class CommandCenterController extends Controller
         }
 
         usort($picScores, fn ($a, $b) => $b['total'] <=> $a['total']);
-        $picScores = array_slice($picScores, 0, 10);
+        $picScores = array_slice(array_values($picScores), 0, 10);
 
         $summary = [
             'selected_year' => $filters['year'],
             'total_records' => $filteredTotalRecords,
             'total_modules' => count($moduleStats),
             'peak_month_total' => max($monthlyTotals ?: [0]),
-            'asset_active' => Schema::hasTable('unit_assets') ? DB::table('unit_assets')->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")->count() : 0,
-            'asset_withdrawn' => Schema::hasTable('unit_assets') ? DB::table('unit_assets')->whereRaw("UPPER(TRIM(COALESCE(status, ''))) = 'DITARIK'")->count() : 0,
+            'asset_active' => $this->assetCount(false),
+            'asset_withdrawn' => $this->assetCount(true),
         ];
 
         $years = $this->availableYears($modules);
@@ -282,150 +212,27 @@ class CommandCenterController extends Controller
         ));
     }
 
-    public function export(Request $request, string $module)
+    private function statusUnitOptions(): array
     {
-        $this->authorizeCommandCenter();
-
-        $modules = $this->modules();
-        $moduleConfig = $this->moduleOrFail($module);
-        $filters = $this->filters($request, $modules);
-        $table = $moduleConfig['table'];
-
-        abort_unless(Schema::hasTable($table), 404, 'Tabel tidak ditemukan.');
-
-        $columns = Schema::getColumnListing($table);
-        $filename = $module . '-' . now()->format('Ymd-His') . '.csv';
-
-        return response()->streamDownload(function () use ($table, $columns, $moduleConfig, $filters) {
-            $handle = fopen('php://output', 'w');
-            fwrite($handle, "\xEF\xBB\xBF");
-            fputcsv($handle, $columns);
-
-            $query = DB::table($table);
-            $this->applyFilters($query, $moduleConfig, $columns, $filters, true);
-
-            if (in_array('id', $columns, true)) {
-                $query->orderBy('id');
-            }
-
-            $query->chunk(500, function ($rows) use ($handle, $columns) {
-                foreach ($rows as $row) {
-                    $line = [];
-                    foreach ($columns as $column) {
-                        $line[] = $row->{$column} ?? null;
-                    }
-                    fputcsv($handle, $line);
-                }
-            });
-
-            fclose($handle);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return ['RFU', 'Breakdown', 'Monitoring', 'Waiting Part'];
     }
 
-    public function import(Request $request, string $module)
+    private function jobTypeOptions(): array
     {
-        $this->authorizeCommandCenter();
-        $moduleConfig = $this->moduleOrFail($module);
-        $table = $moduleConfig['table'];
-
-        abort_unless(Schema::hasTable($table), 404, 'Tabel tidak ditemukan.');
-
-        $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:10240',
-        ]);
-
-        $path = $request->file('file')->getRealPath();
-        $handle = fopen($path, 'r');
-
-        if (!$handle) {
-            return back()->withErrors(['error' => 'File import tidak bisa dibaca.']);
-        }
-
-        $headers = fgetcsv($handle);
-        if (!$headers) {
-            fclose($handle);
-            return back()->withErrors(['error' => 'Header CSV tidak ditemukan.']);
-        }
-
-        $headers[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $headers[0]);
-        $headers = array_map(fn ($header) => trim((string) $header), $headers);
-
-        $columns = Schema::getColumnListing($table);
-        $allowedColumns = array_values(array_diff(array_intersect($headers, $columns), ['id']));
-
-        if (empty($allowedColumns)) {
-            fclose($handle);
-            return back()->withErrors(['error' => 'Tidak ada kolom CSV yang cocok dengan tabel tujuan.']);
-        }
-
-        $inserted = 0;
-        $skipped = 0;
-        $batch = [];
-        $now = now();
-
-        DB::beginTransaction();
-
-        try {
-            while (($line = fgetcsv($handle)) !== false) {
-                if (count(array_filter($line, fn ($value) => $value !== null && $value !== '')) === 0) {
-                    $skipped++;
-                    continue;
-                }
-
-                $line = array_pad($line, count($headers), null);
-                $rowAssoc = array_combine($headers, array_slice($line, 0, count($headers)));
-                $row = [];
-
-                foreach ($allowedColumns as $column) {
-                    $value = $rowAssoc[$column] ?? null;
-                    $row[$column] = $value === '' ? null : $value;
-                }
-
-                if (in_array('created_at', $columns, true) && empty($row['created_at'])) {
-                    $row['created_at'] = $now;
-                }
-
-                if (in_array('updated_at', $columns, true) && empty($row['updated_at'])) {
-                    $row['updated_at'] = $now;
-                }
-
-                $batch[] = $row;
-
-                if (count($batch) >= 200) {
-                    DB::table($table)->insert($batch);
-                    $inserted += count($batch);
-                    $batch = [];
-                }
-            }
-
-            if (!empty($batch)) {
-                DB::table($table)->insert($batch);
-                $inserted += count($batch);
-            }
-
-            DB::commit();
-            fclose($handle);
-
-            return back()->with('success', "Import {$moduleConfig['label']} selesai. {$inserted} baris masuk, {$skipped} baris kosong dilewati.");
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            fclose($handle);
-
-            return back()->withErrors(['error' => 'Import gagal: ' . $e->getMessage()]);
-        }
+        return ['Preventive Maintenance', 'Install Part', 'Troubleshooting', 'Inspection', 'Repair'];
     }
 
     private function filters(Request $request, array $modules): array
     {
         $module = (string) $request->input('module', 'all');
+
         if ($module !== 'all' && !isset($modules[$module])) {
             $module = 'all';
         }
 
         $month = $request->input('month');
         $month = is_numeric($month) ? (int) $month : null;
+
         if ($month !== null && ($month < 1 || $month > 12)) {
             $month = null;
         }
@@ -450,6 +257,11 @@ class CommandCenterController extends Controller
         return $modules;
     }
 
+    private function applyDepartmentScope(Builder $query, string $table): void
+    {
+        DepartmentScope::apply($query, $table);
+    }
+
     private function applyFilters(
         Builder $query,
         array $module,
@@ -459,8 +271,11 @@ class CommandCenterController extends Controller
         bool $applyStatus = true,
         bool $applyPic = true
     ): void {
+        $table = $module['table'];
         $dateColumn = $module['date_column'];
         $statusColumn = $module['status_column'];
+
+        $this->applyDepartmentScope($query, $table);
 
         if (in_array($dateColumn, $columns, true)) {
             $query->whereYear($dateColumn, $filters['year']);
@@ -491,6 +306,53 @@ class CommandCenterController extends Controller
         if ($applyStatus && $filters['status'] !== '' && $filters['status'] !== 'Tanpa Status') {
             in_array($statusColumn, $columns, true)
                 ? $this->applyStatusFilter($query, $statusColumn, $filters['status'])
+                : $query->whereRaw('1 = 0');
+        }
+    }
+
+    private function applyAliasedFilters(Builder $query, string $alias, array $module, array $columns, array $filters, bool $applyMonth = true): void
+    {
+        $dateColumn = $module['date_column'];
+        $statusColumn = $module['status_column'];
+
+        if (in_array('department', $columns, true) && !DepartmentScope::userCanSeeAllDepartments()) {
+            $department = DepartmentScope::currentDepartment();
+            $department ? $query->where($alias . '.department', $department) : $query->whereRaw('1 = 0');
+        }
+
+        if (!in_array('department', $columns, true) && !DepartmentScope::userCanSeeAllDepartments()) {
+            $query->whereRaw('1 = 0');
+        }
+
+        if (in_array($dateColumn, $columns, true)) {
+            $query->whereYear($alias . '.' . $dateColumn, $filters['year']);
+
+            if ($applyMonth && !empty($filters['month'])) {
+                $query->whereMonth($alias . '.' . $dateColumn, $filters['month']);
+            }
+        }
+
+        if ($filters['pic'] !== '') {
+            in_array('pic', $columns, true)
+                ? $query->where($alias . '.pic', $filters['pic'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['customer'] !== '') {
+            in_array('customer', $columns, true)
+                ? $query->where($alias . '.customer', $filters['customer'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['location'] !== '') {
+            in_array('location', $columns, true)
+                ? $query->where($alias . '.location', $filters['location'])
+                : $query->whereRaw('1 = 0');
+        }
+
+        if ($filters['status'] !== '' && $filters['status'] !== 'Tanpa Status') {
+            in_array($statusColumn, $columns, true)
+                ? $this->applyStatusFilter($query, $statusColumn, $filters['status'], $alias)
                 : $query->whereRaw('1 = 0');
         }
     }
@@ -526,6 +388,108 @@ class CommandCenterController extends Controller
         });
     }
 
+    private function normalizeStatus(?string $status): string
+    {
+        $value = strtoupper(trim((string) $status));
+
+        return match (true) {
+            $value === 'RFU' => 'RFU',
+            in_array($value, ['B/D', 'BD', 'BREAKDOWN'], true) || str_contains($value, 'BREAKDOWN') => 'Breakdown',
+            in_array($value, ['MONITORING', 'STANDBY'], true) => 'Monitoring',
+            in_array($value, ['WAITING PART', 'WAITING_PART', 'WAITING-PART'], true) || str_contains($value, 'WAITING PART') => 'Waiting Part',
+            default => trim((string) $status) !== '' ? trim((string) $status) : 'Tanpa Status',
+        };
+    }
+
+    private function normalizeJobType(?string $jobType): string
+    {
+        $value = strtoupper(trim((string) $jobType));
+
+        return match ($value) {
+            'PM' => 'Preventive Maintenance',
+            'BM' => 'Troubleshooting',
+            'PDI' => 'Inspection',
+            'PREVENTIVE MAINTENANCE' => 'Preventive Maintenance',
+            'INSTALL PART' => 'Install Part',
+            'TROUBLESHOOTING' => 'Troubleshooting',
+            'INSPECTION' => 'Inspection',
+            'REPAIR' => 'Repair',
+            default => trim((string) $jobType) !== '' ? trim((string) $jobType) : 'Tanpa Tipe',
+        };
+    }
+
+    private function statusCounts(array $module, array $columns, array $filters): array
+    {
+        $statusColumn = $module['status_column'];
+
+        if (!in_array($statusColumn, $columns, true)) {
+            return [];
+        }
+
+        $query = DB::table($module['table']);
+        $this->applyFilters($query, $module, $columns, $filters, true, false);
+
+        $rows = $query
+            ->select($statusColumn, DB::raw('COUNT(*) as total'))
+            ->whereNotNull($statusColumn)
+            ->where($statusColumn, '!=', '')
+            ->groupBy($statusColumn)
+            ->get();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $status = $this->normalizeStatus($row->{$statusColumn});
+            $counts[$status] = ($counts[$status] ?? 0) + (int) $row->total;
+        }
+
+        arsort($counts);
+        return $counts;
+    }
+
+    private function monthlyCounts(array $module, array $columns, array $filters): array
+    {
+        $dateColumn = $module['date_column'];
+        $monthly = array_fill(1, 12, 0);
+
+        if (!in_array($dateColumn, $columns, true)) {
+            return $monthly;
+        }
+
+        $query = DB::table($module['table']);
+        $this->applyFilters($query, $module, $columns, $filters, false);
+
+        $rows = $query
+            ->selectRaw("MONTH({$dateColumn}) as month_number, COUNT(*) as total")
+            ->whereYear($dateColumn, $filters['year'])
+            ->whereNotNull($dateColumn)
+            ->groupBy('month_number')
+            ->pluck('total', 'month_number')
+            ->toArray();
+
+        foreach ($rows as $month => $count) {
+            $monthNumber = (int) $month;
+            if ($monthNumber >= 1 && $monthNumber <= 12) {
+                $monthly[$monthNumber] = (int) $count;
+            }
+        }
+
+        return $monthly;
+    }
+
+    private function assetCount(bool $withdrawn): int
+    {
+        if (!Schema::hasTable('unit_assets')) {
+            return 0;
+        }
+
+        $query = DB::table('unit_assets');
+        $this->applyDepartmentScope($query, 'unit_assets');
+
+        return $withdrawn
+            ? $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) = 'DITARIK'")->count()
+            : $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")->count();
+    }
+
     private function filterOptions(array $modules, array $filters): array
     {
         $activeModules = $this->activeModules($modules, $filters['module']);
@@ -543,17 +507,19 @@ class CommandCenterController extends Controller
             }
 
             $columns = Schema::getColumnListing($table);
+            $base = DB::table($table);
+            $this->applyDepartmentScope($base, $table);
 
             if (in_array('pic', $columns, true)) {
-                $options['pics'] = array_merge($options['pics'], DB::table($table)->whereNotNull('pic')->where('pic', '!=', '')->distinct()->pluck('pic')->toArray());
+                $options['pics'] = array_merge($options['pics'], (clone $base)->whereNotNull('pic')->where('pic', '!=', '')->distinct()->pluck('pic')->toArray());
             }
 
             if (in_array('customer', $columns, true)) {
-                $options['customers'] = array_merge($options['customers'], DB::table($table)->whereNotNull('customer')->where('customer', '!=', '')->distinct()->pluck('customer')->toArray());
+                $options['customers'] = array_merge($options['customers'], (clone $base)->whereNotNull('customer')->where('customer', '!=', '')->distinct()->pluck('customer')->toArray());
             }
 
             if (in_array('location', $columns, true)) {
-                $options['locations'] = array_merge($options['locations'], DB::table($table)->whereNotNull('location')->where('location', '!=', '')->distinct()->pluck('location')->toArray());
+                $options['locations'] = array_merge($options['locations'], (clone $base)->whereNotNull('location')->where('location', '!=', '')->distinct()->pluck('location')->toArray());
             }
         }
 
@@ -606,20 +572,12 @@ class CommandCenterController extends Controller
 
             foreach ($rows as $row) {
                 $key = $row->pic . '|' . (int) $row->month_number;
-                if (!isset($scores[$key])) {
-                    $scores[$key] = [
-                        'pic' => $row->pic,
-                        'month' => (int) $row->month_number,
-                        'total' => 0,
-                    ];
-                }
-
+                $scores[$key] = $scores[$key] ?? ['pic' => $row->pic, 'month' => (int) $row->month_number, 'total' => 0];
                 $scores[$key]['total'] += (int) $row->total;
             }
         }
 
         usort($scores, fn ($a, $b) => $b['total'] <=> $a['total']);
-
         return array_slice(array_values($scores), 0, 12);
     }
 
@@ -642,6 +600,8 @@ class CommandCenterController extends Controller
 
             $rows = $query
                 ->select('customer', 'location', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('customer')
+                ->where('customer', '!=', '')
                 ->groupBy('customer', 'location')
                 ->orderByDesc('total')
                 ->limit(30)
@@ -651,21 +611,12 @@ class CommandCenterController extends Controller
                 $customer = $row->customer ?: 'Tanpa Customer';
                 $location = $row->location ?: 'Tanpa Location';
                 $key = $customer . '|' . $location;
-
-                if (!isset($loads[$key])) {
-                    $loads[$key] = [
-                        'customer' => $customer,
-                        'location' => $location,
-                        'total' => 0,
-                    ];
-                }
-
+                $loads[$key] = $loads[$key] ?? ['customer' => $customer, 'location' => $location, 'total' => 0];
                 $loads[$key]['total'] += (int) $row->total;
             }
         }
 
         usort($loads, fn ($a, $b) => $b['total'] <=> $a['total']);
-
         return array_slice(array_values($loads), 0, 10);
     }
 
@@ -678,28 +629,8 @@ class CommandCenterController extends Controller
                 continue;
             }
 
-            $columns = Schema::getColumnListing($module['table']);
-            $statusColumn = $module['status_column'];
-            if (!in_array($statusColumn, $columns, true)) {
-                continue;
-            }
-
-            $query = DB::table($module['table']);
-            $this->applyFilters($query, $module, $columns, $filters, true, false);
-
-            $rows = $query
-                ->select($statusColumn, DB::raw('COUNT(*) as total'))
-                ->whereNotNull($statusColumn)
-                ->where($statusColumn, '!=', '')
-                ->groupBy($statusColumn)
-                ->get();
-
-            foreach ($rows as $row) {
-                $status = $this->normalizeStatus($row->{$statusColumn});
-                if (!isset($distribution[$status])) {
-                    $distribution[$status] = 0;
-                }
-                $distribution[$status] += (int) $row->total;
+            foreach ($this->statusCounts($module, Schema::getColumnListing($module['table']), $filters) as $status => $total) {
+                $distribution[$status] = ($distribution[$status] ?? 0) + (int) $total;
             }
         }
 
@@ -717,6 +648,7 @@ class CommandCenterController extends Controller
 
         $module = $activeModules['update-jobs'];
         $columns = Schema::getColumnListing('update_jobs');
+
         if (!in_array('job_type', $columns, true)) {
             return [];
         }
@@ -732,12 +664,10 @@ class CommandCenterController extends Controller
             ->get();
 
         $distribution = array_fill_keys($this->jobTypeOptions(), 0);
+
         foreach ($rows as $row) {
             $jobType = $this->normalizeJobType($row->job_type);
-            if (!isset($distribution[$jobType])) {
-                $distribution[$jobType] = 0;
-            }
-            $distribution[$jobType] += (int) $row->total;
+            $distribution[$jobType] = ($distribution[$jobType] ?? 0) + (int) $row->total;
         }
 
         return collect($distribution)
@@ -757,6 +687,7 @@ class CommandCenterController extends Controller
 
             $columns = Schema::getColumnListing($module['table']);
             $statusColumn = $module['status_column'];
+
             if (!in_array('pic', $columns, true) || !in_array($statusColumn, $columns, true)) {
                 continue;
             }
@@ -775,19 +706,17 @@ class CommandCenterController extends Controller
 
             foreach ($rows as $row) {
                 $pic = $row->pic ?: 'Tanpa PIC';
-                if (!isset($ratios[$pic])) {
-                    $ratios[$pic] = [
-                        'pic' => $pic,
-                        'rfu' => 0,
-                        'breakdown' => 0,
-                        'monitoring' => 0,
-                        'waiting_part' => 0,
-                        'other' => 0,
-                        'total' => 0,
-                        'rfu_rate' => 0,
-                        'risk_rate' => 0,
-                    ];
-                }
+                $ratios[$pic] = $ratios[$pic] ?? [
+                    'pic' => $pic,
+                    'rfu' => 0,
+                    'breakdown' => 0,
+                    'monitoring' => 0,
+                    'waiting_part' => 0,
+                    'other' => 0,
+                    'total' => 0,
+                    'rfu_rate' => 0,
+                    'risk_rate' => 0,
+                ];
 
                 $status = $this->normalizeStatus($row->{$statusColumn});
                 $count = (int) $row->total;
@@ -812,7 +741,6 @@ class CommandCenterController extends Controller
         unset($ratio);
 
         usort($ratios, fn ($a, $b) => $b['total'] <=> $a['total']);
-
         return array_slice(array_values($ratios), 0, 10);
     }
 
@@ -841,12 +769,6 @@ class CommandCenterController extends Controller
                         ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')")
                         ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('WAITING PART', 'WAITING_PART', 'WAITING-PART')");
                 });
-            } elseif (in_array($module['status_column'], $columns, true)) {
-                $query->where(function ($q) use ($module) {
-                    $q->whereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) LIKE '%BREAKDOWN%'")
-                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('B/D', 'BD')")
-                        ->orWhereRaw("UPPER(TRIM(COALESCE({$module['status_column']}, ''))) IN ('WAITING PART', 'WAITING_PART', 'WAITING-PART')");
-                });
             }
 
             $rows = $query
@@ -860,22 +782,18 @@ class CommandCenterController extends Controller
 
             foreach ($rows as $row) {
                 $serialNumber = $row->serial_number;
-                if (!isset($units[$serialNumber])) {
-                    $units[$serialNumber] = [
-                        'serial_number' => $serialNumber,
-                        'unit_type' => $row->unit_type ?? '-',
-                        'customer' => $row->customer ?? '-',
-                        'location' => $row->location ?? '-',
-                        'total' => 0,
-                    ];
-                }
-
+                $units[$serialNumber] = $units[$serialNumber] ?? [
+                    'serial_number' => $serialNumber,
+                    'unit_type' => $row->unit_type ?? '-',
+                    'customer' => $row->customer ?? '-',
+                    'location' => $row->location ?? '-',
+                    'total' => 0,
+                ];
                 $units[$serialNumber]['total'] += (int) $row->total;
             }
         }
 
         usort($units, fn ($a, $b) => $b['total'] <=> $a['total']);
-
         return array_slice(array_values($units), 0, 10);
     }
 
@@ -916,14 +834,12 @@ class CommandCenterController extends Controller
 
             foreach ($rows as $row) {
                 $key = ($row->part_number ?: '-') . '|' . $row->part_name;
-                if (!isset($parts[$key])) {
-                    $parts[$key] = [
-                        'part_number' => $row->part_number ?: '-',
-                        'part_name' => $row->part_name,
-                        'qty_total' => 0,
-                        'total' => 0,
-                    ];
-                }
+                $parts[$key] = $parts[$key] ?? [
+                    'part_number' => $row->part_number ?: '-',
+                    'part_name' => $row->part_name,
+                    'qty_total' => 0,
+                    'total' => 0,
+                ];
 
                 $parts[$key]['qty_total'] += (int) $row->qty_total;
                 $parts[$key]['total'] += (int) $row->total;
@@ -931,46 +847,7 @@ class CommandCenterController extends Controller
         }
 
         usort($parts, fn ($a, $b) => $b['qty_total'] <=> $a['qty_total']);
-
         return array_slice(array_values($parts), 0, 10);
-    }
-
-    private function applyAliasedFilters(Builder $query, string $alias, array $module, array $columns, array $filters, bool $applyMonth = true): void
-    {
-        $dateColumn = $module['date_column'];
-        $statusColumn = $module['status_column'];
-
-        if (in_array($dateColumn, $columns, true)) {
-            $query->whereYear($alias . '.' . $dateColumn, $filters['year']);
-
-            if ($applyMonth && !empty($filters['month'])) {
-                $query->whereMonth($alias . '.' . $dateColumn, $filters['month']);
-            }
-        }
-
-        if ($filters['pic'] !== '') {
-            in_array('pic', $columns, true)
-                ? $query->where($alias . '.pic', $filters['pic'])
-                : $query->whereRaw('1 = 0');
-        }
-
-        if ($filters['customer'] !== '') {
-            in_array('customer', $columns, true)
-                ? $query->where($alias . '.customer', $filters['customer'])
-                : $query->whereRaw('1 = 0');
-        }
-
-        if ($filters['location'] !== '') {
-            in_array('location', $columns, true)
-                ? $query->where($alias . '.location', $filters['location'])
-                : $query->whereRaw('1 = 0');
-        }
-
-        if ($filters['status'] !== '' && $filters['status'] !== 'Tanpa Status') {
-            in_array($statusColumn, $columns, true)
-                ? $this->applyStatusFilter($query, $statusColumn, $filters['status'], $alias)
-                : $query->whereRaw('1 = 0');
-        }
     }
 
     private function exportQuery(array $filters): array
@@ -985,14 +862,6 @@ class CommandCenterController extends Controller
         ], fn ($value) => $value !== null && $value !== '' && $value !== 'Tanpa Status');
     }
 
-    private function moduleOrFail(string $module): array
-    {
-        $modules = $this->modules();
-        abort_unless(isset($modules[$module]), 404, 'Modul tidak dikenal.');
-
-        return $modules[$module];
-    }
-
     private function availableYears(array $modules): array
     {
         $years = [now()->year];
@@ -1005,7 +874,10 @@ class CommandCenterController extends Controller
                 continue;
             }
 
-            $rows = DB::table($table)
+            $query = DB::table($table);
+            $this->applyDepartmentScope($query, $table);
+
+            $rows = $query
                 ->selectRaw("YEAR({$dateColumn}) as year")
                 ->whereNotNull($dateColumn)
                 ->distinct()
