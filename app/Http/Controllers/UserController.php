@@ -12,12 +12,16 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
     public function index(Request $request)
     {
         $search = $request->search;
+        $sort = $request->sort;
+        $department = $request->department;
+        $position = $request->position;
 
         $users = User::when($search, function ($query) use ($search) {
             $query->where(function ($subQuery) use ($search) {
@@ -28,8 +32,26 @@ class UserController extends Controller
                     ->orWhere('department', 'like', "%{$search}%");
             });
         })
-            ->latest()
-            ->paginate(10);
+        ->when($department, function ($query) use ($department) {
+            $query->where('department', $department);
+        })
+        ->when($position, function ($query) use ($position) {
+            $query->where('position', $position);
+        })
+        ->when($sort, function ($query) use ($sort) {
+            if ($sort === 'az') {
+                $query->orderBy('name', 'asc');
+            } elseif ($sort === 'za') {
+                $query->orderBy('name', 'desc');
+            } else {
+                $query->latest();
+            }
+        }, function ($query) {
+            // Default jika sort tidak dipilih
+            $query->latest();
+        })
+        ->paginate(10)
+        ->withQueryString(); // Memastikan parameter URL terbawa saat pindah halaman (pagination)
 
         return view('admin.users.index', compact('users'));
     }
@@ -45,8 +67,8 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'nrpp' => 'required|string|max:255|unique:users,nrpp',
             'password' => 'required|string|min:8',
-            'status_user' => 'required|string|in:mekanik,koordinator,sect_head,super_admin',
-            'branch' => 'nullable|string|max:255',
+            'status_user' => 'required|string|in:mekanik,koordinator,sect_head,admin,super_admin',
+            'branch' => 'nullable|string',
             'position' => 'nullable|string|in:FIELD,FMC',
             'department' => 'nullable|string|in:RENTAL,SERVICE',
             'is_verified' => 'required|boolean',
@@ -55,16 +77,20 @@ class UserController extends Controller
         $user = new User();
         $user->name = $validated['name'];
         $user->nrpp = $validated['nrpp'];
-        $user->password = Hash::make($validated['password']);
         $user->status_user = $validated['status_user'];
         $user->branch = $validated['branch'] ?? null;
         $user->position = $validated['position'] ?? null;
         $user->department = $validated['department'] ?? null;
         $user->is_verified = (bool) $validated['is_verified'];
-        $user->verified_at = $user->is_verified ? now() : null;
+
+        if ($user->is_verified) {
+            $user->verified_at = now();
+        }
+
+        $user->password = Hash::make($validated['password']);
         $user->save();
 
-        return redirect()->route('admin.users.index')->with('success', 'Pengguna baru berhasil ditambahkan.');
+        return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil ditambahkan.');
     }
 
     public function edit(User $user)
@@ -77,8 +103,8 @@ class UserController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'nrpp' => 'required|string|max:255|unique:users,nrpp,' . $user->id,
-            'status_user' => 'required|string|in:mekanik,koordinator,sect_head,super_admin',
-            'branch' => 'nullable|string|max:255',
+            'status_user' => 'required|string|in:mekanik,koordinator,sect_head,admin,super_admin',
+            'branch' => 'nullable|string',
             'position' => 'nullable|string|in:FIELD,FMC',
             'department' => 'nullable|string|in:RENTAL,SERVICE',
             'is_verified' => 'required|boolean',
@@ -115,12 +141,12 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        if (\Illuminate\Support\Facades\Auth::id() === $user->id) {
+        if (Auth::id() === $user->id) {
             return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
         }
 
         $user->delete();
 
-        return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil dihapus dari sistem.');
+        return redirect()->route('admin.users.index')->with('success', 'Pengguna berhasil dihapus.');
     }
 }
