@@ -280,6 +280,7 @@ class CalendarController extends Controller
         $saturdays = $this->saturdaysInMonth($year, $month);
         $pikets = collect();
         $recommendedMechanics = collect();
+        $piketMonthCards = collect();
 
         if ($canViewPiket) {
             $pikets = Piket::with(['user', 'creator'])
@@ -290,6 +291,7 @@ class CalendarController extends Controller
                 ->groupBy(fn ($piket) => Carbon::parse($piket->date)->format('Y-m-d'));
 
             $recommendedMechanics = $this->recommendedPiketMechanics();
+            $piketMonthCards = $this->piketMonthCards();
         }
 
         return compact(
@@ -304,6 +306,7 @@ class CalendarController extends Controller
             'saturdays',
             'pikets',
             'recommendedMechanics',
+            'piketMonthCards',
             'canViewPiket'
         );
     }
@@ -321,6 +324,35 @@ class CalendarController extends Controller
         }
 
         return $saturdays;
+    }
+
+    private function piketMonthCards()
+    {
+        $startMonth = now()->startOfMonth();
+
+        return collect(range(0, 5))->map(function ($offset) use ($startMonth) {
+            $date = $startMonth->copy()->addMonths($offset);
+            $month = (int) $date->format('m');
+            $year = (int) $date->format('Y');
+            $saturdays = $this->saturdaysInMonth($year, $month);
+
+            $monthPikets = Piket::whereYear('date', $year)
+                ->whereMonth('date', $month)
+                ->get();
+
+            return [
+                'month' => $month,
+                'year' => $year,
+                'label' => $date->translatedFormat('F Y'),
+                'short_label' => $date->translatedFormat('M Y'),
+                'saturday_count' => count($saturdays),
+                'active_count' => $monthPikets->whereIn('status', ['jalan', 'berhalangan'])->count(),
+                'jalan_count' => $monthPikets->where('status', 'jalan')->count(),
+                'debt_count' => $monthPikets->where('status', 'berhalangan')->count(),
+                'no_work_count' => $monthPikets->where('status', 'tidak_ada_kerjaan')->count(),
+                'is_current' => $offset === 0,
+            ];
+        });
     }
 
     private function recommendedPiketMechanics()
