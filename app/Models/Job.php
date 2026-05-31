@@ -3,16 +3,16 @@
 
 namespace App\Models;
 
+use App\Models\UnitAsset;
+use App\Support\DepartmentScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\UnitAsset;
-
+use Illuminate\Support\Facades\Auth;
 
 class Job extends Model
 {
-
     use HasFactory;
 
     // WAJIB DITAMBAHKAN AGAR TIDAK BENTROK DENGAN TABEL JOBS SYSTEM LARAVEL
@@ -60,6 +60,16 @@ class Job extends Model
 
     protected static function booted(): void
     {
+        static::addGlobalScope('department', function ($query) {
+            DepartmentScope::apply($query, (new static())->getTable());
+        });
+
+        static::creating(function (Job $job) {
+            if (empty($job->department)) {
+                $job->department = DepartmentScope::valueForCreate(Auth::user());
+            }
+        });
+
         static::saving(function (Job $job) {
             if (request()->has('year')) {
                 $job->year = request()->input('year');
@@ -90,5 +100,4 @@ class Job extends Model
     {
         return $this->belongsTo(UnitAsset::class, 'serial_number', 'serial_number');
     }
-
 }
