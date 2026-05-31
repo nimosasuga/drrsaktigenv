@@ -53,23 +53,36 @@ class CalendarController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $department = $user->department;
-        if ($this->canSeeAllDepartments($user)) {
-            $mechanic = User::findOrFail($request->mechanic_id);
-            $department = $mechanic->department;
+        $mechanic = User::query()
+            ->where('status_user', 'mekanik')
+            ->when(!$this->canSeeAllDepartments($user), fn ($query) => $query->where('department', $user->department))
+            ->findOrFail($request->mechanic_id);
+
+        $partner = null;
+        if ($request->filled('partner_id')) {
+            $partner = User::query()
+                ->where('status_user', 'mekanik')
+                ->when(!$this->canSeeAllDepartments($user), fn ($query) => $query->where('department', $user->department))
+                ->findOrFail($request->partner_id);
         }
+
+        $department = $this->canSeeAllDepartments($user) ? $mechanic->department : $user->department;
 
         if (!$this->customerLocationAllowed($request->customer, $request->location, $department)) {
             return back()->with('error', 'Customer dan lokasi tidak valid untuk departemen Anda.');
         }
 
+        if ($partner && $partner->department !== $department) {
+            return back()->with('error', 'Partner harus berada di department yang sama dengan mekanik utama.');
+        }
+
         WorkPlanning::create([
             'planned_date' => $request->date,
-            'mechanic_id' => $request->mechanic_id,
+            'mechanic_id' => $mechanic->id,
             'customer' => $request->customer,
             'location' => $request->location,
             'job_type' => $request->job_type,
-            'partner_id' => $request->partner_id,
+            'partner_id' => $partner?->id,
             'note' => $request->notes,
             'status' => 'PLANNED',
             'department' => $department,
@@ -118,12 +131,12 @@ class CalendarController extends Controller
             return back()->with('error', 'Piket hanya untuk mekanik RENTAL FIELD.');
         }
 
-        $exists = Piket::where('date', $request->date)
+        $existsQuery = Piket::where('date', $request->date)
             ->where('user_id', $request->user_id)
-            ->whereIn('status', ['jalan', 'berhalangan'])
-            ->exists();
+            ->whereIn('status', ['jalan', 'berhalangan']);
+        DepartmentScope::apply($existsQuery, 'pikets', $user);
 
-        if ($exists) {
+        if ($existsQuery->exists()) {
             return back()->with('error', 'Mekanik ini sudah dijadwalkan piket pada tanggal tersebut.');
         }
 
@@ -159,12 +172,12 @@ class CalendarController extends Controller
         }
 
         $nextSaturday = $currentDate->copy()->addWeek()->toDateString();
-        $alreadyExists = Piket::where('date', $nextSaturday)
+        $alreadyExistsQuery = Piket::where('date', $nextSaturday)
             ->where('user_id', $piket->user_id)
-            ->whereIn('status', ['jalan', 'berhalangan'])
-            ->exists();
+            ->whereIn('status', ['jalan', 'berhalangan']);
+        DepartmentScope::apply($alreadyExistsQuery, 'pikets', $user);
 
-        if ($alreadyExists) {
+        if ($alreadyExistsQuery->exists()) {
             return back()->with('error', 'Mekanik yang sama sudah memiliki jadwal aktif pada Sabtu berikutnya.');
         }
 
@@ -255,7 +268,7 @@ class CalendarController extends Controller
             $customerLocations[$customer] = array_values(array_unique($locations));
         }
 
-        $plannings = WorkPlanning::with(['mechanic', 'partner', 'creator'])
+        $planningsQuery = WorkPlanning::with(['mechanic', 'partner', 'creator'])
             ->whereYear('planned_date', $year)
             ->whereMonth('planned_date', $month)
             ->when($mechanicId, function ($query, $mechanicId) {
@@ -263,10 +276,10 @@ class CalendarController extends Controller
                     $sub->where('mechanic_id', $mechanicId)->orWhere('partner_id', $mechanicId);
                 });
             })
-            ->when($status, fn ($query, $status) => $query->where('status', $status))
-            ->orderBy('planned_date')
-            ->get();
+            ->when($status, fn ($query, $status) => $query->where('status', $status));
+        DepartmentScope::apply($planningsQuery, 'work_plannings', $user);
 
+        $plannings = $planningsQuery->orderBy('planned_date')->get();
         $groupedPlannings = $plannings->groupBy(fn ($planning) => $planning->planned_date->format('Y-m-d'));
         $saturdays = $this->saturdaysInMonth($year, $month);
         $pikets = collect();
@@ -274,19 +287,22 @@ class CalendarController extends Controller
         $piketMonthCards = collect();
 
         if ($canViewPiket) {
-            $pikets = Piket::with(['user', 'creator'])
+            $piketsQuery = Piket::with(['user', 'creator'])
                 ->whereYear('date', $year)
-                ->whereMonth('date', $month)
+                ->whereMonth('date', $month);
+            DepartmentScope::apply($piketsQuery, 'pikets', $user);
+
+            $pikets = $piketsQuery
                 ->orderBy('date')
                 ->get()
                 ->groupBy(fn ($piket) => Carbon::parse($piket->date)->format('Y-m-d'));
 
-            $recommendedMechanics = $this->recommendedPiketMechanics();
-            $piketMonthCards = $this->piketMonthCards();
+            $recommendedMechanics = $this->recommendedPiketMechanics($user);
+            $piketMonthCards = $this->piketMonthCards($user);
         }
 
-        $planningMonthCards = $this->planningMonthCards();
-        $timelineMonthCards = $this->timelineMonthCards($canViewPiket);
+        $planningMonthCards = $this->planningMonthCards($user);
+        $timelineMonthCards = $this->timelineMonthCards($canViewPiket, $user);
 
         return compact(
             'month',
@@ -322,18 +338,20 @@ class CalendarController extends Controller
         return $saturdays;
     }
 
-    private function planningMonthCards()
+    private function planningMonthCards(?User $user = null)
     {
         $startMonth = now()->startOfMonth();
 
-        return collect(range(0, 5))->map(function ($offset) use ($startMonth) {
+        return collect(range(0, 5))->map(function ($offset) use ($startMonth, $user) {
             $date = $startMonth->copy()->addMonths($offset);
             $month = (int) $date->format('m');
             $year = (int) $date->format('Y');
 
-            $monthPlannings = WorkPlanning::whereYear('planned_date', $year)
-                ->whereMonth('planned_date', $month)
-                ->get();
+            $query = WorkPlanning::whereYear('planned_date', $year)
+                ->whereMonth('planned_date', $month);
+            DepartmentScope::apply($query, 'work_plannings', $user);
+
+            $monthPlannings = $query->get();
 
             return [
                 'month' => $month,
@@ -349,19 +367,21 @@ class CalendarController extends Controller
         });
     }
 
-    private function piketMonthCards()
+    private function piketMonthCards(?User $user = null)
     {
         $startMonth = now()->startOfMonth();
 
-        return collect(range(0, 5))->map(function ($offset) use ($startMonth) {
+        return collect(range(0, 5))->map(function ($offset) use ($startMonth, $user) {
             $date = $startMonth->copy()->addMonths($offset);
             $month = (int) $date->format('m');
             $year = (int) $date->format('Y');
             $saturdays = $this->saturdaysInMonth($year, $month);
 
-            $monthPikets = Piket::whereYear('date', $year)
-                ->whereMonth('date', $month)
-                ->get();
+            $query = Piket::whereYear('date', $year)
+                ->whereMonth('date', $month);
+            DepartmentScope::apply($query, 'pikets', $user);
+
+            $monthPikets = $query->get();
 
             return [
                 'month' => $month,
@@ -378,10 +398,10 @@ class CalendarController extends Controller
         });
     }
 
-    private function timelineMonthCards(bool $canViewPiket)
+    private function timelineMonthCards(bool $canViewPiket, ?User $user = null)
     {
-        $planningCards = $this->planningMonthCards()->keyBy(fn ($card) => $card['year'] . '-' . $card['month']);
-        $piketCards = $canViewPiket ? $this->piketMonthCards()->keyBy(fn ($card) => $card['year'] . '-' . $card['month']) : collect();
+        $planningCards = $this->planningMonthCards($user)->keyBy(fn ($card) => $card['year'] . '-' . $card['month']);
+        $piketCards = $canViewPiket ? $this->piketMonthCards($user)->keyBy(fn ($card) => $card['year'] . '-' . $card['month']) : collect();
         $startMonth = now()->startOfMonth();
 
         return collect(range(0, 5))->map(function ($offset) use ($startMonth, $planningCards, $piketCards) {
@@ -407,7 +427,7 @@ class CalendarController extends Controller
         });
     }
 
-    private function recommendedPiketMechanics()
+    private function recommendedPiketMechanics(?User $user = null)
     {
         $mechanics = User::where('department', 'RENTAL')
             ->where('position', 'FIELD')
@@ -416,10 +436,11 @@ class CalendarController extends Controller
             ->get();
 
         foreach ($mechanics as $mechanic) {
-            $history = Piket::where('user_id', $mechanic->id)
-                ->orderBy('date', 'desc')
-                ->get();
+            $historyQuery = Piket::where('user_id', $mechanic->id)
+                ->orderBy('date', 'desc');
+            DepartmentScope::apply($historyQuery, 'pikets', $user);
 
+            $history = $historyQuery->get();
             $activeHistory = $history->whereIn('status', ['jalan', 'berhalangan']);
             $latestActivePiket = $activeHistory->first();
             $latestJalanPiket = $history->firstWhere('status', 'jalan');
