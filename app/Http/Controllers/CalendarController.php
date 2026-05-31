@@ -95,13 +95,6 @@ class CalendarController extends Controller
             $planningsQuery->where('department', $user->department);
         }
 
-        if (!$canManagePlanning) {
-            $planningsQuery->where(function ($query) use ($user) {
-                $query->where('mechanic_id', $user->id)
-                    ->orWhere('partner_id', $user->id);
-            });
-        }
-
         $plannings = $planningsQuery
             ->orderBy('planned_date')
             ->orderBy('planned_time')
