@@ -27,6 +27,7 @@ use App\Http\Controllers\UpdateJobSaveController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\RentalSparepartController;
 use App\Http\Controllers\RentalSparepartAssetSearchController;
+use App\Http\Controllers\RentalSparepartImportController;
 use App\Http\Controllers\RentalSparepartOutController;
 use App\Http\Controllers\RentalSparepartMovementController;
 use App\Http\Controllers\RentalSparepartMovementExportController;
@@ -83,6 +84,8 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('penarikans', PenarikanController::class);
         Route::get('/rental-spareparts', [RentalSparepartController::class, 'index'])->name('rental-spareparts.index');
         Route::get('/rental-spareparts/export', RentalSparepartStockExportController::class)->name('rental-spareparts.export');
+        Route::post('/rental-spareparts/import', [RentalSparepartImportController::class, 'store'])->name('rental-spareparts.import.store');
+        Route::get('/rental-spareparts/import/template', [RentalSparepartImportController::class, 'template'])->name('rental-spareparts.import.template');
         Route::get('/rental-spareparts/assets/search', RentalSparepartAssetSearchController::class)->name('rental-spareparts.assets.search');
         Route::get('/rental-spareparts/in/create', [RentalSparepartController::class, 'createIn'])->name('rental-spareparts.in.create');
         Route::post('/rental-spareparts/in', [RentalSparepartController::class, 'storeIn'])->name('rental-spareparts.in.store');
