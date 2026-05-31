@@ -15,6 +15,7 @@ class Battery extends Model
     protected $fillable = [
         'user_id',
         'branch',
+        'department',
         'status_mekanik',
         'pic',
         'partner',
