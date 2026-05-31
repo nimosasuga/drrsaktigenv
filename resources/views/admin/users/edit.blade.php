@@ -73,6 +73,31 @@
                 </div>
 
                 <div>
+                    <label for="position" class="block text-sm font-medium text-slate-700">Posisi</label>
+                    <select name="position" id="position"
+                        class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors bg-white">
+                        <option value="">Pilih Posisi</option>
+                        <option value="FIELD" {{ old('position', $user->position) == 'FIELD' ? 'selected' : '' }}>FIELD
+                        </option>
+                        <option value="FMC" {{ old('position', $user->position) == 'FMC' ? 'selected' : '' }}>FMC
+                        </option>
+                    </select>
+                </div>
+
+                <div>
+                    <label for="department" class="block text-sm font-medium text-slate-700">Department</label>
+                    <select name="department" id="department"
+                        class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors bg-white">
+                        <option value="">Pilih Department</option>
+                        <option value="RENTAL" {{ old('department', $user->department) == 'RENTAL' ? 'selected' : ''
+                            }}>RENTAL</option>
+                        <option value="SERVICE" {{ old('department', $user->department) == 'SERVICE' ? 'selected' : ''
+                            }}>SERVICE
+                        </option>
+                    </select>
+                </div>
+
+                <div>
                     <label for="password" class="block text-sm font-medium text-slate-700">Ganti Kata Sandi
                         (Opsional)</label>
                     <input type="password" name="password" id="password"

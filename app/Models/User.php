@@ -1,5 +1,12 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| PATH FILE:
+| app/Models/User.php
+|--------------------------------------------------------------------------
+*/
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +23,8 @@ class User extends Authenticatable
         'password',
         'status_user',
         'branch',
+        'position',
+        'department',
         'is_verified',
         'verified_at',
     ];

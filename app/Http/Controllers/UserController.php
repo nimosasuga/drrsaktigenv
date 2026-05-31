@@ -1,5 +1,12 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| PATH FILE:
+| app/Http/Controllers/UserController.php
+|--------------------------------------------------------------------------
+*/
+
 namespace App\Http\Controllers;
 
 use App\Models\User;
@@ -13,9 +20,13 @@ class UserController extends Controller
         $search = $request->search;
 
         $users = User::when($search, function ($query) use ($search) {
-            $query->where('name', 'like', "%{$search}%")
-                ->orWhere('nrpp', 'like', "%{$search}%")
-                ->orWhere('branch', 'like', "%{$search}%");
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery->where('name', 'like', "%{$search}%")
+                    ->orWhere('nrpp', 'like', "%{$search}%")
+                    ->orWhere('branch', 'like', "%{$search}%")
+                    ->orWhere('position', 'like', "%{$search}%")
+                    ->orWhere('department', 'like', "%{$search}%");
+            });
         })
             ->latest()
             ->paginate(10);
@@ -36,6 +47,8 @@ class UserController extends Controller
             'password' => 'required|string|min:8',
             'status_user' => 'required|string|in:mekanik,koordinator,sect_head,super_admin',
             'branch' => 'nullable|string|max:255',
+            'position' => 'nullable|string|in:FIELD,FMC',
+            'department' => 'nullable|string|in:RENTAL,SERVICE',
             'is_verified' => 'required|boolean',
         ]);
 
@@ -45,6 +58,8 @@ class UserController extends Controller
         $user->password = Hash::make($validated['password']);
         $user->status_user = $validated['status_user'];
         $user->branch = $validated['branch'] ?? null;
+        $user->position = $validated['position'] ?? null;
+        $user->department = $validated['department'] ?? null;
         $user->is_verified = (bool) $validated['is_verified'];
         $user->verified_at = $user->is_verified ? now() : null;
         $user->save();
@@ -64,6 +79,8 @@ class UserController extends Controller
             'nrpp' => 'required|string|max:255|unique:users,nrpp,' . $user->id,
             'status_user' => 'required|string|in:mekanik,koordinator,sect_head,super_admin',
             'branch' => 'nullable|string|max:255',
+            'position' => 'nullable|string|in:FIELD,FMC',
+            'department' => 'nullable|string|in:RENTAL,SERVICE',
             'is_verified' => 'required|boolean',
             'password' => 'nullable|string|min:8',
         ]);
@@ -75,6 +92,8 @@ class UserController extends Controller
         $user->nrpp = $validated['nrpp'];
         $user->status_user = $validated['status_user'];
         $user->branch = $validated['branch'] ?? null;
+        $user->position = $validated['position'] ?? null;
+        $user->department = $validated['department'] ?? null;
         $user->is_verified = $newVerificationStatus;
 
         if ($newVerificationStatus && !$oldVerificationStatus) {
@@ -96,7 +115,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        if (auth()->id() === $user->id) {
+        if (\Illuminate\Support\Facades\Auth::id() === $user->id) {
             return back()->with('error', 'Anda tidak dapat menghapus akun Anda sendiri.');
         }
 

@@ -53,7 +53,7 @@
             </div>
             <input type="text" id="searchInput" name="search" value="{{ request('search') }}"
                 class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-xl leading-5 bg-white placeholder-slate-500 focus:outline-none focus:placeholder-slate-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                placeholder="Cari Nama, NRPP, atau Branch...">
+                placeholder="Cari Nama, NRPP, Branch, Posisi, atau Department...">
         </div>
         @if(request('search'))
         <a href="{{ route('admin.users.index') }}"
@@ -61,7 +61,6 @@
         @endif
     </form>
 </div>
-
 <div
     class="bg-white border-b border-x border-slate-200 rounded-b-2xl shadow-sm overflow-hidden ring-1 ring-slate-900/5">
     <div class="overflow-x-auto">
@@ -72,8 +71,8 @@
                         class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Nama &
                         NRPP</th>
                     <th scope="col"
-                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Role &
-                        Branch</th>
+                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Role,
+                        Branch & Department</th>
                     <th scope="col"
                         class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Status
                         Verifikasi</th>
@@ -111,7 +110,17 @@
                             class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800 uppercase">
                             {{ str_replace('_', ' ', $u->status_user) }}
                         </span>
-                        <div class="text-xs text-slate-500 mt-1">{{ $u->branch ?? '-' }}</div>
+                        <div class="text-xs text-slate-500 mt-1">Branch: {{ $u->branch ?? '-' }}</div>
+                        <div class="mt-1 flex flex-wrap gap-1">
+                            <span
+                                class="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                                {{ $u->position ?: 'NO POSITION' }}
+                            </span>
+                            <span
+                                class="inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                                {{ $u->department ?: 'NO DEPARTMENT' }}
+                            </span>
+                        </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         @if($u->status_user === 'super_admin')
