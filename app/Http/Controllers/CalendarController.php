@@ -9,10 +9,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UnitAsset;
 use App\Models\User;
 use App\Models\WorkPlanning;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class CalendarController extends Controller
 {
@@ -43,6 +45,52 @@ class CalendarController extends Controller
             })
             ->orderBy('name')
             ->get();
+
+        $assetOptionsQuery = UnitAsset::query()
+            ->whereNotNull('customer')
+            ->where('customer', '!=', '')
+            ->whereNotNull('location')
+            ->where('location', '!=', '');
+
+        if (!$this->canSeeAllDepartments($user) && !empty($user->department) && Schema::hasColumn('unit_assets', 'department')) {
+            $assetOptionsQuery->where('department', $user->department);
+        }
+
+        $assetOptions = $assetOptionsQuery
+            ->select('customer', 'location')
+            ->distinct()
+            ->orderBy('customer')
+            ->orderBy('location')
+            ->get();
+
+        $customers = $assetOptions
+            ->pluck('customer')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $customerLocations = $assetOptions
+            ->groupBy('customer')
+            ->map(function ($items) {
+                return $items
+                    ->pluck('location')
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values();
+            });
+
+        $jobTypes = [
+            'Preventive Maintenance',
+            'Install Part',
+            'Troubleshooting',
+            'Inspection',
+            'Repair',
+            'DELIVERY UNIT',
+            'TARIK UNIT',
+            'Battery Job',
+            'Charger Job',
+        ];
 
         $planningsQuery = WorkPlanning::query()
             ->with(['mechanic', 'partner', 'creator'])
@@ -82,6 +130,9 @@ class CalendarController extends Controller
         return view('calendar.index', [
             'canManagePlanning' => $canManagePlanning,
             'mechanics' => $mechanics,
+            'customers' => $customers,
+            'customerLocations' => $customerLocations,
+            'jobTypes' => $jobTypes,
             'plannings' => $plannings,
             'groupedPlannings' => $groupedPlannings,
             'month' => $month,
@@ -100,14 +151,9 @@ class CalendarController extends Controller
         $validated = $request->validate([
             'mechanic_id' => 'required|exists:users,id',
             'partner_id' => 'nullable|exists:users,id|different:mechanic_id',
-            'planned_date' => 'required|date',
-            'planned_time' => 'nullable|date_format:H:i',
-            'customer' => 'nullable|string|max:150',
-            'location' => 'nullable|string|max:150',
-            'serial_number' => 'nullable|string|max:100',
-            'unit_type' => 'nullable|string|max:100',
-            'job_type' => 'nullable|string|max:150',
-            'note' => 'nullable|string',
+            'customer' => 'required|string|max:150',
+            'location' => 'required|string|max:150',
+            'job_type' => 'required|string|max:150',
         ]);
 
         $mechanic = User::findOrFail($validated['mechanic_id']);
@@ -127,21 +173,21 @@ class CalendarController extends Controller
             'partner_id' => $partner?->id,
             'branch' => $mechanic->branch ?: $user->branch,
             'department' => $mechanic->department ?: $user->department,
-            'planned_date' => $validated['planned_date'],
-            'planned_time' => $validated['planned_time'] ?? null,
-            'customer' => $validated['customer'] ?? null,
-            'location' => $validated['location'] ?? null,
-            'serial_number' => $validated['serial_number'] ?? null,
-            'unit_type' => $validated['unit_type'] ?? null,
-            'job_type' => $validated['job_type'] ?? null,
+            'planned_date' => now()->toDateString(),
+            'planned_time' => null,
+            'customer' => $validated['customer'],
+            'location' => $validated['location'],
+            'serial_number' => null,
+            'unit_type' => null,
+            'job_type' => $validated['job_type'],
             'status' => 'PLANNED',
-            'note' => $validated['note'] ?? null,
+            'note' => null,
         ]);
 
         return redirect()
             ->route('calendar.index', [
-                'month' => date('n', strtotime($validated['planned_date'])),
-                'year' => date('Y', strtotime($validated['planned_date'])),
+                'month' => now()->month,
+                'year' => now()->year,
             ])
             ->with('success', 'Planning kerja berhasil dibuat.');
     }
