@@ -26,6 +26,7 @@ use App\Http\Controllers\UpdateJobPreventiveMaintenanceCheckController;
 use App\Http\Controllers\UpdateJobSaveController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\RentalSparepartController;
+use App\Http\Controllers\RentalSparepartAssetSearchController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
 
@@ -75,6 +76,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/penarikans/{id}/share-message', [OperationalShareController::class, 'penarikan'])->name('penarikans.share-message');
         Route::resource('penarikans', PenarikanController::class);
         Route::get('/rental-spareparts', [RentalSparepartController::class, 'index'])->name('rental-spareparts.index');
+        Route::get('/rental-spareparts/assets/search', RentalSparepartAssetSearchController::class)->name('rental-spareparts.assets.search');
         Route::get('/rental-spareparts/in/create', [RentalSparepartController::class, 'createIn'])->name('rental-spareparts.in.create');
         Route::post('/rental-spareparts/in', [RentalSparepartController::class, 'storeIn'])->name('rental-spareparts.in.store');
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
