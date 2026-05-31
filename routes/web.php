@@ -24,9 +24,10 @@ use App\Http\Controllers\UpdateJobExtraFieldController;
 use App\Http\Controllers\UpdateJobAssetSearchController;
 use App\Http\Controllers\UpdateJobPreventiveMaintenanceCheckController;
 use App\Http\Controllers\UpdateJobSaveController;
+use App\Http\Controllers\CalendarController;
+use App\Http\Controllers\RentalSparepartController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
-use App\Http\Controllers\CalendarController;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -73,6 +74,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/penarikans/search-assets', [PenarikanController::class, 'searchAssets'])->name('penarikans.search-assets');
         Route::get('/penarikans/{id}/share-message', [OperationalShareController::class, 'penarikan'])->name('penarikans.share-message');
         Route::resource('penarikans', PenarikanController::class);
+        Route::get('/rental-spareparts', [RentalSparepartController::class, 'index'])->name('rental-spareparts.index');
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
         Route::get('/command-center/export/{module}', [CommandCenterCsvController::class, 'export'])->name('command-center.export');
         Route::post('/command-center/import/{module}', [CommandCenterCsvController::class, 'import'])->name('command-center.import');
