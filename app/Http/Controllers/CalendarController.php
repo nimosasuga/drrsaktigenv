@@ -12,9 +12,11 @@ namespace App\Http\Controllers;
 use App\Models\UnitAsset;
 use App\Models\User;
 use App\Models\WorkPlanning;
+use App\Models\Piket; // NEW
 use App\Support\DepartmentScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class CalendarController extends Controller
 {
@@ -54,70 +56,103 @@ class CalendarController extends Controller
             ->unique()
             ->values();
 
-        $customerLocations = $assetOptions
-            ->groupBy('customer')
-            ->map(function ($items) {
-                return $items
-                    ->pluck('location')
-                    ->filter()
-                    ->unique()
-                    ->sort()
-                    ->values();
-            });
+        $customerLocations = [];
+        foreach ($assetOptions as $asset) {
+            $customerLocations[$asset->customer][] = $asset->location;
+        }
 
-        $jobTypes = [
-            'Preventive Maintenance',
-            'Install Part',
-            'Troubleshooting',
-            'Inspection',
-            'Repair',
-            'DELIVERY UNIT',
-            'TARIK UNIT',
-            'Battery Job',
-            'Charger Job',
-        ];
+        foreach ($customerLocations as $cust => $locs) {
+            $customerLocations[$cust] = array_values(array_unique($locs));
+        }
 
-        $planningsQuery = WorkPlanning::query()
-            ->with(['mechanic', 'partner', 'creator'])
-            ->whereMonth('planned_date', $month)
+        // MENGGUNAKAN NAMA KOLOM ASLI: 'planned_date'
+        $plannings = WorkPlanning::with(['mechanic', 'partner', 'creator'])
             ->whereYear('planned_date', $year)
-            ->when($mechanicId, function ($query) use ($mechanicId) {
-                $query->where(function ($subQuery) use ($mechanicId) {
-                    $subQuery->where('mechanic_id', $mechanicId)
+            ->whereMonth('planned_date', $month)
+            ->when($mechanicId, function ($query, $mechanicId) {
+                $query->where(function ($sub) use ($mechanicId) {
+                    $sub->where('mechanic_id', $mechanicId)
                         ->orWhere('partner_id', $mechanicId);
                 });
             })
-            ->when($status, function ($query) use ($status) {
+            ->when($status, function ($query, $status) {
                 $query->where('status', $status);
-            });
-
-        if (!$this->canSeeAllDepartments($user)) {
-            $planningsQuery->where('department', $user->department);
-        }
-
-        $plannings = $planningsQuery
-            ->orderBy('planned_date')
-            ->orderBy('planned_time')
-            ->latest()
+            })
+            ->orderBy('planned_date', 'asc')
             ->get();
 
-        $groupedPlannings = $plannings->groupBy(function (WorkPlanning $planning) {
-            return optional($planning->planned_date)->format('Y-m-d') ?: 'Tanpa Tanggal';
+        $groupedPlannings = $plannings->groupBy(function ($planning) {
+            return $planning->planned_date->format('Y-m-d');
         });
 
-        return view('calendar.index', [
-            'canManagePlanning' => $canManagePlanning,
-            'mechanics' => $mechanics,
-            'customers' => $customers,
-            'customerLocations' => $customerLocations,
-            'jobTypes' => $jobTypes,
-            'plannings' => $plannings,
-            'groupedPlannings' => $groupedPlannings,
-            'month' => $month,
-            'year' => $year,
-            'selectedMechanicId' => $mechanicId,
-            'selectedStatus' => $status,
-        ]);
+        // ==========================================
+        // --- NEW: LOGIKA SMART PLANNING PIKET ---
+        // ==========================================
+        $saturdays = [];
+        $daysInMonth = Carbon::create($year, $month)->daysInMonth;
+        for ($i = 1; $i <= $daysInMonth; $i++) {
+            $dateObj = Carbon::create($year, $month, $i);
+            if ($dateObj->isSaturday()) {
+                $saturdays[] = $dateObj->format('Y-m-d');
+            }
+        }
+
+        // Hanya RENTAL atau Admin/Super Admin yang bisa melihat Tab Piket
+        $canViewPiket = $user->department === 'RENTAL' || $this->canSeeAllDepartments($user);
+        $pikets = collect();
+        $recommendedMechanics = collect();
+
+        if ($canViewPiket) {
+            // Piket tabel menggunakan 'date'
+            $pikets = Piket::with(['user', 'creator'])
+                ->whereYear('date', $year)
+                ->whereMonth('date', $month)
+                ->orderBy('date', 'asc')
+                ->get()
+                ->groupBy(function ($piket) {
+                    return Carbon::parse($piket->date)->format('Y-m-d');
+                });
+
+            // Ambil kandidat mekanik khusus RENTAL - FIELD
+            $rentalFieldMechanics = User::where('department', 'RENTAL')
+                ->where('position', 'FIELD')
+                ->where('status_user', 'mekanik')
+                ->get();
+
+            foreach ($rentalFieldMechanics as $mechanic) {
+                $latestPiket = Piket::where('user_id', $mechanic->id)->orderBy('date', 'desc')->first();
+
+                if ($latestPiket && $latestPiket->status === 'berhalangan') {
+                    // Prioritas 1: Jika piket terakhirnya 'berhalangan', dia hutang piket.
+                    $mechanic->piket_priority = 1;
+                    $mechanic->last_piket_date = $latestPiket->date->format('Y-m-d');
+                } else {
+                    // Prioritas 2: Normal (Adil), diurutkan berdasarkan yang paling lama tidak piket
+                    $mechanic->piket_priority = 2;
+                    $mechanic->last_piket_date = $latestPiket ? $latestPiket->date->format('Y-m-d') : '2000-01-01';
+                }
+            }
+
+            // Urutkan: Hutang piket di atas, disusul yang paling lama tidak piket
+            $recommendedMechanics = $rentalFieldMechanics->sortBy(function ($m) {
+                return $m->piket_priority . '_' . $m->last_piket_date;
+            })->values();
+        }
+
+        return view('calendar.index', compact(
+            'month',
+            'year',
+            'mechanics',
+            'customers',
+            'customerLocations',
+            'groupedPlannings',
+            'plannings',
+            'canManagePlanning',
+            'saturdays', // NEW
+            'pikets', // NEW
+            'recommendedMechanics', // NEW
+            'canViewPiket' // NEW
+        ));
     }
 
     public function store(Request $request)
@@ -126,79 +161,41 @@ class CalendarController extends Controller
 
         abort_unless($this->canManagePlanning($user), 403);
 
-        $validated = $request->validate([
-            'planned_date' => 'required|date',
+        $request->validate([
+            'date' => 'required|date',
             'mechanic_id' => 'required|exists:users,id',
-            'partner_id' => 'nullable|exists:users,id|different:mechanic_id',
-            'customer' => 'required|string|max:150',
-            'location' => 'required|string|max:150',
-            'job_type' => 'required|string|max:150',
-            'note' => 'nullable|string',
+            'customer' => 'required|string',
+            'location' => 'required|string',
+            'job_type' => 'required|in:PM,BS,SCHEDULE',
+            'partner_id' => 'nullable|exists:users,id',
+            'notes' => 'nullable|string',
         ]);
 
-        $mechanic = User::findOrFail($validated['mechanic_id']);
-        $partner = !empty($validated['partner_id']) ? User::findOrFail($validated['partner_id']) : null;
-        $planningDepartment = strtoupper(trim((string) ($mechanic->department ?: $user->department)));
+        $department = $user->department;
 
-        abort_if($planningDepartment === '', 403, 'Department mekanik belum diisi.');
-
-        if (!$this->canSeeAllDepartments($user)) {
-            abort_if(strtoupper(trim((string) $mechanic->department)) !== strtoupper(trim((string) $user->department)), 403);
+        if ($this->canSeeAllDepartments($user)) {
+            $mechanic = User::findOrFail($request->mechanic_id);
+            $department = $mechanic->department;
         }
 
-        if ($partner) {
-            abort_if(strtoupper(trim((string) $partner->department)) !== $planningDepartment, 403, 'Partner harus berada di department yang sama dengan mekanik.');
+        if (!$this->customerLocationAllowed($request->customer, $request->location, $department)) {
+            return back()->with('error', 'Customer dan lokasi tidak valid untuk departemen Anda.');
         }
-
-        abort_unless(
-            $this->customerLocationAllowed($validated['customer'], $validated['location'], $planningDepartment),
-            403,
-            'Customer/lokasi tidak sesuai dengan department planning.'
-        );
 
         WorkPlanning::create([
+            'planned_date' => $request->date, // ASLI
+            'mechanic_id' => $request->mechanic_id,
+            'customer' => $request->customer,
+            'location' => $request->location,
+            'job_type' => $request->job_type,
+            'partner_id' => $request->partner_id,
+            'note' => $request->notes, // ASLI
+            'status' => 'PLANNED', // ASLI
+            'department' => $department,
             'created_by' => $user->id,
-            'mechanic_id' => $mechanic->id,
-            'partner_id' => $partner?->id,
-            'branch' => $mechanic->branch ?: $user->branch,
-            'department' => $planningDepartment,
-            'planned_date' => $validated['planned_date'],
-            'planned_time' => null,
-            'customer' => $validated['customer'],
-            'location' => $validated['location'],
-            'serial_number' => null,
-            'unit_type' => null,
-            'job_type' => $validated['job_type'],
-            'status' => 'PLANNED',
-            'note' => $validated['note'] ?? null,
         ]);
 
-        return redirect()
-            ->route('calendar.index', [
-                'month' => date('n', strtotime($validated['planned_date'])),
-                'year' => date('Y', strtotime($validated['planned_date'])),
-            ])
-            ->with('success', 'Planning kerja berhasil dibuat.');
-    }
-
-    public function updateStatus(Request $request, WorkPlanning $planning)
-    {
-        $user = Auth::user();
-
-        abort_unless($this->canManagePlanning($user), 403);
-
-        if (!$this->canSeeAllDepartments($user)) {
-            abort_if($planning->department !== $user->department, 403);
-        }
-
-        $validated = $request->validate([
-            'status' => 'required|string|in:PLANNED,DONE,CANCELLED',
-        ]);
-
-        $planning->status = $validated['status'];
-        $planning->save();
-
-        return back()->with('success', 'Status planning berhasil diperbarui.');
+        return back()->with('success', 'Planning kerja berhasil ditambahkan.');
     }
 
     public function destroy(WorkPlanning $planning)
@@ -214,6 +211,77 @@ class CalendarController extends Controller
         $planning->delete();
 
         return back()->with('success', 'Planning kerja berhasil dihapus.');
+    }
+
+    // --- NEW: METODE CRUD UNTUK PIKET ---
+    public function storePiket(Request $request)
+    {
+        $user = Auth::user();
+
+        abort_unless($this->canManagePlanning($user), 403);
+        if (!$this->canSeeAllDepartments($user)) {
+            abort_if($user->department !== 'RENTAL', 403);
+        }
+
+        $request->validate([
+            'date' => 'required|date',
+            'user_id' => 'required|exists:users,id',
+            'status' => 'required|in:jalan,berhalangan',
+        ]);
+
+        $dateObj = Carbon::parse($request->date);
+        if (!$dateObj->isSaturday()) {
+            return back()->with('error', 'Piket hanya bisa dijadwalkan pada hari Sabtu.');
+        }
+
+        $mechanic = User::findOrFail($request->user_id);
+        if ($mechanic->department !== 'RENTAL' || $mechanic->position !== 'FIELD') {
+            return back()->with('error', 'Piket hanya untuk mekanik RENTAL FIELD.');
+        }
+
+        // Cek jika mekanik sudah dijadwalkan piket di hari yang sama
+        $exists = Piket::where('date', $request->date)->where('user_id', $request->user_id)->exists();
+        if ($exists) {
+            return back()->with('error', 'Mekanik ini sudah dijadwalkan piket pada tanggal tersebut.');
+        }
+
+        Piket::create([
+            'date' => $request->date,
+            'user_id' => $request->user_id,
+            'status' => $request->status,
+            'department' => 'RENTAL',
+            'created_by' => $user->id,
+        ]);
+
+        return back()->with('success', 'Jadwal piket berhasil ditambahkan.');
+    }
+
+    public function destroyPiket(Piket $piket)
+    {
+        $user = Auth::user();
+        abort_unless($this->canManagePlanning($user), 403);
+
+        if (!$this->canSeeAllDepartments($user)) {
+            abort_if($user->department !== 'RENTAL', 403);
+        }
+
+        $piket->delete();
+
+        return back()->with('success', 'Jadwal piket berhasil dihapus.');
+    }
+
+    // UPDATE STATUS PLANNING KERJA LAMA BILA ADA (Mencegah error method not found)
+    public function updateStatus(Request $request, WorkPlanning $planning)
+    {
+        $user = Auth::user();
+        abort_unless($this->canManagePlanning($user), 403);
+
+        $request->validate([
+            'status' => 'required|string',
+        ]);
+
+        $planning->update(['status' => $request->status]);
+        return back()->with('success', 'Status berhasil diubah.');
     }
 
     private function assetOptionsForUser()

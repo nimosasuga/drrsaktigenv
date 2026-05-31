@@ -80,6 +80,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/calendar/plannings', [CalendarController::class, 'store'])->name('calendar.plannings.store');
         Route::patch('/calendar/plannings/{planning}/status', [CalendarController::class, 'updateStatus'])->name('calendar.plannings.status');
         Route::delete('/calendar/plannings/{planning}', [CalendarController::class, 'destroy'])->name('calendar.plannings.destroy');
+        Route::post('/calendar/piket', [CalendarController::class, 'storePiket']);
+        Route::delete('/calendar/piket/{piket}', [CalendarController::class, 'destroyPiket']);
         Route::get('/reminders', fn() => view('reminders.index'))->name('reminders.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
         Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
