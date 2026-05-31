@@ -1,14 +1,62 @@
 // PATH FILE: resources/js/rental-sparepart-sidebar-link.js
 
-function ensureRentalSparepartSidebarLink() {
-    const sidebarNav = document.querySelector('#sidebar nav');
+const MAIN_MENU_ITEMS = [
+    {
+        path: '/assets',
+        label: 'Asset Management',
+    },
+    {
+        path: '/command-center',
+        label: 'Command Center',
+    },
+    {
+        path: '/dashboard',
+        label: 'Dashboard',
+    },
+    {
+        path: '/rental-spareparts',
+        label: 'Management Sparepart',
+    },
+    {
+        path: '/profile',
+        label: 'My Profile',
+    },
+];
 
-    if (!sidebarNav || document.querySelector('[data-rental-sparepart-link="true"]')) {
+function sidebarNav() {
+    return document.querySelector('#sidebar nav');
+}
+
+function normalizePath(href) {
+    try {
+        return new URL(href, window.location.origin).pathname.replace(/\/$/, '') || '/';
+    } catch (error) {
+        return href || '';
+    }
+}
+
+function menuMetaForLink(link) {
+    const path = normalizePath(link.getAttribute('href'));
+
+    return MAIN_MENU_ITEMS.find((item) => path === item.path || path.startsWith(`${item.path}/`));
+}
+
+function setLinkLabel(link, label) {
+    const svg = link.querySelector('svg');
+    const svgHtml = svg ? svg.outerHTML : '';
+
+    link.innerHTML = `${svgHtml}\n        ${label}\n    `;
+}
+
+function ensureRentalSparepartSidebarLink() {
+    const nav = sidebarNav();
+
+    if (!nav || document.querySelector('[data-rental-sparepart-link="true"]')) {
         return;
     }
 
-    const commandCenterLink = Array.from(sidebarNav.querySelectorAll('a')).find((link) => {
-        return link.getAttribute('href')?.includes('/command-center') ||
+    const commandCenterLink = Array.from(nav.querySelectorAll('a')).find((link) => {
+        return normalizePath(link.getAttribute('href')) === '/command-center' ||
             link.textContent.trim().toLowerCase().includes('command center');
     });
 
@@ -34,8 +82,63 @@ function ensureRentalSparepartSidebarLink() {
     commandCenterLink.insertAdjacentElement('afterend', link);
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', ensureRentalSparepartSidebarLink);
-} else {
+function translateMainMenuHeading() {
+    const nav = sidebarNav();
+
+    if (!nav) {
+        return;
+    }
+
+    const heading = Array.from(nav.querySelectorAll('p')).find((item) => {
+        return item.textContent.trim().toLowerCase() === 'menu utama' ||
+            item.textContent.trim().toLowerCase() === 'main menu';
+    });
+
+    if (heading) {
+        heading.textContent = 'Main Menu';
+    }
+}
+
+function sortMainSidebarMenu() {
+    const nav = sidebarNav();
+
+    if (!nav) {
+        return;
+    }
+
+    const mainHeading = Array.from(nav.children).find((child) => {
+        return child.tagName === 'P' && ['menu utama', 'main menu'].includes(child.textContent.trim().toLowerCase());
+    });
+
+    if (!mainHeading) {
+        return;
+    }
+
+    const sortableLinks = Array.from(nav.querySelectorAll('a'))
+        .map((link) => ({ link, meta: menuMetaForLink(link) }))
+        .filter((entry) => entry.meta)
+        .map((entry) => {
+            setLinkLabel(entry.link, entry.meta.label);
+            return entry;
+        })
+        .sort((first, second) => first.meta.label.localeCompare(second.meta.label));
+
+    let insertAfter = mainHeading;
+
+    sortableLinks.forEach((entry) => {
+        insertAfter.insertAdjacentElement('afterend', entry.link);
+        insertAfter = entry.link;
+    });
+}
+
+function bootSidebarMainMenu() {
     ensureRentalSparepartSidebarLink();
+    translateMainMenuHeading();
+    sortMainSidebarMenu();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootSidebarMainMenu);
+} else {
+    bootSidebarMainMenu();
 }
