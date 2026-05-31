@@ -149,11 +149,13 @@ class CalendarController extends Controller
         abort_unless($this->canManagePlanning($user), 403);
 
         $validated = $request->validate([
+            'planned_date' => 'required|date',
             'mechanic_id' => 'required|exists:users,id',
             'partner_id' => 'nullable|exists:users,id|different:mechanic_id',
             'customer' => 'required|string|max:150',
             'location' => 'required|string|max:150',
             'job_type' => 'required|string|max:150',
+            'note' => 'nullable|string',
         ]);
 
         $mechanic = User::findOrFail($validated['mechanic_id']);
@@ -173,7 +175,7 @@ class CalendarController extends Controller
             'partner_id' => $partner?->id,
             'branch' => $mechanic->branch ?: $user->branch,
             'department' => $mechanic->department ?: $user->department,
-            'planned_date' => now()->toDateString(),
+            'planned_date' => $validated['planned_date'],
             'planned_time' => null,
             'customer' => $validated['customer'],
             'location' => $validated['location'],
@@ -181,13 +183,13 @@ class CalendarController extends Controller
             'unit_type' => null,
             'job_type' => $validated['job_type'],
             'status' => 'PLANNED',
-            'note' => null,
+            'note' => $validated['note'] ?? null,
         ]);
 
         return redirect()
             ->route('calendar.index', [
-                'month' => now()->month,
-                'year' => now()->year,
+                'month' => date('n', strtotime($validated['planned_date'])),
+                'year' => date('Y', strtotime($validated['planned_date'])),
             ])
             ->with('success', 'Planning kerja berhasil dibuat.');
     }
