@@ -29,6 +29,7 @@ use App\Http\Controllers\RentalSparepartController;
 use App\Http\Controllers\RentalSparepartAssetSearchController;
 use App\Http\Controllers\RentalSparepartOutController;
 use App\Http\Controllers\RentalSparepartMovementController;
+use App\Http\Controllers\RentalSparepartUsageReviewController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
 
@@ -84,6 +85,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/rental-spareparts/out/create', [RentalSparepartOutController::class, 'create'])->name('rental-spareparts.out.create');
         Route::post('/rental-spareparts/out', [RentalSparepartOutController::class, 'store'])->name('rental-spareparts.out.store');
         Route::get('/rental-spareparts/movements', [RentalSparepartMovementController::class, 'index'])->name('rental-spareparts.movements.index');
+        Route::get('/rental-spareparts/reviews', [RentalSparepartUsageReviewController::class, 'index'])->name('rental-spareparts.reviews.index');
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
         Route::get('/command-center/export/{module}', [CommandCenterCsvController::class, 'export'])->name('command-center.export');
         Route::post('/command-center/import/{module}', [CommandCenterCsvController::class, 'import'])->name('command-center.import');
