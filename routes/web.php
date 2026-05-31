@@ -86,6 +86,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/rental-spareparts/out', [RentalSparepartOutController::class, 'store'])->name('rental-spareparts.out.store');
         Route::get('/rental-spareparts/movements', [RentalSparepartMovementController::class, 'index'])->name('rental-spareparts.movements.index');
         Route::get('/rental-spareparts/reviews', [RentalSparepartUsageReviewController::class, 'index'])->name('rental-spareparts.reviews.index');
+        Route::post('/rental-spareparts/reviews/{review}/approve', [RentalSparepartUsageReviewController::class, 'approve'])->name('rental-spareparts.reviews.approve');
+        Route::post('/rental-spareparts/reviews/{review}/reject', [RentalSparepartUsageReviewController::class, 'reject'])->name('rental-spareparts.reviews.reject');
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
         Route::get('/command-center/export/{module}', [CommandCenterCsvController::class, 'export'])->name('command-center.export');
         Route::post('/command-center/import/{module}', [CommandCenterCsvController::class, 'import'])->name('command-center.import');
