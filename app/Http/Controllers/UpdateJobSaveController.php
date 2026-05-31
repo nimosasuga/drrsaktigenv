@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use App\Models\UnitAsset;
+use App\Services\RentalSparepartUsageService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -197,6 +198,7 @@ class UpdateJobSaveController extends Controller
             $job->save();
 
             $this->syncInstallParts($request, $job, false);
+            $this->syncRentalSparepartUsage($job);
             $this->syncRecommendations($request, $job, false);
 
             DB::commit();
@@ -233,6 +235,7 @@ class UpdateJobSaveController extends Controller
         try {
             $job->update($validated);
             $this->syncInstallParts($request, $job, true);
+            $this->syncRentalSparepartUsage($job);
             $this->syncRecommendations($request, $job, true);
 
             DB::commit();
@@ -269,6 +272,15 @@ class UpdateJobSaveController extends Controller
                 'no_pr' => $request->input("inst_no_pr.{$key}"),
             ]);
         }
+    }
+
+    private function syncRentalSparepartUsage(Job $job): void
+    {
+        if (strtoupper(trim((string) $job->department)) !== 'RENTAL') {
+            return;
+        }
+
+        app(RentalSparepartUsageService::class)->processJobInstallParts($job->fresh());
     }
 
     private function syncRecommendations(Request $request, Job $job, bool $replaceExisting): void
