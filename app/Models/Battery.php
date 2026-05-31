@@ -3,10 +3,12 @@
 
 namespace App\Models;
 
+use App\Support\DepartmentScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Auth;
 
 class Battery extends Model
 {
@@ -48,6 +50,19 @@ class Battery extends Model
         'out_time' => 'datetime:H:i',
         'battery_year' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('department', function ($query) {
+            DepartmentScope::apply($query, (new static())->getTable());
+        });
+
+        static::creating(function (Battery $battery) {
+            if (empty($battery->department)) {
+                $battery->department = DepartmentScope::valueForCreate(Auth::user());
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {
