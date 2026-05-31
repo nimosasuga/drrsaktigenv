@@ -25,6 +25,7 @@ class UnitAsset extends Model
         'customer',
         'location',
         'branch',
+        'department',
         'serial_number',
         'unit_type',
         'year',
