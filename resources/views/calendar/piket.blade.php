@@ -44,6 +44,38 @@
         </div>
     </div>
 
+    <div class="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Group Bulan</p>
+                <h2 class="text-xl font-black text-slate-950">Piket 6 Bulan Ke Depan</h2>
+            </div>
+            <p class="text-xs font-bold text-slate-500">Mulai dari bulan berjalan. Tidak perlu scroll kalender setahun, capeknya bukan main.</p>
+        </div>
+
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            @foreach($piketMonthCards as $card)
+                @php
+                    $isSelected = (int) $month === (int) $card['month'] && (int) $year === (int) $card['year'];
+                @endphp
+                <a href="{{ route('calendar.piket', ['month' => $card['month'], 'year' => $card['year']]) }}"
+                    class="group relative overflow-hidden rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg {{ $isSelected ? 'border-emerald-300 bg-emerald-50 ring-2 ring-emerald-100' : 'border-slate-200 bg-slate-50 hover:bg-white' }}">
+                    <div class="absolute -right-8 -top-8 h-20 w-20 rounded-full {{ $isSelected ? 'bg-emerald-200' : 'bg-slate-200' }} blur-2xl"></div>
+                    <div class="relative">
+                        <p class="text-[10px] font-black uppercase tracking-wider {{ $isSelected ? 'text-emerald-700' : 'text-slate-400' }}">{{ $card['is_current'] ? 'Bulan Berjalan' : 'Bulan +' . $loop->index }}</p>
+                        <h3 class="mt-1 text-base font-black text-slate-950">{{ $card['short_label'] }}</h3>
+                        <div class="mt-4 grid grid-cols-2 gap-2 text-center">
+                            <div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Sabtu</p><p class="font-black text-slate-900">{{ $card['saturday_count'] }}</p></div>
+                            <div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Aktif</p><p class="font-black text-slate-900">{{ $card['active_count'] }}</p></div>
+                            <div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Jalan</p><p class="font-black text-blue-700">{{ $card['jalan_count'] }}</p></div>
+                            <div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Kosong</p><p class="font-black text-amber-700">{{ $card['no_work_count'] }}</p></div>
+                        </div>
+                    </div>
+                </a>
+            @endforeach
+        </div>
+    </div>
+
     <div class="grid gap-3 lg:grid-cols-3">
         @foreach($recommendedMechanics->take(3) as $rm)
             <div class="rounded-2xl border {{ $loop->first ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-white' }} p-4 shadow-sm">
