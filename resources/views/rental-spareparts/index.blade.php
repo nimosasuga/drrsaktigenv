@@ -9,7 +9,7 @@
                 <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Dashboard Stok Sparepart Rental</h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                     Monitoring stok aktif sparepart RENTAL berdasarkan part, lokasi penyimpanan, no job, customer, dan alokasi unit.
-                    Barang Masuk, Barang Keluar, Histori Movement, dan Review Usage sudah aktif.
+                    Barang Masuk, Barang Keluar, Histori Movement, Review Usage, dan Audit Stok Bermasalah sudah aktif.
                 </p>
             </div>
 
@@ -73,6 +73,52 @@
         <div class="rounded-3xl border border-red-200 bg-red-50 p-4 shadow-sm">
             <p class="text-xs font-bold uppercase tracking-wide text-red-500">Habis</p>
             <p class="mt-2 text-2xl font-black text-red-700">{{ number_format($summary['qty_empty']) }}</p>
+        </div>
+    </div>
+
+    <div class="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-amber-600">Audit Stok Bermasalah</p>
+                <h2 class="mt-2 text-xl font-black text-amber-950">{{ number_format($summary['problem_total']) }} indikator perlu dicek</h2>
+                <p class="mt-1 text-sm leading-6 text-amber-800">
+                    Ini bukan selalu error. Ini alarm kerja: stok kosong, menipis, reserved, atau data identitas stok belum lengkap.
+                </p>
+            </div>
+            <a href="{{ route('rental-spareparts.movements.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-amber-300 bg-white px-5 py-3 text-sm font-black text-amber-800 hover:bg-amber-100">
+                Cek Histori
+            </a>
+        </div>
+
+        <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+            <a href="{{ route('rental-spareparts.index', ['stock_status' => 'HABIS']) }}" class="rounded-2xl border border-red-200 bg-white p-4 transition hover:bg-red-50">
+                <p class="text-[11px] font-black uppercase tracking-wide text-red-500">Stok Habis</p>
+                <p class="mt-2 text-2xl font-black text-red-700">{{ number_format($summary['problem_empty']) }}</p>
+            </a>
+            <a href="{{ route('rental-spareparts.index', ['stock_status' => 'MENIPIS']) }}" class="rounded-2xl border border-orange-200 bg-white p-4 transition hover:bg-orange-50">
+                <p class="text-[11px] font-black uppercase tracking-wide text-orange-500">Stok Menipis</p>
+                <p class="mt-2 text-2xl font-black text-orange-700">{{ number_format($summary['problem_low']) }}</p>
+            </a>
+            <a href="{{ route('rental-spareparts.index', ['stock_status' => 'RESERVED']) }}" class="rounded-2xl border border-blue-200 bg-white p-4 transition hover:bg-blue-50">
+                <p class="text-[11px] font-black uppercase tracking-wide text-blue-500">Reserved Row</p>
+                <p class="mt-2 text-2xl font-black text-blue-700">{{ number_format($summary['problem_reserved_rows']) }}</p>
+            </a>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-[11px] font-black uppercase tracking-wide text-slate-500">Tanpa SN</p>
+                <p class="mt-2 text-2xl font-black text-slate-800">{{ number_format($summary['problem_missing_sn']) }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-[11px] font-black uppercase tracking-wide text-slate-500">Tanpa Customer</p>
+                <p class="mt-2 text-2xl font-black text-slate-800">{{ number_format($summary['problem_missing_customer']) }}</p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                <p class="text-[11px] font-black uppercase tracking-wide text-slate-500">Tanpa Lokasi</p>
+                <p class="mt-2 text-2xl font-black text-slate-800">{{ number_format($summary['problem_missing_location']) }}</p>
+            </div>
+            <div class="rounded-2xl border border-red-300 bg-white p-4">
+                <p class="text-[11px] font-black uppercase tracking-wide text-red-600">Minus Available</p>
+                <p class="mt-2 text-2xl font-black text-red-800">{{ number_format($summary['problem_negative_available']) }}</p>
+            </div>
         </div>
     </div>
 
