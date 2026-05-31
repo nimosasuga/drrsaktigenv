@@ -9,7 +9,7 @@
                 <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Dashboard Stok Sparepart Rental</h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                     Monitoring stok aktif sparepart RENTAL berdasarkan part, lokasi penyimpanan, no job, customer, dan alokasi unit.
-                    Barang Masuk, Barang Keluar, Histori Movement, Review Usage, dan Audit Stok Bermasalah sudah aktif.
+                    Barang Masuk, Barang Keluar, Histori Movement, Review Usage, Audit Stok Bermasalah, dan Export Stok sudah aktif.
                 </p>
             </div>
 
@@ -18,6 +18,10 @@
                     <p class="text-[11px] font-bold uppercase tracking-wide text-blue-500">Department</p>
                     <p class="mt-1 text-xl font-black text-blue-700">RENTAL</p>
                 </div>
+
+                <a href="{{ route('rental-spareparts.export', request()->query()) }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700">
+                    Export Stok CSV
+                </a>
 
                 <a href="{{ route('rental-spareparts.reviews.index') }}" class="inline-flex items-center justify-center rounded-2xl bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-purple-700">
                     Review Usage
@@ -85,9 +89,14 @@
                     Ini bukan selalu error. Ini alarm kerja: stok kosong, menipis, reserved, atau data identitas stok belum lengkap.
                 </p>
             </div>
-            <a href="{{ route('rental-spareparts.movements.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-amber-300 bg-white px-5 py-3 text-sm font-black text-amber-800 hover:bg-amber-100">
-                Cek Histori
-            </a>
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <a href="{{ route('rental-spareparts.export', request()->query()) }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700">
+                    Export Stok
+                </a>
+                <a href="{{ route('rental-spareparts.movements.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-amber-300 bg-white px-5 py-3 text-sm font-black text-amber-800 hover:bg-amber-100">
+                    Cek Histori
+                </a>
+            </div>
         </div>
 
         <div class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
@@ -180,8 +189,9 @@
                 </select>
             </div>
 
-            <div class="flex gap-2 lg:col-span-4 lg:justify-end">
+            <div class="flex flex-wrap gap-2 lg:col-span-4 lg:justify-end">
                 <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 sm:flex-none">Filter</button>
+                <a href="{{ route('rental-spareparts.export', request()->query()) }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700">Export CSV</a>
                 <a href="{{ route('rental-spareparts.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Reset</a>
             </div>
         </form>
