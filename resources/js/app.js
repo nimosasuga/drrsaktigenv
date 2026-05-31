@@ -13,3 +13,4 @@ import "./update-job-copy-report";
 import "./operational-share-report";
 import "./update-job-detail-extra-fields";
 import "./rental-sparepart-sidebar-link";
+import "./rental-sparepart-dashboard-layout";
