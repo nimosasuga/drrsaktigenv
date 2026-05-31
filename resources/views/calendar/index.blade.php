@@ -12,118 +12,35 @@
         <div class="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-blue-500/20 blur-3xl"></div>
         <div class="pointer-events-none absolute bottom-0 left-8 h-32 w-32 rounded-full bg-emerald-400/20 blur-3xl"></div>
         <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.14)_0,transparent_2px),radial-gradient(circle_at_80%_35%,rgba(255,255,255,.10)_0,transparent_2px),radial-gradient(circle_at_45%_80%,rgba(255,255,255,.12)_0,transparent_2px)] bg-[length:80px_80px]"></div>
-
         <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[0.25em] text-blue-300">DRR Calendar Command</p>
-                <h1 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Kalender Operasional</h1>
-                <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Pusat navigasi planning kerja dan jadwal piket. Masuk ke modul lewat card, lalu pantau ringkasan aktivitas dari timeline di bawahnya.</p>
-            </div>
-            <form method="GET" action="{{ route('calendar.index') }}" class="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur sm:flex">
-                <select name="month" class="rounded-xl border-0 bg-white/90 text-sm font-bold text-slate-900">
-                    @for ($i = 1; $i <= 12; $i++)
-                    <option value="{{ $i }}" {{ $month == $i ? 'selected' : '' }}>{{ Carbon\Carbon::create(null, $i, 1)->translatedFormat('F') }}</option>
-                    @endfor
-                </select>
-                <select name="year" class="rounded-xl border-0 bg-white/90 text-sm font-bold text-slate-900">
-                    @for ($i = now()->year - 2; $i <= now()->year + 2; $i++)
-                    <option value="{{ $i }}" {{ $year == $i ? 'selected' : '' }}>{{ $i }}</option>
-                    @endfor
-                </select>
-                <button class="col-span-2 rounded-xl bg-blue-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-blue-500/30 hover:bg-blue-400 sm:col-span-1">Filter</button>
-            </form>
+            <div><p class="text-xs font-black uppercase tracking-[0.25em] text-blue-300">DRR Calendar Command</p><h1 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Kalender Operasional</h1><p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Pusat navigasi planning kerja dan jadwal piket. Masuk ke modul lewat card, lalu pantau ringkasan aktivitas dari timeline di bawahnya.</p></div>
+            <form method="GET" action="{{ route('calendar.index') }}" class="grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur sm:flex"><select name="month" class="rounded-xl border-0 bg-white/90 text-sm font-bold text-slate-900">@for ($i = 1; $i <= 12; $i++)<option value="{{ $i }}" {{ $month == $i ? 'selected' : '' }}>{{ Carbon\Carbon::create(null, $i, 1)->translatedFormat('F') }}</option>@endfor</select><select name="year" class="rounded-xl border-0 bg-white/90 text-sm font-bold text-slate-900">@for ($i = now()->year - 2; $i <= now()->year + 2; $i++)<option value="{{ $i }}" {{ $year == $i ? 'selected' : '' }}>{{ $i }}</option>@endfor</select><button class="col-span-2 rounded-xl bg-blue-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-blue-500/30 hover:bg-blue-400 sm:col-span-1">Filter</button></form>
         </div>
     </div>
 
     <div class="grid gap-4 md:grid-cols-2">
-        <a href="{{ route('calendar.planning', ['month' => $month, 'year' => $year]) }}" class="group relative overflow-hidden rounded-[2rem] border border-blue-200 bg-white p-6 shadow-xl shadow-blue-100/70 transition hover:-translate-y-1 hover:shadow-2xl">
-            <div class="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-blue-100 blur-2xl transition group-hover:bg-blue-200"></div>
-            <div class="relative flex items-start gap-4">
-                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30">
-                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" /></svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Menu Card</p>
-                    <h2 class="mt-1 text-xl font-black text-slate-950">Planning Kerja</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-500">Buat, pantau, ubah status, dan hapus planning kerja mekanik.</p>
-                    <div class="mt-4 flex items-center justify-between rounded-2xl bg-blue-50 px-4 py-3">
-                        <span class="text-xs font-bold text-blue-700">Total bulan ini</span>
-                        <span class="text-2xl font-black text-blue-900">{{ $plannings->count() }}</span>
-                    </div>
-                </div>
-            </div>
-        </a>
-
+        <a href="{{ route('calendar.planning', ['month' => $month, 'year' => $year]) }}" class="group relative overflow-hidden rounded-[2rem] border border-blue-200 bg-white p-6 shadow-xl shadow-blue-100/70 transition hover:-translate-y-1 hover:shadow-2xl"><div class="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-blue-100 blur-2xl transition group-hover:bg-blue-200"></div><div class="relative flex items-start gap-4"><div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg shadow-blue-500/30"><svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" /></svg></div><div class="min-w-0 flex-1"><p class="text-xs font-black uppercase tracking-[0.18em] text-blue-600">Menu Card</p><h2 class="mt-1 text-xl font-black text-slate-950">Planning Kerja</h2><p class="mt-2 text-sm leading-6 text-slate-500">Buat, pantau, ubah status, dan hapus planning kerja mekanik.</p><div class="mt-4 flex items-center justify-between rounded-2xl bg-blue-50 px-4 py-3"><span class="text-xs font-bold text-blue-700">Total bulan ini</span><span class="text-2xl font-black text-blue-900">{{ $plannings->count() }}</span></div></div></div></a>
         @if($canViewPiket)
-        <a href="{{ route('calendar.piket', ['month' => $month, 'year' => $year]) }}" class="group relative overflow-hidden rounded-[2rem] border border-emerald-200 bg-white p-6 shadow-xl shadow-emerald-100/70 transition hover:-translate-y-1 hover:shadow-2xl">
-            <div class="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-emerald-100 blur-2xl transition group-hover:bg-emerald-200"></div>
-            <div class="relative flex items-start gap-4">
-                <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/30">
-                    <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87M12 12a4 4 0 100-8 4 4 0 000 8z" /></svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                    <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Menu Card</p>
-                    <h2 class="mt-1 text-xl font-black text-slate-950">Jadwal Piket</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-500">Kelola piket Sabtu RENTAL FIELD dan histori tidak ada kerjaan.</p>
-                    <div class="mt-4 flex items-center justify-between rounded-2xl bg-emerald-50 px-4 py-3">
-                        <span class="text-xs font-bold text-emerald-700">Sabtu bulan ini</span>
-                        <span class="text-2xl font-black text-emerald-900">{{ count($saturdays) }}</span>
-                    </div>
-                </div>
-            </div>
-        </a>
+        <a href="{{ route('calendar.piket', ['month' => $month, 'year' => $year]) }}" class="group relative overflow-hidden rounded-[2rem] border border-emerald-200 bg-white p-6 shadow-xl shadow-emerald-100/70 transition hover:-translate-y-1 hover:shadow-2xl"><div class="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-emerald-100 blur-2xl transition group-hover:bg-emerald-200"></div><div class="relative flex items-start gap-4"><div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"><svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87M12 12a4 4 0 100-8 4 4 0 000 8z" /></svg></div><div class="min-w-0 flex-1"><p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">Menu Card</p><h2 class="mt-1 text-xl font-black text-slate-950">Jadwal Piket</h2><p class="mt-2 text-sm leading-6 text-slate-500">Kelola piket Sabtu RENTAL FIELD dan histori tidak ada kerjaan.</p><div class="mt-4 flex items-center justify-between rounded-2xl bg-emerald-50 px-4 py-3"><span class="text-xs font-bold text-emerald-700">Sabtu bulan ini</span><span class="text-2xl font-black text-emerald-900">{{ count($saturdays) }}</span></div></div></div></a>
         @endif
     </div>
 
     <div class="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Timeline</p>
-                <h2 class="mt-1 text-xl font-black text-slate-950">Plan Kerja & Piket</h2>
-            </div>
-            <p class="text-sm font-bold text-slate-500">{{ Carbon\Carbon::create($year, $month, 1)->translatedFormat('F Y') }}</p>
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Group Bulan</p><h2 class="text-xl font-black text-slate-950">Timeline 6 Bulan Ke Depan</h2></div><p class="text-xs font-bold text-slate-500">Klik card untuk filter timeline bulan tersebut.</p></div>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            @foreach($timelineMonthCards as $card)
+                @php $isSelected = (int) $month === (int) $card['month'] && (int) $year === (int) $card['year']; @endphp
+                <a href="{{ route('calendar.index', ['month' => $card['month'], 'year' => $card['year']]) }}" class="group relative overflow-hidden rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg {{ $isSelected ? 'border-slate-400 bg-slate-100 ring-2 ring-slate-200' : 'border-slate-200 bg-slate-50 hover:bg-white' }}"><div class="absolute -right-8 -top-8 h-20 w-20 rounded-full {{ $isSelected ? 'bg-slate-300' : 'bg-slate-200' }} blur-2xl"></div><div class="relative"><p class="text-[10px] font-black uppercase tracking-wider {{ $isSelected ? 'text-slate-700' : 'text-slate-400' }}">{{ $card['is_current'] ? 'Bulan Berjalan' : 'Bulan +' . $loop->index }}</p><h3 class="mt-1 text-base font-black text-slate-950">{{ $card['short_label'] }}</h3><div class="mt-4 grid grid-cols-2 gap-2 text-center"><div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Total</p><p class="font-black text-slate-900">{{ $card['total_activity_count'] }}</p></div><div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Plan</p><p class="font-black text-blue-700">{{ $card['planning_count'] }}</p></div><div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Piket</p><p class="font-black text-emerald-700">{{ $card['piket_active_count'] }}</p></div><div class="rounded-xl bg-white px-2 py-2 shadow-sm"><p class="text-[10px] font-bold text-slate-400">Kosong</p><p class="font-black text-amber-700">{{ $card['piket_no_work_count'] }}</p></div></div></div></a>
+            @endforeach
         </div>
+    </div>
 
-        <div class="mt-6 space-y-4">
-            @php
-                $timeline = collect();
-                foreach ($plannings as $plan) {
-                    $timeline->push(['date' => $plan->planned_date, 'type' => 'planning', 'title' => $plan->customer, 'subtitle' => $plan->location, 'badge' => $plan->job_type, 'person' => optional($plan->mechanic)->name]);
-                }
-                foreach ($pikets->flatten() as $piket) {
-                    $timeline->push(['date' => $piket->date, 'type' => 'piket', 'title' => optional($piket->user)->name ?? 'User tidak ditemukan', 'subtitle' => 'Jadwal Piket Sabtu', 'badge' => $piket->status, 'person' => 'RENTAL FIELD']);
-                }
-                $timeline = $timeline->sortBy('date')->values();
-            @endphp
-
-            @forelse($timeline as $item)
-            @php
-                $dateObj = Carbon\Carbon::parse($item['date']);
-                $isPiket = $item['type'] === 'piket';
-                $badgeClass = $isPiket ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200';
-                if (($item['badge'] ?? '') === 'tidak_ada_kerjaan') $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200';
-            @endphp
-            <div class="relative rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-                <div class="flex gap-4">
-                    <div class="flex h-14 w-14 flex-col items-center justify-center rounded-2xl bg-white text-slate-800 shadow-sm ring-1 ring-slate-200">
-                        <span class="text-[10px] font-black uppercase">{{ $dateObj->translatedFormat('M') }}</span>
-                        <span class="text-lg font-black">{{ $dateObj->format('d') }}</span>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider {{ $badgeClass }}">{{ str_replace('_', ' ', $item['badge']) }}</span>
-                            <span class="text-xs font-bold text-slate-400">{{ $dateObj->translatedFormat('l') }}</span>
-                        </div>
-                        <p class="mt-2 text-sm font-black text-slate-950">{{ $item['title'] }}</p>
-                        <p class="mt-1 text-xs font-medium text-slate-500">{{ $item['subtitle'] }} · {{ $item['person'] }}</p>
-                    </div>
-                </div>
-            </div>
-            @empty
-            <div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center">
-                <p class="text-sm font-bold text-slate-500">Belum ada plan kerja atau piket pada periode ini.</p>
-            </div>
-            @endforelse
+    <div class="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Timeline</p><h2 class="mt-1 text-xl font-black text-slate-950">Plan Kerja & Piket</h2></div><p class="text-sm font-bold text-slate-500">{{ Carbon\Carbon::create($year, $month, 1)->translatedFormat('F Y') }}</p></div>
+        <div class="mt-6 space-y-4">@php $timeline = collect(); foreach ($plannings as $plan) { $timeline->push(['date' => $plan->planned_date, 'type' => 'planning', 'title' => $plan->customer, 'subtitle' => $plan->location, 'badge' => $plan->job_type, 'person' => optional($plan->mechanic)->name]); } foreach ($pikets->flatten() as $piket) { $timeline->push(['date' => $piket->date, 'type' => 'piket', 'title' => optional($piket->user)->name ?? 'User tidak ditemukan', 'subtitle' => 'Jadwal Piket Sabtu', 'badge' => $piket->status, 'person' => 'RENTAL FIELD']); } $timeline = $timeline->sortBy('date')->values(); @endphp
+            @forelse($timeline as $item)@php $dateObj = Carbon\Carbon::parse($item['date']); $isPiket = $item['type'] === 'piket'; $badgeClass = $isPiket ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-blue-700 border-blue-200'; if (($item['badge'] ?? '') === 'tidak_ada_kerjaan') $badgeClass = 'bg-amber-50 text-amber-700 border-amber-200'; @endphp
+            <div class="relative rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm"><div class="flex gap-4"><div class="flex h-14 w-14 flex-col items-center justify-center rounded-2xl bg-white text-slate-800 shadow-sm ring-1 ring-slate-200"><span class="text-[10px] font-black uppercase">{{ $dateObj->translatedFormat('M') }}</span><span class="text-lg font-black">{{ $dateObj->format('d') }}</span></div><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><span class="rounded-full border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider {{ $badgeClass }}">{{ str_replace('_', ' ', $item['badge']) }}</span><span class="text-xs font-bold text-slate-400">{{ $dateObj->translatedFormat('l') }}</span></div><p class="mt-2 text-sm font-black text-slate-950">{{ $item['title'] }}</p><p class="mt-1 text-xs font-medium text-slate-500">{{ $item['subtitle'] }} · {{ $item['person'] }}</p></div></div></div>
+            @empty<div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center"><p class="text-sm font-bold text-slate-500">Belum ada plan kerja atau piket pada periode ini.</p></div>@endforelse
         </div>
     </div>
 </div>
