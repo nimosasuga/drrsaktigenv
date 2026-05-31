@@ -75,6 +75,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/penarikans/{id}/share-message', [OperationalShareController::class, 'penarikan'])->name('penarikans.share-message');
         Route::resource('penarikans', PenarikanController::class);
         Route::get('/rental-spareparts', [RentalSparepartController::class, 'index'])->name('rental-spareparts.index');
+        Route::get('/rental-spareparts/in/create', [RentalSparepartController::class, 'createIn'])->name('rental-spareparts.in.create');
+        Route::post('/rental-spareparts/in', [RentalSparepartController::class, 'storeIn'])->name('rental-spareparts.in.store');
         Route::get('/command-center', [CommandCenterController::class, 'index'])->name('command-center.index');
         Route::get('/command-center/export/{module}', [CommandCenterCsvController::class, 'export'])->name('command-center.export');
         Route::post('/command-center/import/{module}', [CommandCenterCsvController::class, 'import'])->name('command-center.import');
