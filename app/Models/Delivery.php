@@ -21,6 +21,7 @@ class Delivery extends Model
         'delivery_code',
         'user_id',
         'branch',
+        'department',
         'status_mekanik',
         'pic',
         'partner',
