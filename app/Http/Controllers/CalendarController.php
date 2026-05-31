@@ -41,7 +41,6 @@ class CalendarController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-
         abort_unless($this->canManagePlanning($user), 403);
 
         $request->validate([
@@ -55,7 +54,6 @@ class CalendarController extends Controller
         ]);
 
         $department = $user->department;
-
         if ($this->canSeeAllDepartments($user)) {
             $mechanic = User::findOrFail($request->mechanic_id);
             $department = $mechanic->department;
@@ -84,7 +82,6 @@ class CalendarController extends Controller
     public function destroy(WorkPlanning $planning)
     {
         $user = Auth::user();
-
         abort_unless($this->canManagePlanning($user), 403);
 
         if (!$this->canSeeAllDepartments($user)) {
@@ -99,8 +96,8 @@ class CalendarController extends Controller
     public function storePiket(Request $request)
     {
         $user = Auth::user();
-
         abort_unless($this->canManagePlanning($user), 403);
+
         if (!$this->canSeeAllDepartments($user)) {
             abort_if($user->department !== 'RENTAL', 403);
         }
@@ -144,8 +141,8 @@ class CalendarController extends Controller
     public function deferPiket(Piket $piket)
     {
         $user = Auth::user();
-
         abort_unless($this->canManagePlanning($user), 403);
+
         if (!$this->canSeeAllDepartments($user)) {
             abort_if($user->department !== 'RENTAL', 403);
         }
@@ -162,7 +159,6 @@ class CalendarController extends Controller
         }
 
         $nextSaturday = $currentDate->copy()->addWeek()->toDateString();
-
         $alreadyExists = Piket::where('date', $nextSaturday)
             ->where('user_id', $piket->user_id)
             ->whereIn('status', ['jalan', 'berhalangan'])
@@ -191,14 +187,13 @@ class CalendarController extends Controller
     public function destroyPiket(Piket $piket)
     {
         $user = Auth::user();
-
         abort_unless($this->canManagePlanning($user), 403);
+
         if (!$this->canSeeAllDepartments($user)) {
             abort_if($user->department !== 'RENTAL', 403);
         }
 
         abort_if($piket->department !== 'RENTAL', 403);
-
         $piket->delete();
 
         return back()->with('success', 'Jadwal piket berhasil dihapus.');
@@ -207,17 +202,13 @@ class CalendarController extends Controller
     public function updateStatus(Request $request, WorkPlanning $planning)
     {
         $user = Auth::user();
-
         abort_unless($this->canManagePlanning($user), 403);
 
         if (!$this->canSeeAllDepartments($user)) {
             abort_if($planning->department !== $user->department, 403);
         }
 
-        $request->validate([
-            'status' => 'required|in:PLANNED,DONE,CANCELLED',
-        ]);
-
+        $request->validate(['status' => 'required|in:PLANNED,DONE,CANCELLED']);
         $planning->update(['status' => $request->status]);
 
         return back()->with('success', 'Status planning kerja berhasil diubah.');
@@ -294,6 +285,9 @@ class CalendarController extends Controller
             $piketMonthCards = $this->piketMonthCards();
         }
 
+        $planningMonthCards = $this->planningMonthCards();
+        $timelineMonthCards = $this->timelineMonthCards($canViewPiket);
+
         return compact(
             'month',
             'year',
@@ -307,6 +301,8 @@ class CalendarController extends Controller
             'pikets',
             'recommendedMechanics',
             'piketMonthCards',
+            'planningMonthCards',
+            'timelineMonthCards',
             'canViewPiket'
         );
     }
@@ -324,6 +320,33 @@ class CalendarController extends Controller
         }
 
         return $saturdays;
+    }
+
+    private function planningMonthCards()
+    {
+        $startMonth = now()->startOfMonth();
+
+        return collect(range(0, 5))->map(function ($offset) use ($startMonth) {
+            $date = $startMonth->copy()->addMonths($offset);
+            $month = (int) $date->format('m');
+            $year = (int) $date->format('Y');
+
+            $monthPlannings = WorkPlanning::whereYear('planned_date', $year)
+                ->whereMonth('planned_date', $month)
+                ->get();
+
+            return [
+                'month' => $month,
+                'year' => $year,
+                'label' => $date->translatedFormat('F Y'),
+                'short_label' => $date->translatedFormat('M Y'),
+                'total_count' => $monthPlannings->count(),
+                'planned_count' => $monthPlannings->where('status', 'PLANNED')->count(),
+                'done_count' => $monthPlannings->where('status', 'DONE')->count(),
+                'cancelled_count' => $monthPlannings->where('status', 'CANCELLED')->count(),
+                'is_current' => $offset === 0,
+            ];
+        });
     }
 
     private function piketMonthCards()
@@ -350,6 +373,35 @@ class CalendarController extends Controller
                 'jalan_count' => $monthPikets->where('status', 'jalan')->count(),
                 'debt_count' => $monthPikets->where('status', 'berhalangan')->count(),
                 'no_work_count' => $monthPikets->where('status', 'tidak_ada_kerjaan')->count(),
+                'is_current' => $offset === 0,
+            ];
+        });
+    }
+
+    private function timelineMonthCards(bool $canViewPiket)
+    {
+        $planningCards = $this->planningMonthCards()->keyBy(fn ($card) => $card['year'] . '-' . $card['month']);
+        $piketCards = $canViewPiket ? $this->piketMonthCards()->keyBy(fn ($card) => $card['year'] . '-' . $card['month']) : collect();
+        $startMonth = now()->startOfMonth();
+
+        return collect(range(0, 5))->map(function ($offset) use ($startMonth, $planningCards, $piketCards) {
+            $date = $startMonth->copy()->addMonths($offset);
+            $month = (int) $date->format('m');
+            $year = (int) $date->format('Y');
+            $key = $year . '-' . $month;
+            $planning = $planningCards->get($key, ['total_count' => 0, 'done_count' => 0]);
+            $piket = $piketCards->get($key, ['active_count' => 0, 'no_work_count' => 0]);
+
+            return [
+                'month' => $month,
+                'year' => $year,
+                'label' => $date->translatedFormat('F Y'),
+                'short_label' => $date->translatedFormat('M Y'),
+                'planning_count' => $planning['total_count'],
+                'planning_done_count' => $planning['done_count'],
+                'piket_active_count' => $piket['active_count'],
+                'piket_no_work_count' => $piket['no_work_count'],
+                'total_activity_count' => $planning['total_count'] + $piket['active_count'] + $piket['no_work_count'],
                 'is_current' => $offset === 0,
             ];
         });
