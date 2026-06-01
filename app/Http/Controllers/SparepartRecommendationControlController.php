@@ -11,6 +11,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RentalSparepartStock;
 use App\Models\SparepartRecommendationControl;
+use App\Support\SparepartRecommendationSupplyStockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -112,6 +113,13 @@ class SparepartRecommendationControlController extends Controller
             'qty_supplied' => ['nullable', 'integer', 'min:0'],
             'source_stock_id' => ['nullable', 'integer', 'exists:rental_sparepart_stocks,id'],
             'source_type' => ['nullable', 'string', 'max:80'],
+            'supply_no_job' => ['nullable', 'string', 'max:150'],
+            'supply_date' => ['nullable', 'date'],
+            'location_code' => ['nullable', 'string', 'max:100'],
+            'location_name' => ['nullable', 'string', 'max:150'],
+            'cabinet' => ['nullable', 'string', 'max:100'],
+            'shelf' => ['nullable', 'string', 'max:100'],
+            'box' => ['nullable', 'string', 'max:100'],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -186,8 +194,16 @@ class SparepartRecommendationControlController extends Controller
     private function markSupplied(SparepartRecommendationControl $control, array $validated, $user, string $note): void
     {
         $qty = array_key_exists('qty_supplied', $validated) && $validated['qty_supplied'] !== null
-            ? (int) $validated['qty_supplied']
+            ? max(1, (int) $validated['qty_supplied'])
             : max(1, (int) $control->qty_recommended - (int) $control->qty_supplied);
+
+        if (!empty($validated['source_stock_id'])) {
+            $this->markSuppliedFromExistingStock($control, $validated, $user, $note, $qty);
+            return;
+        }
+
+        $stock = app(SparepartRecommendationSupplyStockService::class)
+            ->createStockInFromRecommendation($control, array_merge($validated, ['qty_supplied' => $qty]), $user);
 
         $control->qty_supplied = min((int) $control->qty_recommended, (int) $control->qty_supplied + $qty);
         $control->recommendation_status = (int) $control->qty_supplied >= (int) $control->qty_recommended
@@ -196,28 +212,44 @@ class SparepartRecommendationControlController extends Controller
         $control->supply_status = (int) $control->qty_supplied >= (int) $control->qty_recommended
             ? SparepartRecommendationControl::SUPPLY_SUPPLIED
             : SparepartRecommendationControl::SUPPLY_PARTIAL_SUPPLIED;
-        $control->source_type = strtoupper(trim((string) ($validated['source_type'] ?? SparepartRecommendationControl::SOURCE_MANUAL)));
+        $control->source_stock_id = $stock->id;
+        $control->source_type = SparepartRecommendationControl::SOURCE_STOCK;
+        $control->is_cross_allocation = false;
         $control->supplied_by = $user->id;
         $control->supplied_by_name = $user->name;
         $control->supplied_at = now();
-        $control->supply_note = $note ?: $control->supply_note;
+        $control->supply_note = $note ?: 'Supply dibuat menjadi stok sparepart dari Recommendation Control.';
+        $control->save();
+    }
 
-        if (!empty($validated['source_stock_id'])) {
-            $stock = RentalSparepartStock::query()
-                ->where('department', $control->department)
-                ->where('stock_lifecycle_status', RentalSparepartStock::STATUS_ACTIVE)
-                ->whereKey((int) $validated['source_stock_id'])
-                ->first();
+    private function markSuppliedFromExistingStock(SparepartRecommendationControl $control, array $validated, $user, string $note, int $qty): void
+    {
+        $stock = RentalSparepartStock::query()
+            ->where('department', $control->department)
+            ->where('stock_lifecycle_status', RentalSparepartStock::STATUS_ACTIVE)
+            ->whereKey((int) $validated['source_stock_id'])
+            ->first();
 
-            if ($stock) {
-                $control->source_stock_id = $stock->id;
-                $control->source_type = SparepartRecommendationControl::SOURCE_STOCK;
-                $stockSn = strtoupper(trim((string) ($stock->allocation_sn_unit ?: $stock->source_sn_unit)));
-                $controlSn = strtoupper(trim((string) $control->serial_number));
-                $control->is_cross_allocation = $stockSn !== '' && $controlSn !== '' && $stockSn !== $controlSn;
-            }
+        if (!$stock) {
+            abort(422, 'Source stock tidak ditemukan atau sudah archived.');
         }
 
+        $control->qty_supplied = min((int) $control->qty_recommended, (int) $control->qty_supplied + $qty);
+        $control->recommendation_status = (int) $control->qty_supplied >= (int) $control->qty_recommended
+            ? SparepartRecommendationControl::STATUS_SUPPLIED
+            : SparepartRecommendationControl::STATUS_NEED_SUPPLY;
+        $control->supply_status = (int) $control->qty_supplied >= (int) $control->qty_recommended
+            ? SparepartRecommendationControl::SUPPLY_SUPPLIED
+            : SparepartRecommendationControl::SUPPLY_PARTIAL_SUPPLIED;
+        $control->source_stock_id = $stock->id;
+        $control->source_type = SparepartRecommendationControl::SOURCE_STOCK;
+        $stockSn = strtoupper(trim((string) ($stock->allocation_sn_unit ?: $stock->source_sn_unit)));
+        $controlSn = strtoupper(trim((string) $control->serial_number));
+        $control->is_cross_allocation = $stockSn !== '' && $controlSn !== '' && $stockSn !== $controlSn;
+        $control->supplied_by = $user->id;
+        $control->supplied_by_name = $user->name;
+        $control->supplied_at = now();
+        $control->supply_note = $note ?: 'Supply ditandai dari stok sparepart existing.';
         $control->save();
     }
 
