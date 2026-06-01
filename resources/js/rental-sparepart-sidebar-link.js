@@ -22,6 +22,10 @@ const MAIN_MENU_ITEMS = [
         label: 'My Profile',
     },
     {
+        path: '/payment-settings',
+        label: 'Payment Settings',
+    },
+    {
         path: '/sparepart-recommendations',
         label: 'Recommendation Control',
     },
@@ -37,6 +41,29 @@ function normalizePath(href) {
     } catch (error) {
         return href || '';
     }
+}
+
+function normalizeText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function userCanManagePaymentSettings() {
+    const sidebar = document.querySelector('#sidebar');
+
+    if (!sidebar) {
+        return false;
+    }
+
+    const footerText = normalizeText(sidebar.querySelector('.border-t')?.textContent || '');
+
+    return footerText.includes('super admin') ||
+        footerText.includes('superadmin') ||
+        footerText.includes('admin');
 }
 
 function menuMetaForLink(link) {
@@ -58,6 +85,12 @@ function commandCenterLink(nav) {
     return Array.from(nav.querySelectorAll('a')).find((link) => {
         return normalizePath(link.getAttribute('href')) === '/command-center' ||
             link.textContent.trim().toLowerCase().includes('command center');
+    });
+}
+
+function fallbackAnchorLink(nav) {
+    return commandCenterLink(nav) || Array.from(nav.querySelectorAll('a')).find((link) => {
+        return normalizePath(link.getAttribute('href')) === '/dashboard';
     });
 }
 
@@ -87,7 +120,7 @@ function ensureRentalSparepartSidebarLink() {
         return;
     }
 
-    const anchorLink = commandCenterLink(nav);
+    const anchorLink = fallbackAnchorLink(nav);
 
     if (!anchorLink) {
         return;
@@ -110,7 +143,7 @@ function ensureRecommendationControlSidebarLink() {
         return;
     }
 
-    const anchorLink = commandCenterLink(nav);
+    const anchorLink = fallbackAnchorLink(nav);
 
     if (!anchorLink) {
         return;
@@ -121,6 +154,29 @@ function ensureRecommendationControlSidebarLink() {
         label: 'Recommendation Control',
         datasetKey: 'recommendationControlLink',
         iconPath: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    });
+
+    anchorLink.insertAdjacentElement('afterend', link);
+}
+
+function ensurePaymentSettingsSidebarLink() {
+    const nav = sidebarNav();
+
+    if (!nav || !userCanManagePaymentSettings() || document.querySelector('[data-payment-settings-link="true"]')) {
+        return;
+    }
+
+    const anchorLink = fallbackAnchorLink(nav);
+
+    if (!anchorLink) {
+        return;
+    }
+
+    const link = createSidebarLink({
+        path: '/payment-settings',
+        label: 'Payment Settings',
+        datasetKey: 'paymentSettingsLink',
+        iconPath: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z',
     });
 
     anchorLink.insertAdjacentElement('afterend', link);
@@ -178,6 +234,7 @@ function sortMainSidebarMenu() {
 function bootSidebarMainMenu() {
     ensureRentalSparepartSidebarLink();
     ensureRecommendationControlSidebarLink();
+    ensurePaymentSettingsSidebarLink();
     translateMainMenuHeading();
     sortMainSidebarMenu();
 }
