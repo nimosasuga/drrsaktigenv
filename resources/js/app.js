@@ -15,3 +15,4 @@ import "./update-job-detail-extra-fields";
 import "./rental-sparepart-sidebar-link";
 import "./rental-sparepart-dashboard-layout";
 import "./rental-sparepart-adjustment-link";
+import "./rental-sparepart-archive-ui";
