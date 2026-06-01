@@ -168,13 +168,19 @@ class RentalSparepartImportController extends Controller
         ];
 
         $rows = [self::TEMPLATE_HEADERS, $example];
-        $csv = "\xEF\xBB\xBF" . collect($rows)->map(function ($row) {
-            return collect($row)->map(fn ($value) => $this->csvCell($value))->implode(',');
-        })->implode("\n");
+        $filename = 'rental_sparepart_import_template.csv';
 
-        return response($csv, 200, [
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            foreach ($rows as $row) {
+                fputcsv($handle, $row, ';');
+            }
+
+            fclose($handle);
+        }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="rental_sparepart_import_template.csv"',
         ]);
     }
 
@@ -209,6 +215,7 @@ class RentalSparepartImportController extends Controller
 
             return RentalSparepartStock::query()
                 ->where('department', self::DEPARTMENT)
+                ->where('stock_lifecycle_status', RentalSparepartStock::STATUS_ACTIVE)
                 ->where('sparepart_item_id', $item->id)
                 ->where('location_id', $location->id)
                 ->where('source_no_job', $this->nullableUpper($row['no_job'] ?? null))
@@ -260,6 +267,7 @@ class RentalSparepartImportController extends Controller
 
         $stock = RentalSparepartStock::query()->firstOrNew([
             'department' => self::DEPARTMENT,
+            'stock_lifecycle_status' => RentalSparepartStock::STATUS_ACTIVE,
             'sparepart_item_id' => $item->id,
             'location_id' => $location->id,
             'source_no_job' => $this->nullableUpper($row['no_job'] ?? null),
@@ -273,6 +281,7 @@ class RentalSparepartImportController extends Controller
             'allocation_sn_unit' => $this->nullableUpper($row['allocation_sn_unit'] ?? null),
         ]);
 
+        $stock->stock_lifecycle_status = RentalSparepartStock::STATUS_ACTIVE;
         $stock->qty_on_hand = (int) ($stock->qty_on_hand ?? 0) + $qtyMasuk;
         $stock->qty_reserved = (int) ($stock->qty_reserved ?? 0);
         $stock->remarks = trim((string) ($row['remarks'] ?? '')) ?: $stock->remarks;
@@ -309,13 +318,14 @@ class RentalSparepartImportController extends Controller
     {
         $errors = [];
         $rows = [];
+        $delimiter = $this->detectDelimiter($filePath);
         $handle = fopen($filePath, 'r');
 
         if (!$handle) {
             return ['rows' => [], 'errors' => ['File CSV tidak bisa dibaca.']];
         }
 
-        $header = fgetcsv($handle);
+        $header = fgetcsv($handle, 0, $delimiter);
 
         if (!$header) {
             fclose($handle);
@@ -332,7 +342,7 @@ class RentalSparepartImportController extends Controller
 
         $lineNumber = 1;
 
-        while (($data = fgetcsv($handle)) !== false) {
+        while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
             $lineNumber++;
 
             if ($this->isEmptyRow($data)) {
@@ -400,6 +410,23 @@ class RentalSparepartImportController extends Controller
         return $row;
     }
 
+    private function detectDelimiter(string $filePath): string
+    {
+        $handle = fopen($filePath, 'r');
+
+        if (!$handle) {
+            return ';';
+        }
+
+        $line = (string) fgets($handle);
+        fclose($handle);
+
+        $semicolonCount = substr_count($line, ';');
+        $commaCount = substr_count($line, ',');
+
+        return $semicolonCount >= $commaCount ? ';' : ',';
+    }
+
     private function isEmptyRow(array $row): bool
     {
         return collect($row)->filter(fn ($value) => trim((string) $value) !== '')->isEmpty();
@@ -424,14 +451,6 @@ class RentalSparepartImportController extends Controller
         $value = $this->upper($value);
 
         return $value !== '' ? $value : null;
-    }
-
-    private function csvCell($value): string
-    {
-        $value = (string) $value;
-        $value = str_replace('"', '""', $value);
-
-        return '"' . $value . '"';
     }
 
     private function canManage(): bool
