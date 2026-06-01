@@ -48,6 +48,12 @@ class RentalSparepartController extends Controller
     {
         abort_unless($this->canAccessRentalSparepart(), 403, 'Modul sparepart rental hanya untuk department RENTAL, admin, dan super admin.');
 
+        $lifecycleStatus = strtoupper(trim((string) $request->input('stock_lifecycle_status', RentalSparepartStock::STATUS_ACTIVE)));
+
+        if (!in_array($lifecycleStatus, [RentalSparepartStock::STATUS_ACTIVE, RentalSparepartStock::STATUS_ARCHIVED], true)) {
+            $lifecycleStatus = RentalSparepartStock::STATUS_ACTIVE;
+        }
+
         $filters = [
             'search' => trim((string) $request->input('search', '')),
             'location_id' => $request->input('location_id'),
@@ -55,11 +61,13 @@ class RentalSparepartController extends Controller
             'sn_unit' => trim((string) $request->input('sn_unit', '')),
             'no_job' => trim((string) $request->input('no_job', '')),
             'stock_status' => trim((string) $request->input('stock_status', '')),
+            'stock_lifecycle_status' => $lifecycleStatus,
         ];
 
         $baseQuery = RentalSparepartStock::query()
             ->with(['item', 'location'])
-            ->where('department', self::DEPARTMENT);
+            ->where('department', self::DEPARTMENT)
+            ->where('stock_lifecycle_status', $lifecycleStatus);
 
         $this->applyFilters($baseQuery, $filters);
 
@@ -69,7 +77,7 @@ class RentalSparepartController extends Controller
             ->withQueryString();
 
         $summary = $this->summary();
-        $filterOptions = $this->filterOptions();
+        $filterOptions = $this->filterOptions($lifecycleStatus);
         $canManageSparepart = $this->canManageRentalSparepart();
 
         return view('rental-spareparts.index', compact('stocks', 'summary', 'filterOptions', 'filters', 'canManageSparepart'));
@@ -144,6 +152,7 @@ class RentalSparepartController extends Controller
 
             $stock = RentalSparepartStock::query()->firstOrNew([
                 'department' => self::DEPARTMENT,
+                'stock_lifecycle_status' => RentalSparepartStock::STATUS_ACTIVE,
                 'sparepart_item_id' => $item->id,
                 'location_id' => $location->id,
                 'source_no_job' => $this->nullableUpper($validated['no_job'] ?? null),
@@ -159,6 +168,7 @@ class RentalSparepartController extends Controller
 
             $stock->qty_on_hand = (int) ($stock->qty_on_hand ?? 0) + (int) $validated['qty_masuk'];
             $stock->qty_reserved = (int) ($stock->qty_reserved ?? 0);
+            $stock->stock_lifecycle_status = RentalSparepartStock::STATUS_ACTIVE;
             $stock->remarks = $validated['remarks'] ?? $stock->remarks;
             $stock->save();
 
@@ -239,6 +249,10 @@ class RentalSparepartController extends Controller
             $query->where('source_no_job', $filters['no_job']);
         }
 
+        if ($filters['stock_lifecycle_status'] === RentalSparepartStock::STATUS_ARCHIVED) {
+            return;
+        }
+
         if ($filters['stock_status'] !== '') {
             match ($filters['stock_status']) {
                 'HABIS' => $query->whereRaw('(qty_on_hand - qty_reserved) <= 0'),
@@ -258,7 +272,12 @@ class RentalSparepartController extends Controller
     {
         $stocks = RentalSparepartStock::with('item')
             ->where('department', self::DEPARTMENT)
+            ->where('stock_lifecycle_status', RentalSparepartStock::STATUS_ACTIVE)
             ->get();
+
+        $archivedCount = RentalSparepartStock::where('department', self::DEPARTMENT)
+            ->where('stock_lifecycle_status', RentalSparepartStock::STATUS_ARCHIVED)
+            ->count();
 
         $qtyEmpty = $stocks->filter(fn ($stock) => $stock->qty_available <= 0)->count();
         $qtyLow = $stocks->filter(function ($stock) {
@@ -274,6 +293,7 @@ class RentalSparepartController extends Controller
         return [
             'total_part' => $stocks->pluck('sparepart_item_id')->filter()->unique()->count(),
             'total_stock_row' => $stocks->count(),
+            'archived_stock_row' => $archivedCount,
             'qty_on_hand' => $stocks->sum('qty_on_hand'),
             'qty_reserved' => $stocks->sum('qty_reserved'),
             'qty_available' => $stocks->sum(fn ($stock) => $stock->qty_available),
@@ -290,10 +310,11 @@ class RentalSparepartController extends Controller
         ];
     }
 
-    private function filterOptions(): array
+    private function filterOptions(string $lifecycleStatus = RentalSparepartStock::STATUS_ACTIVE): array
     {
         $stocks = RentalSparepartStock::with('location')
             ->where('department', self::DEPARTMENT)
+            ->where('stock_lifecycle_status', $lifecycleStatus)
             ->get();
 
         $customers = $stocks
