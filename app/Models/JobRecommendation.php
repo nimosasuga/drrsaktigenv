@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\SparepartRecommendationControlService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,17 @@ class JobRecommendation extends Model
     protected $casts = [
         'qty' => 'integer',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (JobRecommendation $recommendation) {
+            app(SparepartRecommendationControlService::class)->createFromJobRecommendation($recommendation);
+        });
+
+        static::deleting(function (JobRecommendation $recommendation) {
+            app(SparepartRecommendationControlService::class)->cancelFromJobRecommendation($recommendation);
+        });
+    }
 
     public function job(): BelongsTo
     {
