@@ -306,19 +306,36 @@
                         @endif
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2 lg:w-72">
-                        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
-                            <p class="text-[11px] font-bold uppercase text-emerald-500">On Hand</p>
-                            <p class="mt-1 text-xl font-black text-emerald-700">{{ number_format($stock->qty_on_hand) }}</p>
+                    <div class="space-y-3 lg:w-72">
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-center">
+                                <p class="text-[11px] font-bold uppercase text-emerald-500">On Hand</p>
+                                <p class="mt-1 text-xl font-black text-emerald-700">{{ number_format($stock->qty_on_hand) }}</p>
+                            </div>
+                            <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-center">
+                                <p class="text-[11px] font-bold uppercase text-amber-500">Reserved</p>
+                                <p class="mt-1 text-xl font-black text-amber-700">{{ number_format($stock->qty_reserved) }}</p>
+                            </div>
+                            <div class="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-center">
+                                <p class="text-[11px] font-bold uppercase text-blue-500">Sisa</p>
+                                <p class="mt-1 text-xl font-black text-blue-700">{{ number_format($available) }}</p>
+                            </div>
                         </div>
-                        <div class="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-center">
-                            <p class="text-[11px] font-bold uppercase text-amber-500">Reserved</p>
-                            <p class="mt-1 text-xl font-black text-amber-700">{{ number_format($stock->qty_reserved) }}</p>
-                        </div>
-                        <div class="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-center">
-                            <p class="text-[11px] font-bold uppercase text-blue-500">Sisa</p>
-                            <p class="mt-1 text-xl font-black text-blue-700">{{ number_format($available) }}</p>
-                        </div>
+
+                        @if($canManageSparepart)
+                            <div class="flex gap-2">
+                                <a href="{{ route('rental-spareparts.stocks.edit', $stock) }}" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white hover:bg-blue-700">
+                                    Edit
+                                </a>
+                                <form method="POST" action="{{ route('rental-spareparts.stocks.destroy', $stock) }}" class="flex-1" onsubmit="return confirm('Hapus baris stok ini? Jika qty on hand masih ada, sistem akan membuat movement ADJUSTMENT sebagai audit.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-red-600 px-4 py-3 text-sm font-black text-white hover:bg-red-700">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
