@@ -23,6 +23,7 @@ use App\Http\Controllers\OperationalShareController;
 use App\Http\Controllers\UpdateJobExtraFieldController;
 use App\Http\Controllers\UpdateJobAssetSearchController;
 use App\Http\Controllers\UpdateJobPreventiveMaintenanceCheckController;
+use App\Http\Controllers\UpdateJobRecommendationHistoryController;
 use App\Http\Controllers\UpdateJobSaveController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\RentalSparepartController;
@@ -68,7 +69,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/update-jobs/check-preventive-maintenance', UpdateJobPreventiveMaintenanceCheckController::class)->name('update-jobs.check-preventive-maintenance');
         Route::get('/update-jobs/extra-fields/asset', [UpdateJobExtraFieldController::class, 'asset'])->name('update-jobs.extra-fields.asset');
         Route::get('/update-jobs/{id}/extra-fields', [UpdateJobExtraFieldController::class, 'job'])->name('update-jobs.extra-fields.job');
-        Route::get('/update-jobs/recommendation-history', [\App\Http\Controllers\JobController::class, 'recommendationHistory'])->name('update-jobs.recommendation-history');
+        Route::get('/update-jobs/recommendation-history', UpdateJobRecommendationHistoryController::class)->name('update-jobs.recommendation-history');
         Route::get('/update-jobs/{id}/share-message', [UpdateJobShareController::class, 'message'])->name('update-jobs.share-message');
         Route::post('/update-jobs', [UpdateJobSaveController::class, 'store'])->name('update-jobs.store');
         Route::put('/update-jobs/{id}', [UpdateJobSaveController::class, 'update'])->name('update-jobs.update');
