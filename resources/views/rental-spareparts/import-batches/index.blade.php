@@ -8,7 +8,7 @@
                 <p class="text-xs font-black uppercase tracking-[0.2em] text-cyan-600">Rental Sparepart</p>
                 <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Import Batch History</h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-                    Riwayat upload CSV sparepart rental. Setiap batch terhubung ke movement IN yang dibuat saat confirm import.
+                    Riwayat upload CSV sparepart rental. Batch IMPORTED bisa di-rollback jika stok hasil import belum terpakai atau belum reserved.
                 </p>
             </div>
 
@@ -18,7 +18,19 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+    @if(session('success'))
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+            {{ $errors->first() }}
+        </div>
+    @endif
+
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-5">
         <div class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
             <p class="text-xs font-bold uppercase tracking-wide text-slate-400">Total Batch</p>
             <p class="mt-2 text-2xl font-black text-slate-900">{{ number_format($summary['total_batch']) }}</p>
@@ -26,6 +38,10 @@
         <div class="rounded-3xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
             <p class="text-xs font-bold uppercase tracking-wide text-emerald-500">Imported</p>
             <p class="mt-2 text-2xl font-black text-emerald-700">{{ number_format($summary['imported']) }}</p>
+        </div>
+        <div class="rounded-3xl border border-red-200 bg-red-50 p-4 shadow-sm">
+            <p class="text-xs font-bold uppercase tracking-wide text-red-500">Rolled Back</p>
+            <p class="mt-2 text-2xl font-black text-red-700">{{ number_format($summary['rolled_back'] ?? 0) }}</p>
         </div>
         <div class="rounded-3xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
             <p class="text-xs font-bold uppercase tracking-wide text-blue-500">Total Rows</p>
@@ -48,6 +64,7 @@
                 <select name="status" class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm focus:border-cyan-500 focus:outline-none focus:ring-4 focus:ring-cyan-100">
                     <option value="">Semua</option>
                     <option value="IMPORTED" {{ $filters['status'] === 'IMPORTED' ? 'selected' : '' }}>IMPORTED</option>
+                    <option value="ROLLED_BACK" {{ $filters['status'] === 'ROLLED_BACK' ? 'selected' : '' }}>ROLLED_BACK</option>
                 </select>
             </div>
             <div class="flex items-end gap-2">
@@ -59,16 +76,29 @@
 
     <div class="space-y-4">
         @forelse($batches as $batch)
+            @php
+                $isRolledBack = $batch->status === 'ROLLED_BACK';
+                $statusClass = $isRolledBack ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700';
+            @endphp
             <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2">
-                            <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">{{ $batch->status }}</span>
+                            <span class="rounded-full border px-2.5 py-1 text-xs font-black {{ $statusClass }}">{{ $batch->status }}</span>
                             <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{{ optional($batch->created_at)->format('d M Y H:i') }}</span>
                         </div>
 
                         <h2 class="mt-3 text-lg font-black text-slate-950">{{ $batch->batch_code }}</h2>
                         <p class="mt-1 text-sm font-semibold text-slate-600">Importer: {{ $batch->imported_by_name ?: '-' }}</p>
+
+                        @if($isRolledBack)
+                            <div class="mt-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                                <p class="font-black">Rollback oleh: {{ $batch->rolled_back_by_name ?: '-' }} pada {{ optional($batch->rolled_back_at)->format('d M Y H:i') ?: '-' }}</p>
+                                @if($batch->rollback_note)
+                                    <p class="mt-1 leading-6">{{ $batch->rollback_note }}</p>
+                                @endif
+                            </div>
+                        @endif
 
                         <div class="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4 lg:grid-cols-8">
                             <div class="rounded-2xl bg-slate-50 p-3"><p class="text-xs font-bold uppercase text-slate-400">Rows</p><p class="mt-1 text-xl font-black text-slate-800">{{ number_format($batch->total_rows) }}</p></div>
@@ -82,9 +112,21 @@
                         </div>
                     </div>
 
-                    <a href="{{ route('rental-spareparts.movements.index', ['movement_type' => 'IN', 'no_job' => '']) }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
-                        Cek Movement
-                    </a>
+                    <div class="flex flex-col gap-2 lg:w-52">
+                        <a href="{{ route('rental-spareparts.movements.index', ['movement_type' => 'IN']) }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                            Cek Movement
+                        </a>
+
+                        @if(!$isRolledBack)
+                            <form method="POST" action="{{ route('rental-spareparts.import-batches.rollback', $batch) }}" class="space-y-2">
+                                @csrf
+                                <textarea name="rollback_note" rows="2" placeholder="Catatan rollback opsional" class="w-full rounded-2xl border border-red-200 bg-white px-3 py-2 text-xs focus:border-red-500 focus:outline-none focus:ring-4 focus:ring-red-100"></textarea>
+                                <button type="submit" onclick="return confirm('Rollback batch {{ $batch->batch_code }}? Stok hasil import akan dikurangi kembali jika masih cukup.')" class="inline-flex w-full items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white hover:bg-red-700">
+                                    Rollback Batch
+                                </button>
+                            </form>
+                        @endif
+                    </div>
                 </div>
             </div>
         @empty
