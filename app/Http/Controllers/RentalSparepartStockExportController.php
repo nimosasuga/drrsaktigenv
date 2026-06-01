@@ -21,16 +21,24 @@ class RentalSparepartStockExportController extends Controller
     {
         abort_unless($this->canAccess(), 403);
 
+        $lifecycleStatus = strtoupper(trim((string) $request->input('stock_lifecycle_status', RentalSparepartStock::STATUS_ACTIVE)));
+
+        if (!in_array($lifecycleStatus, [RentalSparepartStock::STATUS_ACTIVE, RentalSparepartStock::STATUS_ARCHIVED], true)) {
+            $lifecycleStatus = RentalSparepartStock::STATUS_ACTIVE;
+        }
+
         $query = RentalSparepartStock::query()
             ->with(['item', 'location'])
-            ->where('department', self::DEPARTMENT);
+            ->where('department', self::DEPARTMENT)
+            ->where('stock_lifecycle_status', $lifecycleStatus);
 
-        $this->applyFilters($query, $request);
+        $this->applyFilters($query, $request, $lifecycleStatus);
 
         $rows = [];
         $rows[] = [
             'ID',
             'Department',
+            'Lifecycle Status',
             'Part Number',
             'Part Name',
             'Default Type Unit',
@@ -63,6 +71,7 @@ class RentalSparepartStockExportController extends Controller
                 $rows[] = [
                     $stock->id,
                     $stock->department,
+                    $stock->stock_lifecycle_status,
                     $stock->item?->part_number,
                     $stock->item?->part_name,
                     $stock->item?->default_type_unit,
@@ -96,7 +105,7 @@ class RentalSparepartStockExportController extends Controller
             return collect($row)->map(fn ($value) => $this->csvCell($value))->implode(',');
         })->implode("\n");
 
-        $filename = 'rental_sparepart_stocks_' . now()->format('Ymd_His') . '.csv';
+        $filename = 'rental_sparepart_stocks_' . strtolower($lifecycleStatus) . '_' . now()->format('Ymd_His') . '.csv';
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
@@ -104,7 +113,7 @@ class RentalSparepartStockExportController extends Controller
         ]);
     }
 
-    private function applyFilters($query, Request $request): void
+    private function applyFilters($query, Request $request, string $lifecycleStatus): void
     {
         $search = trim((string) $request->input('search', ''));
         $locationId = $request->input('location_id');
@@ -158,6 +167,10 @@ class RentalSparepartStockExportController extends Controller
             $query->where('source_no_job', $noJob);
         }
 
+        if ($lifecycleStatus === RentalSparepartStock::STATUS_ARCHIVED) {
+            return;
+        }
+
         if ($stockStatus !== '') {
             match ($stockStatus) {
                 'HABIS' => $query->whereRaw('(qty_on_hand - qty_reserved) <= 0'),
@@ -175,6 +188,10 @@ class RentalSparepartStockExportController extends Controller
 
     private function stockStatus(RentalSparepartStock $stock): string
     {
+        if ($stock->stock_lifecycle_status === RentalSparepartStock::STATUS_ARCHIVED) {
+            return 'ARCHIVED';
+        }
+
         $available = (int) $stock->qty_available;
         $minStock = (int) ($stock->item?->min_stock ?? 0);
 
@@ -195,6 +212,10 @@ class RentalSparepartStockExportController extends Controller
 
     private function problemFlags(RentalSparepartStock $stock): array
     {
+        if ($stock->stock_lifecycle_status === RentalSparepartStock::STATUS_ARCHIVED) {
+            return ['ARCHIVED'];
+        }
+
         $flags = [];
 
         if ((int) $stock->qty_available <= 0) {
@@ -223,7 +244,7 @@ class RentalSparepartStockExportController extends Controller
         }
 
         if ((int) $stock->qty_on_hand < (int) $stock->qty_reserved) {
-            $flags[] = 'MINUS_AVAILABLE';
+            $flags[] = 'AVAILABLE_BELOW_RESERVED';
         }
 
         return $flags;
