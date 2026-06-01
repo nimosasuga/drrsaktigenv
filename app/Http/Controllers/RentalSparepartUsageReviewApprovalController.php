@@ -12,6 +12,7 @@ namespace App\Http\Controllers;
 use App\Models\RentalSparepartMovement;
 use App\Models\RentalSparepartStock;
 use App\Models\RentalSparepartUsageReview;
+use App\Support\SparepartRecommendationInstallationSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -140,13 +141,15 @@ class RentalSparepartUsageReviewApprovalController extends Controller
             $review->reviewed_at = now();
             $review->review_note = $validated['review_note'] ?? 'Approved oleh koordinator rental.';
             $review->save();
+
+            app(SparepartRecommendationInstallationSyncService::class)->syncFromApprovedUsageReview($review);
         });
 
         if ($error) {
             return back()->withErrors(['review' => $error]);
         }
 
-        return back()->with('success', 'Usage review berhasil di-approve dan movement OUT sudah dibuat.');
+        return back()->with('success', 'Usage review berhasil di-approve, movement OUT dibuat, dan Recommendation Control diperbarui jika ada rekomendasi yang cocok.');
     }
 
     private function isCrossAllocation(RentalSparepartStock $stock, RentalSparepartUsageReview $review): bool
