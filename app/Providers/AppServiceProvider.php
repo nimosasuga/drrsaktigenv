@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Support\DepartmentPartnerOptions;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,27 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        View::composer([
+            'update-jobs.create',
+            'update-jobs.edit',
+            'batteries.create',
+            'batteries.edit',
+            'chargers.create',
+            'chargers.edit',
+            'deliveries.create',
+            'deliveries.edit',
+            'penarikans.create',
+            'penarikans.edit',
+        ], function ($view) {
+            if (!Auth::check()) {
+                return;
+            }
+
+            $user = Auth::user();
+            $data = $view->getData();
+            $branch = $data['branch'] ?? ($user->branch ?? 'HO / Pusat');
+
+            $view->with('partners', DepartmentPartnerOptions::forUser($user, $branch));
+        });
     }
 }
