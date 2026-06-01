@@ -7,6 +7,7 @@ use App\Models\Job;
 use App\Models\RentalSparepartUsageReview;
 use App\Models\User;
 use App\Models\UnitAsset;
+use App\Support\DepartmentPartnerOptions;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -355,10 +356,7 @@ class JobController extends Controller
     {
         $user = Auth::user();
         $branch = $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->get(['id', 'name']);
+        $partners = DepartmentPartnerOptions::forUser($user, $branch);
 
         $jobTypeOptions = $this->jobTypeOptions();
         $statusUnitOptions = $this->statusUnitOptions();
@@ -470,6 +468,8 @@ class JobController extends Controller
             'rfu_date'      => 'nullable|date',
         ]);
 
+        $validated['partner'] = DepartmentPartnerOptions::normalizePartner($validated['partner'] ?? null, Auth::user());
+
         if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
             return $blockedResponse;
         }
@@ -553,10 +553,7 @@ class JobController extends Controller
 
         $user = Auth::user();
         $branch = $user->branch ?? 'HO / Pusat';
-
-        $partners = User::where('branch', $branch)
-            ->where('id', '!=', $user->id)
-            ->get(['id', 'name']);
+        $partners = DepartmentPartnerOptions::forUser($user, $branch);
 
         $job->job_type = $this->normalizeJobType($job->job_type);
         $job->status_unit = $this->normalizeStatusUnit($job->status_unit);
@@ -602,6 +599,8 @@ class JobController extends Controller
             'rfu_date'      => 'nullable|date',
         ]);
 
+        $validated['partner'] = DepartmentPartnerOptions::normalizePartner($validated['partner'] ?? null, Auth::user());
+
         if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
             return $blockedResponse;
         }
@@ -615,6 +614,7 @@ class JobController extends Controller
         try {
             $job->update($validated);
 
+            // Hapus & input ulang install parts
             $job->installParts()->delete();
             if ($request->has('inst_part_name')) {
                 foreach ($request->inst_part_name as $key => $part_name) {
@@ -631,6 +631,7 @@ class JobController extends Controller
                 }
             }
 
+            // Hapus & input ulang recommendations
             $job->recommendations()->delete();
             if ($request->has('rec_part_name')) {
                 foreach ($request->rec_part_name as $key => $part_name) {
@@ -653,21 +654,15 @@ class JobController extends Controller
         }
     }
 
-    /**
-     * Menghapus Job.
-     */
     public function destroy($id)
     {
         $job = Job::findOrFail($id);
 
-        // Cek Hak Akses
         if (!$this->canEditJob($job)) {
-            return redirect()->route('update-jobs.show', $id)->withErrors(['error' => 'Akses Ditolak: Anda tidak memiliki hak untuk menghapus Pekerjaan mekanik lain.']);
+            return redirect()->route('update-jobs.show', $id)->withErrors(['error' => 'Akses Ditolak: Anda tidak memiliki hak untuk menghapus data ini.']);
         }
 
-        // Penghapusan akan otomatis menghapus installParts & recommendations (karena CascadeOnDelete di database)
         $job->delete();
-
-        return redirect()->route('update-jobs.index')->with('success', 'Data Update Job berhasil dihapus permanen.');
+        return redirect()->route('update-jobs.index')->with('success', 'Update Job berhasil dihapus.');
     }
 }
