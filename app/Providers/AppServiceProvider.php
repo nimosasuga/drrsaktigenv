@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\JobInstallPart;
+use App\Observers\JobInstallPartObserver;
 use App\Support\DepartmentPartnerOptions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\View;
@@ -22,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        JobInstallPart::observe(JobInstallPartObserver::class);
+
         View::composer([
             'update-jobs.create',
             'update-jobs.edit',
