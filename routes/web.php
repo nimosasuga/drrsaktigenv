@@ -89,6 +89,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/rental-spareparts/stocks/{stock}/edit', [RentalSparepartStockController::class, 'edit'])->name('rental-spareparts.stocks.edit');
         Route::put('/rental-spareparts/stocks/{stock}', [RentalSparepartStockController::class, 'update'])->name('rental-spareparts.stocks.update');
         Route::delete('/rental-spareparts/stocks/{stock}', [RentalSparepartStockController::class, 'destroy'])->name('rental-spareparts.stocks.destroy');
+        Route::post('/rental-spareparts/stocks/{stock}/restore', [RentalSparepartStockController::class, 'restore'])->name('rental-spareparts.stocks.restore');
         Route::get('/rental-spareparts/adjustments/create', [RentalSparepartAdjustmentImportController::class, 'create'])->name('rental-spareparts.adjustments.create');
         Route::get('/rental-spareparts/adjustments/template', [RentalSparepartAdjustmentImportController::class, 'template'])->name('rental-spareparts.adjustments.template');
         Route::post('/rental-spareparts/adjustments/preview', [RentalSparepartAdjustmentImportController::class, 'preview'])->name('rental-spareparts.adjustments.preview');
