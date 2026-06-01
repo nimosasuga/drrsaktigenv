@@ -16,6 +16,7 @@ const MAIN_MENU_ITEMS = [
     {
         path: '/rental-spareparts',
         label: 'Management Sparepart',
+        requiresRentalManager: true,
     },
     {
         path: '/profile',
@@ -24,10 +25,12 @@ const MAIN_MENU_ITEMS = [
     {
         path: '/payment-settings',
         label: 'Payment Settings',
+        requiresAdmin: true,
     },
     {
         path: '/sparepart-recommendations',
         label: 'Recommendation Control',
+        requiresRentalManager: true,
     },
 ];
 
@@ -52,24 +55,55 @@ function normalizeText(value) {
         .trim();
 }
 
+function currentUserRole() {
+    return normalizeText(document.body?.dataset?.userRole || '');
+}
+
+function currentUserDepartment() {
+    return String(document.body?.dataset?.userDepartment || '').toUpperCase().trim();
+}
+
+function isGlobalAdmin() {
+    const role = currentUserRole();
+
+    return role === 'admin' || role === 'super admin' || role === 'superadmin';
+}
+
+function isRentalManager() {
+    const role = currentUserRole();
+    const department = currentUserDepartment();
+
+    return department === 'RENTAL' && (role === 'koordinator' || role === 'sect head' || role === 'secthead');
+}
+
+function userCanManageRentalSparepart() {
+    return isGlobalAdmin() || isRentalManager();
+}
+
 function userCanManagePaymentSettings() {
-    const sidebar = document.querySelector('#sidebar');
-
-    if (!sidebar) {
-        return false;
-    }
-
-    const footerText = normalizeText(sidebar.querySelector('.border-t')?.textContent || '');
-
-    return footerText.includes('super admin') ||
-        footerText.includes('superadmin') ||
-        footerText.includes('admin');
+    return isGlobalAdmin();
 }
 
 function menuMetaForLink(link) {
     const path = normalizePath(link.getAttribute('href'));
 
     return MAIN_MENU_ITEMS.find((item) => path === item.path || path.startsWith(`${item.path}/`));
+}
+
+function shouldShowMenuItem(meta) {
+    if (!meta) {
+        return false;
+    }
+
+    if (meta.requiresRentalManager) {
+        return userCanManageRentalSparepart();
+    }
+
+    if (meta.requiresAdmin) {
+        return userCanManagePaymentSettings();
+    }
+
+    return true;
 }
 
 function setLinkLabel(link, label) {
@@ -79,6 +113,22 @@ function setLinkLabel(link, label) {
     link.innerHTML = `${svgHtml}
         ${label}
     `;
+}
+
+function removeUnauthorizedSidebarLinks() {
+    const nav = sidebarNav();
+
+    if (!nav) {
+        return;
+    }
+
+    Array.from(nav.querySelectorAll('a')).forEach((link) => {
+        const meta = menuMetaForLink(link);
+
+        if (meta && !shouldShowMenuItem(meta)) {
+            link.remove();
+        }
+    });
 }
 
 function commandCenterLink(nav) {
@@ -116,7 +166,7 @@ function createSidebarLink({ path, label, datasetKey, iconPath }) {
 function ensureRentalSparepartSidebarLink() {
     const nav = sidebarNav();
 
-    if (!nav || document.querySelector('[data-rental-sparepart-link="true"]')) {
+    if (!nav || !userCanManageRentalSparepart() || document.querySelector('[data-rental-sparepart-link="true"]')) {
         return;
     }
 
@@ -139,7 +189,7 @@ function ensureRentalSparepartSidebarLink() {
 function ensureRecommendationControlSidebarLink() {
     const nav = sidebarNav();
 
-    if (!nav || document.querySelector('[data-recommendation-control-link="true"]')) {
+    if (!nav || !userCanManageRentalSparepart() || document.querySelector('[data-recommendation-control-link="true"]')) {
         return;
     }
 
@@ -216,7 +266,7 @@ function sortMainSidebarMenu() {
 
     const sortableLinks = Array.from(nav.querySelectorAll('a'))
         .map((link) => ({ link, meta: menuMetaForLink(link) }))
-        .filter((entry) => entry.meta)
+        .filter((entry) => entry.meta && shouldShowMenuItem(entry.meta))
         .map((entry) => {
             setLinkLabel(entry.link, entry.meta.label);
             return entry;
@@ -232,9 +282,11 @@ function sortMainSidebarMenu() {
 }
 
 function bootSidebarMainMenu() {
+    removeUnauthorizedSidebarLinks();
     ensureRentalSparepartSidebarLink();
     ensureRecommendationControlSidebarLink();
     ensurePaymentSettingsSidebarLink();
+    removeUnauthorizedSidebarLinks();
     translateMainMenuHeading();
     sortMainSidebarMenu();
 }
