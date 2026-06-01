@@ -34,8 +34,7 @@ class RentalSparepartStockExportController extends Controller
 
         $this->applyFilters($query, $request, $lifecycleStatus);
 
-        $rows = [];
-        $rows[] = [
+        $headers = [
             'ID',
             'Department',
             'Lifecycle Status',
@@ -66,50 +65,52 @@ class RentalSparepartStockExportController extends Controller
             'Updated At',
         ];
 
-        $query->orderByDesc('updated_at')->orderByDesc('id')->chunk(500, function ($stocks) use (&$rows) {
-            foreach ($stocks as $stock) {
-                $rows[] = [
-                    $stock->id,
-                    $stock->department,
-                    $stock->stock_lifecycle_status,
-                    $stock->item?->part_number,
-                    $stock->item?->part_name,
-                    $stock->item?->default_type_unit,
-                    $stock->item?->min_stock,
-                    $stock->qty_on_hand,
-                    $stock->qty_reserved,
-                    $stock->qty_available,
-                    $this->stockStatus($stock),
-                    $stock->location?->location_code,
-                    $stock->location?->location_name,
-                    $stock->location?->cabinet,
-                    $stock->location?->shelf,
-                    $stock->location?->box,
-                    $stock->source_no_job,
-                    $stock->source_customer,
-                    $stock->source_location,
-                    $stock->source_type_unit,
-                    $stock->source_sn_unit,
-                    $stock->allocation_customer,
-                    $stock->allocation_location,
-                    $stock->allocation_type_unit,
-                    $stock->allocation_sn_unit,
-                    implode(' | ', $this->problemFlags($stock)),
-                    $stock->remarks,
-                    optional($stock->updated_at)->format('Y-m-d H:i:s'),
-                ];
-            }
-        });
-
-        $csv = "\xEF\xBB\xBF" . collect($rows)->map(function ($row) {
-            return collect($row)->map(fn ($value) => $this->csvCell($value))->implode(',');
-        })->implode("\n");
-
         $filename = 'rental_sparepart_stocks_' . strtolower($lifecycleStatus) . '_' . now()->format('Ymd_His') . '.csv';
 
-        return response($csv, 200, [
+        return response()->streamDownload(function () use ($query, $headers) {
+            $handle = fopen('php://output', 'w');
+
+            fwrite($handle, "\xEF\xBB\xBF");
+            fputcsv($handle, $headers, ';');
+
+            $query->orderByDesc('updated_at')->orderByDesc('id')->chunk(500, function ($stocks) use ($handle) {
+                foreach ($stocks as $stock) {
+                    fputcsv($handle, [
+                        $stock->id,
+                        $stock->department,
+                        $stock->stock_lifecycle_status,
+                        $stock->item?->part_number,
+                        $stock->item?->part_name,
+                        $stock->item?->default_type_unit,
+                        $stock->item?->min_stock,
+                        $stock->qty_on_hand,
+                        $stock->qty_reserved,
+                        $stock->qty_available,
+                        $this->stockStatus($stock),
+                        $stock->location?->location_code,
+                        $stock->location?->location_name,
+                        $stock->location?->cabinet,
+                        $stock->location?->shelf,
+                        $stock->location?->box,
+                        $stock->source_no_job,
+                        $stock->source_customer,
+                        $stock->source_location,
+                        $stock->source_type_unit,
+                        $stock->source_sn_unit,
+                        $stock->allocation_customer,
+                        $stock->allocation_location,
+                        $stock->allocation_type_unit,
+                        $stock->allocation_sn_unit,
+                        implode(' | ', $this->problemFlags($stock)),
+                        $stock->remarks,
+                        optional($stock->updated_at)->format('Y-m-d H:i:s'),
+                    ], ';');
+                }
+            });
+
+            fclose($handle);
+        }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ]);
     }
 
@@ -248,14 +249,6 @@ class RentalSparepartStockExportController extends Controller
         }
 
         return $flags;
-    }
-
-    private function csvCell($value): string
-    {
-        $value = (string) $value;
-        $value = str_replace('"', '""', $value);
-
-        return '"' . $value . '"';
     }
 
     private function canAccess(): bool
