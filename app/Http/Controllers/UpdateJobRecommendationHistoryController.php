@@ -25,6 +25,7 @@ class UpdateJobRecommendationHistoryController extends Controller
         }
 
         $controls = SparepartRecommendationControl::query()
+            ->with('sourceStock')
             ->whereRaw('UPPER(TRIM(COALESCE(serial_number, ""))) = ?', [$serialNumber])
             ->orderByRaw("FIELD(recommendation_status, 'RECOMMENDED', 'REVIEWED', 'APPROVED', 'NEED_SUPPLY', 'SUPPLIED', 'PARTIAL_INSTALLED', 'INSTALLED', 'CLOSED', 'REJECTED', 'CANCELLED')")
             ->orderByDesc('work_date')
@@ -37,17 +38,11 @@ class UpdateJobRecommendationHistoryController extends Controller
                 return [
                     'source' => 'control',
                     'date' => $control->work_date ? Carbon::parse($control->work_date)->format('d/m/Y') : '-',
+                    'no_job' => $control->sourceStock?->source_no_job ?: '-',
                     'part_number' => $control->part_number ?: '-',
                     'part_name' => $control->part_name ?: '-',
                     'qty' => $control->qty_recommended ?: 1,
-                    'qty_supplied' => $control->qty_supplied ?: 0,
-                    'qty_installed' => $control->qty_installed ?: 0,
-                    'recommendation_status' => $control->recommendation_status ?: 'RECOMMENDED',
-                    'supply_status' => $control->supply_status ?: 'NOT_SUPPLIED',
-                    'recommended_by_name' => $control->recommended_by_name ?: '-',
-                    'review_note' => $control->review_note ?: null,
-                    'supply_note' => $control->supply_note ?: null,
-                    'is_cross_allocation' => (bool) $control->is_cross_allocation,
+                    'status' => $control->recommendation_status ?: 'RECOMMENDED',
                     'control_url' => route('sparepart-recommendations.index', [
                         'serial_number' => $control->serial_number,
                         'part_number' => $control->part_number,
@@ -70,17 +65,11 @@ class UpdateJobRecommendationHistoryController extends Controller
                     return [
                         'source' => 'legacy',
                         'date' => $job->work_date ? Carbon::parse($job->work_date)->format('d/m/Y') : '-',
+                        'no_job' => '-',
                         'part_number' => $recommendation->part_number ?: '-',
                         'part_name' => $recommendation->part_name ?: '-',
                         'qty' => $recommendation->qty ?: 1,
-                        'qty_supplied' => 0,
-                        'qty_installed' => 0,
-                        'recommendation_status' => 'LEGACY',
-                        'supply_status' => 'UNKNOWN',
-                        'recommended_by_name' => $job->pic ?: '-',
-                        'review_note' => null,
-                        'supply_note' => null,
-                        'is_cross_allocation' => false,
+                        'status' => 'LEGACY',
                         'control_url' => route('sparepart-recommendations.index', [
                             'serial_number' => $job->serial_number,
                             'part_number' => $recommendation->part_number,
