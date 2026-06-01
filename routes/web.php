@@ -37,6 +37,7 @@ use App\Http\Controllers\RentalSparepartStockExportController;
 use App\Http\Controllers\RentalSparepartUsageReviewApprovalController;
 use App\Http\Controllers\RentalSparepartUsageReviewController;
 use App\Http\Controllers\RentalSparepartUsageReviewExportController;
+use App\Http\Controllers\SparepartRecommendationControlController;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckSuperAdmin;
 
@@ -85,6 +86,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/penarikans/search-assets', [PenarikanController::class, 'searchAssets'])->name('penarikans.search-assets');
         Route::get('/penarikans/{id}/share-message', [OperationalShareController::class, 'penarikan'])->name('penarikans.share-message');
         Route::resource('penarikans', PenarikanController::class);
+        Route::get('/sparepart-recommendations', [SparepartRecommendationControlController::class, 'index'])->name('sparepart-recommendations.index');
+        Route::patch('/sparepart-recommendations/{control}/status', [SparepartRecommendationControlController::class, 'updateStatus'])->name('sparepart-recommendations.status');
         Route::get('/rental-spareparts', [RentalSparepartController::class, 'index'])->name('rental-spareparts.index');
         Route::get('/rental-spareparts/export', RentalSparepartStockExportController::class)->name('rental-spareparts.export');
         Route::get('/rental-spareparts/stocks/{stock}/edit', [RentalSparepartStockController::class, 'edit'])->name('rental-spareparts.stocks.edit');
