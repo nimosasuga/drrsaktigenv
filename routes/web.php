@@ -55,6 +55,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/subscription/payment/{id}', [SubscriptionController::class, 'payment'])->name('subscription.payment');
     Route::post('/subscription/payment/{id}/confirm', [SubscriptionController::class, 'confirmPayment'])->name('subscription.confirm');
     Route::get('/subscription/waiting', [SubscriptionController::class, 'waiting'])->name('subscription.waiting');
+    Route::get('/payment-settings', [\App\Http\Controllers\PaymentSettingController::class, 'edit'])->name('payment-settings.edit');
+    Route::put('/payment-settings', [\App\Http\Controllers\PaymentSettingController::class, 'update'])->name('payment-settings.update');
 
     Route::middleware([CheckSuperAdmin::class])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/verifikasi-lisensi', [AdminController::class, 'pendingSubscriptions'])->name('subscriptions');
