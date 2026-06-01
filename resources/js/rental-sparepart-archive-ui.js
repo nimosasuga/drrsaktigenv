@@ -5,6 +5,14 @@ function currentLifecycleStatus() {
     return (params.get('stock_lifecycle_status') || 'ACTIVE').toUpperCase();
 }
 
+function lifecycleUrl(status) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('stock_lifecycle_status', status);
+    params.delete('page');
+
+    return `/rental-spareparts?${params.toString()}`;
+}
+
 function addLifecycleFilterButtons() {
     if (window.location.pathname !== '/rental-spareparts') {
         return;
@@ -14,34 +22,37 @@ function addLifecycleFilterButtons() {
         return;
     }
 
-    const actionBar = Array.from(document.querySelectorAll('div')).find((element) => {
-        return element.className.includes('flex') &&
-            element.textContent.includes('Export Stok CSV') &&
-            element.textContent.includes('Histori Movement');
+    const exportButton = Array.from(document.querySelectorAll('a')).find((anchor) => {
+        return anchor.textContent.trim().toLowerCase() === 'export stok csv';
     });
+
+    const actionBar = exportButton?.parentElement;
 
     if (!actionBar) {
         return;
     }
 
+    actionBar.dataset.stockLifecycleFilter = 'true';
+    actionBar.classList.add('items-center');
+
     const activeStatus = currentLifecycleStatus();
-    const wrapper = document.createElement('div');
-    wrapper.dataset.stockLifecycleFilter = 'true';
-    wrapper.className = 'flex flex-wrap items-center gap-2';
 
     const activeLink = document.createElement('a');
-    activeLink.href = '/rental-spareparts?stock_lifecycle_status=ACTIVE';
-    activeLink.className = `inline-flex min-w-[130px] items-center justify-center rounded-2xl px-5 py-3 text-sm font-black shadow-sm transition ${activeStatus === 'ACTIVE' ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`;
+    activeLink.href = lifecycleUrl('ACTIVE');
+    activeLink.className = `inline-flex min-w-[145px] items-center justify-center rounded-2xl px-5 py-3 text-sm font-black shadow-sm transition ${activeStatus === 'ACTIVE' ? 'bg-slate-900 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`;
     activeLink.textContent = 'Active Stock';
 
     const archivedLink = document.createElement('a');
-    archivedLink.href = '/rental-spareparts?stock_lifecycle_status=ARCHIVED';
-    archivedLink.className = `inline-flex min-w-[130px] items-center justify-center rounded-2xl px-5 py-3 text-sm font-black shadow-sm transition ${activeStatus === 'ARCHIVED' ? 'bg-red-600 text-white' : 'border border-red-200 bg-white text-red-700 hover:bg-red-50'}`;
+    archivedLink.href = lifecycleUrl('ARCHIVED');
+    archivedLink.className = `inline-flex min-w-[145px] items-center justify-center rounded-2xl px-5 py-3 text-sm font-black shadow-sm transition ${activeStatus === 'ARCHIVED' ? 'bg-red-600 text-white' : 'border border-red-200 bg-white text-red-700 hover:bg-red-50'}`;
     archivedLink.textContent = 'Archived Stock';
 
-    wrapper.appendChild(activeLink);
-    wrapper.appendChild(archivedLink);
-    actionBar.insertAdjacentElement('afterend', wrapper);
+    const insertAfter = Array.from(actionBar.querySelectorAll('a')).find((anchor) => {
+        return anchor.textContent.trim().toLowerCase() === 'import history';
+    }) || exportButton;
+
+    insertAfter.insertAdjacentElement('afterend', archivedLink);
+    insertAfter.insertAdjacentElement('afterend', activeLink);
 }
 
 function improveArchiveButtons() {
@@ -73,7 +84,7 @@ function improveArchiveButtons() {
             note.placeholder = 'Catatan restore opsional';
             note.className = 'mb-2 w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-xs focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-100';
 
-            if (token) {
+            if (token && !form.querySelector('textarea[name="restore_note"]')) {
                 token.insertAdjacentElement('afterend', note);
             }
 
