@@ -26,6 +26,12 @@ class RentalSparepartStockController extends Controller
         abort_unless($this->canManage(), 403);
         abort_if($stock->department !== self::DEPARTMENT, 404);
 
+        if ($stock->stock_lifecycle_status === RentalSparepartStock::STATUS_ARCHIVED) {
+            return redirect()
+                ->route('rental-spareparts.index', ['stock_lifecycle_status' => RentalSparepartStock::STATUS_ARCHIVED])
+                ->withErrors(['edit' => 'Stok yang sudah archived tidak bisa diedit. Restore dulu jika perlu.']);
+        }
+
         $stock->load(['item', 'location']);
 
         return view('rental-spareparts.stocks.edit', compact('stock'));
@@ -35,6 +41,12 @@ class RentalSparepartStockController extends Controller
     {
         abort_unless($this->canManage(), 403);
         abort_if($stock->department !== self::DEPARTMENT, 404);
+
+        if ($stock->stock_lifecycle_status === RentalSparepartStock::STATUS_ARCHIVED) {
+            return redirect()
+                ->route('rental-spareparts.index', ['stock_lifecycle_status' => RentalSparepartStock::STATUS_ARCHIVED])
+                ->withErrors(['edit' => 'Stok yang sudah archived tidak bisa diedit. Restore dulu jika perlu.']);
+        }
 
         $validated = $request->validate([
             'part_number' => ['required', 'string', 'max:150'],
@@ -102,6 +114,7 @@ class RentalSparepartStockController extends Controller
 
             $duplicateExists = RentalSparepartStock::query()
                 ->where('department', self::DEPARTMENT)
+                ->where('stock_lifecycle_status', RentalSparepartStock::STATUS_ACTIVE)
                 ->where('sparepart_item_id', $item->id)
                 ->where('location_id', $location->id)
                 ->where('source_no_job', $sourceNoJob)
@@ -117,9 +130,10 @@ class RentalSparepartStockController extends Controller
                 ->exists();
 
             if ($duplicateExists) {
-                abort(422, 'Edit dibatalkan: kombinasi part, lokasi, source, dan alokasi sudah dimiliki baris stok lain.');
+                abort(422, 'Edit dibatalkan: kombinasi part, lokasi, source, dan alokasi sudah dimiliki baris stok aktif lain.');
             }
 
+            $stock->stock_lifecycle_status = RentalSparepartStock::STATUS_ACTIVE;
             $stock->sparepart_item_id = $item->id;
             $stock->location_id = $location->id;
             $stock->qty_on_hand = $newQty;
@@ -166,20 +180,29 @@ class RentalSparepartStockController extends Controller
         return redirect()->route('rental-spareparts.index')->with('success', 'Stok sparepart berhasil diperbarui.');
     }
 
-    public function destroy(RentalSparepartStock $stock)
+    public function destroy(Request $request, RentalSparepartStock $stock)
     {
         abort_unless($this->canManage(), 403);
         abort_if($stock->department !== self::DEPARTMENT, 404);
 
-        if ((int) $stock->qty_reserved > 0) {
-            return back()->withErrors(['delete' => 'Stok tidak bisa dihapus karena masih memiliki qty reserved.']);
+        if ($stock->stock_lifecycle_status === RentalSparepartStock::STATUS_ARCHIVED) {
+            return back()->withErrors(['archive' => 'Stok ini sudah archived.']);
         }
 
-        DB::transaction(function () use ($stock) {
+        if ((int) $stock->qty_reserved > 0) {
+            return back()->withErrors(['archive' => 'Stok tidak bisa di-archive karena masih memiliki qty reserved.']);
+        }
+
+        $validated = $request->validate([
+            'archive_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($stock, $validated) {
             $user = Auth::user();
             $stock->load(['item', 'location']);
+            $oldQty = (int) $stock->qty_on_hand;
 
-            if ((int) $stock->qty_on_hand > 0) {
+            if ($oldQty > 0) {
                 RentalSparepartMovement::create([
                     'department' => self::DEPARTMENT,
                     'movement_type' => RentalSparepartMovement::TYPE_ADJUSTMENT,
@@ -190,7 +213,7 @@ class RentalSparepartStockController extends Controller
                     'to_location_id' => null,
                     'part_number_snapshot' => $stock->item?->part_number,
                     'part_name_snapshot' => $stock->item?->part_name,
-                    'qty' => (int) $stock->qty_on_hand,
+                    'qty' => $oldQty,
                     'no_job' => $stock->source_no_job,
                     'source_customer' => $stock->source_customer,
                     'source_location' => $stock->source_location,
@@ -202,14 +225,81 @@ class RentalSparepartStockController extends Controller
                     'allocation_sn_unit' => $stock->allocation_sn_unit,
                     'pic_user_id' => $user->id,
                     'pic_name' => $user->name,
-                    'remarks' => 'DELETE STOCK ADJUSTMENT: stock row deleted from Management Sparepart.',
+                    'remarks' => 'ARCHIVE STOCK ADJUSTMENT: ACTIVE -> ARCHIVED, qty ' . $oldQty . ' -> 0. ' . ($validated['archive_note'] ?? ''),
                 ]);
             }
 
-            $stock->delete();
+            $stock->archived_qty_on_hand = $oldQty;
+            $stock->qty_on_hand = 0;
+            $stock->stock_lifecycle_status = RentalSparepartStock::STATUS_ARCHIVED;
+            $stock->archived_by = $user->id;
+            $stock->archived_by_name = $user->name;
+            $stock->archived_at = now();
+            $stock->archive_note = $validated['archive_note'] ?? null;
+            $stock->save();
         });
 
-        return redirect()->route('rental-spareparts.index')->with('success', 'Stok sparepart berhasil dihapus.');
+        return redirect()->route('rental-spareparts.index')->with('success', 'Stok sparepart berhasil di-archive. Data tidak dihapus permanen.');
+    }
+
+    public function restore(Request $request, RentalSparepartStock $stock)
+    {
+        abort_unless($this->canManage(), 403);
+        abort_if($stock->department !== self::DEPARTMENT, 404);
+
+        if ($stock->stock_lifecycle_status !== RentalSparepartStock::STATUS_ARCHIVED) {
+            return back()->withErrors(['restore' => 'Stok ini bukan status archived.']);
+        }
+
+        $validated = $request->validate([
+            'restore_qty_on_hand' => ['nullable', 'integer', 'min:0'],
+            'restore_note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        DB::transaction(function () use ($stock, $validated) {
+            $user = Auth::user();
+            $stock->load(['item', 'location']);
+            $restoreQty = array_key_exists('restore_qty_on_hand', $validated) && $validated['restore_qty_on_hand'] !== null
+                ? (int) $validated['restore_qty_on_hand']
+                : (int) $stock->archived_qty_on_hand;
+
+            $stock->qty_on_hand = $restoreQty;
+            $stock->stock_lifecycle_status = RentalSparepartStock::STATUS_ACTIVE;
+            $stock->restored_by = $user->id;
+            $stock->restored_by_name = $user->name;
+            $stock->restored_at = now();
+            $stock->restore_note = $validated['restore_note'] ?? null;
+            $stock->save();
+
+            if ($restoreQty > 0) {
+                RentalSparepartMovement::create([
+                    'department' => self::DEPARTMENT,
+                    'movement_type' => RentalSparepartMovement::TYPE_ADJUSTMENT,
+                    'movement_date' => now()->toDateString(),
+                    'sparepart_item_id' => $stock->sparepart_item_id,
+                    'sparepart_stock_id' => $stock->id,
+                    'from_location_id' => null,
+                    'to_location_id' => $stock->location_id,
+                    'part_number_snapshot' => $stock->item?->part_number,
+                    'part_name_snapshot' => $stock->item?->part_name,
+                    'qty' => $restoreQty,
+                    'no_job' => $stock->source_no_job,
+                    'source_customer' => $stock->source_customer,
+                    'source_location' => $stock->source_location,
+                    'source_type_unit' => $stock->source_type_unit,
+                    'source_sn_unit' => $stock->source_sn_unit,
+                    'allocation_customer' => $stock->allocation_customer,
+                    'allocation_location' => $stock->allocation_location,
+                    'allocation_type_unit' => $stock->allocation_type_unit,
+                    'allocation_sn_unit' => $stock->allocation_sn_unit,
+                    'pic_user_id' => $user->id,
+                    'pic_name' => $user->name,
+                    'remarks' => 'RESTORE STOCK ADJUSTMENT: ARCHIVED -> ACTIVE, qty 0 -> ' . $restoreQty . '. ' . ($validated['restore_note'] ?? ''),
+                ]);
+            }
+        });
+
+        return redirect()->route('rental-spareparts.index')->with('success', 'Stok sparepart berhasil di-restore.');
     }
 
     private function canManage(): bool
