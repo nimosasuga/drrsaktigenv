@@ -8,7 +8,7 @@
                 <p class="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Recommendation Control</p>
                 <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Sparepart Recommendation Control Center</h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-                    Kontrol rekomendasi sparepart dari Update Job: review kebutuhan, approve/reject, tandai perlu supply, supplied, dan close.
+                    Kontrol rekomendasi sparepart dari Update Job. Jika action Mark Supplied dipakai tanpa memilih existing stock, sistem akan membuat Barang Masuk dan stok sparepart otomatis.
                 </p>
             </div>
 
@@ -206,18 +206,50 @@
                                     <option value="REVIEWED">Mark Reviewed</option>
                                     <option value="APPROVED">Approve</option>
                                     <option value="NEED_SUPPLY">Need Supply</option>
-                                    <option value="SUPPLIED">Mark Supplied</option>
+                                    <option value="SUPPLIED">Mark Supplied / Create Stock IN</option>
                                     <option value="REJECTED">Reject</option>
                                     <option value="CLOSED">Close</option>
                                     <option value="CANCELLED">Cancel</option>
                                 </select>
 
-                                <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Qty Supplied</label>
-                                <input type="number" name="qty_supplied" min="0" placeholder="Opsional" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                <div class="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                                    <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Data Supply / Barang Masuk</p>
+                                    <p class="mt-1 text-[11px] leading-5 text-emerald-700">Jika Source Stock dikosongkan, Mark Supplied akan membuat stok IN baru dari rekomendasi ini.</p>
 
-                                <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Source Stock</label>
+                                    <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Tanggal Supply</label>
+                                    <input type="date" name="supply_date" value="{{ now()->toDateString() }}" class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm">
+
+                                    <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">No Job</label>
+                                    <input type="text" name="supply_no_job" placeholder="No job dari sparepart masuk" class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
+
+                                    <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Qty Supplied</label>
+                                    <input type="number" name="qty_supplied" min="1" value="{{ max(1, (int) $control->qty_recommended - (int) $control->qty_supplied) }}" class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm">
+
+                                    <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Location Code</label>
+                                    <input type="text" name="location_code" value="RECOMMENDATION-SUPPLY" class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
+
+                                    <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Location Name</label>
+                                    <input type="text" name="location_name" value="RECOMMENDATION SUPPLY" class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
+
+                                    <div class="mt-3 grid grid-cols-3 gap-2">
+                                        <div>
+                                            <label class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Cabinet</label>
+                                            <input type="text" name="cabinet" class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Shelf</label>
+                                            <input type="text" name="shelf" class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Box</label>
+                                            <input type="text" name="box" class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Source Stock Existing</label>
                                 <select name="source_stock_id" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                                    <option value="">Manual / Tidak pilih stok</option>
+                                    <option value="">Kosongkan untuk Create Stock IN baru</option>
                                     @foreach($sourceStocks as $stock)
                                         <option value="{{ $stock->id }}">
                                             #{{ $stock->id }} | {{ $stock->item?->part_number }} | Sisa {{ $stock->qty_available }} | SN {{ $stock->allocation_sn_unit ?: $stock->source_sn_unit ?: '-' }}
@@ -236,7 +268,7 @@
                                 <label class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Note</label>
                                 <textarea name="note" rows="2" class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm" placeholder="Catatan koordinator"></textarea>
 
-                                <button type="submit" onclick="return confirm('Update recommendation control ini?')" class="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
+                                <button type="submit" onclick="return confirm('Update recommendation control ini? Jika action Mark Supplied dan Source Stock kosong, sistem akan membuat stok IN baru.');" class="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
                                     Save Action
                                 </button>
                             </form>
