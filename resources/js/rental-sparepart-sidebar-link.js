@@ -21,6 +21,10 @@ const MAIN_MENU_ITEMS = [
         path: '/profile',
         label: 'My Profile',
     },
+    {
+        path: '/sparepart-recommendations',
+        label: 'Recommendation Control',
+    },
 ];
 
 function sidebarNav() {
@@ -45,7 +49,35 @@ function setLinkLabel(link, label) {
     const svg = link.querySelector('svg');
     const svgHtml = svg ? svg.outerHTML : '';
 
-    link.innerHTML = `${svgHtml}\n        ${label}\n    `;
+    link.innerHTML = `${svgHtml}
+        ${label}
+    `;
+}
+
+function commandCenterLink(nav) {
+    return Array.from(nav.querySelectorAll('a')).find((link) => {
+        return normalizePath(link.getAttribute('href')) === '/command-center' ||
+            link.textContent.trim().toLowerCase().includes('command center');
+    });
+}
+
+function createSidebarLink({ path, label, datasetKey, iconPath }) {
+    const isActive = window.location.pathname === path || window.location.pathname.startsWith(`${path}/`);
+    const activeClass = isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900';
+    const iconClass = isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600';
+
+    const link = document.createElement('a');
+    link.href = path;
+    link.dataset[datasetKey] = 'true';
+    link.className = `group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors mt-1 ${activeClass}`;
+    link.innerHTML = `
+        <svg class="w-5 h-5 mr-3 ${iconClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${iconPath}"></path>
+        </svg>
+        ${label}
+    `;
+
+    return link;
 }
 
 function ensureRentalSparepartSidebarLink() {
@@ -55,31 +87,43 @@ function ensureRentalSparepartSidebarLink() {
         return;
     }
 
-    const commandCenterLink = Array.from(nav.querySelectorAll('a')).find((link) => {
-        return normalizePath(link.getAttribute('href')) === '/command-center' ||
-            link.textContent.trim().toLowerCase().includes('command center');
-    });
+    const anchorLink = commandCenterLink(nav);
 
-    if (!commandCenterLink) {
+    if (!anchorLink) {
         return;
     }
 
-    const isActive = window.location.pathname.startsWith('/rental-spareparts');
-    const activeClass = isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900';
-    const iconClass = isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600';
+    const link = createSidebarLink({
+        path: '/rental-spareparts',
+        label: 'Management Sparepart',
+        datasetKey: 'rentalSparepartLink',
+        iconPath: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+    });
 
-    const link = document.createElement('a');
-    link.href = '/rental-spareparts';
-    link.dataset.rentalSparepartLink = 'true';
-    link.className = `group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors mt-1 ${activeClass}`;
-    link.innerHTML = `
-        <svg class="w-5 h-5 mr-3 ${iconClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-        </svg>
-        Management Sparepart
-    `;
+    anchorLink.insertAdjacentElement('afterend', link);
+}
 
-    commandCenterLink.insertAdjacentElement('afterend', link);
+function ensureRecommendationControlSidebarLink() {
+    const nav = sidebarNav();
+
+    if (!nav || document.querySelector('[data-recommendation-control-link="true"]')) {
+        return;
+    }
+
+    const anchorLink = commandCenterLink(nav);
+
+    if (!anchorLink) {
+        return;
+    }
+
+    const link = createSidebarLink({
+        path: '/sparepart-recommendations',
+        label: 'Recommendation Control',
+        datasetKey: 'recommendationControlLink',
+        iconPath: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+    });
+
+    anchorLink.insertAdjacentElement('afterend', link);
 }
 
 function translateMainMenuHeading() {
@@ -133,6 +177,7 @@ function sortMainSidebarMenu() {
 
 function bootSidebarMainMenu() {
     ensureRentalSparepartSidebarLink();
+    ensureRecommendationControlSidebarLink();
     translateMainMenuHeading();
     sortMainSidebarMenu();
 }
