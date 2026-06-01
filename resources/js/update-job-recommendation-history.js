@@ -15,7 +15,7 @@ function createRecommendationHistorySection() {
         <div class="px-6 py-4 border-b border-blue-100 bg-blue-50/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
                 <h2 class="text-sm font-semibold text-blue-900 uppercase tracking-wider">Histori Rekomendasi Part Berdasarkan S/N</h2>
-                <p class="mt-1 text-xs font-medium text-blue-700/80">Data muncul otomatis setelah Serial Number dipilih atau diketik.</p>
+                <p class="mt-1 text-xs font-medium text-blue-700/80">Menampilkan status rekomendasi, supply, dan install dari Recommendation Control.</p>
             </div>
             <span id="sn-recommendation-history-count" class="inline-flex w-fit items-center rounded-full bg-white px-3 py-1 text-[11px] font-bold text-blue-700 border border-blue-100">0 Data</span>
         </div>
@@ -30,11 +30,13 @@ function createRecommendationHistorySection() {
             </div>
 
             <div id="sn-recommendation-history-table-wrap" class="hidden overflow-hidden rounded-2xl border border-slate-200">
-                <div class="hidden grid-cols-12 gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500 sm:grid">
+                <div class="hidden grid-cols-12 gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500 lg:grid">
                     <div class="col-span-2">Tanggal</div>
-                    <div class="col-span-3">Part Number</div>
-                    <div class="col-span-5">Part Name</div>
-                    <div class="col-span-2 text-right">Qty</div>
+                    <div class="col-span-2">Part Number</div>
+                    <div class="col-span-3">Part Name</div>
+                    <div class="col-span-1 text-center">Qty</div>
+                    <div class="col-span-2">Status</div>
+                    <div class="col-span-2">Supply</div>
                 </div>
                 <div id="sn-recommendation-history-body" class="divide-y divide-slate-100"></div>
             </div>
@@ -49,6 +51,33 @@ function createRecommendationHistorySection() {
     }
 
     return section;
+}
+
+function statusClass(status) {
+    const value = String(status || '').toUpperCase();
+
+    if (['SUPPLIED', 'INSTALLED', 'CLOSED', 'APPROVED'].includes(value)) {
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    }
+
+    if (['NEED_SUPPLY', 'PARTIAL_SUPPLIED', 'PARTIAL_INSTALLED', 'RECOMMENDED', 'REVIEWED'].includes(value)) {
+        return 'bg-amber-50 text-amber-700 border-amber-200';
+    }
+
+    if (['REJECTED', 'CANCELLED'].includes(value)) {
+        return 'bg-red-50 text-red-700 border-red-200';
+    }
+
+    return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
 }
 
 function renderRecommendationRows(rows) {
@@ -81,23 +110,48 @@ function renderRecommendationRows(rows) {
 
     rows.forEach((row) => {
         const item = document.createElement('div');
-        item.className = 'grid grid-cols-1 gap-2 px-3 py-3 text-sm sm:grid-cols-12 sm:items-center sm:gap-3';
+        const recommendationStatus = row.recommendation_status || 'RECOMMENDED';
+        const supplyStatus = row.supply_status || 'NOT_SUPPLIED';
+        const qtySupplied = row.qty_supplied ?? 0;
+        const qtyInstalled = row.qty_installed ?? 0;
+        const note = row.supply_note || row.review_note || '';
+        const controlUrl = row.control_url || '/sparepart-recommendations';
+
+        item.className = 'grid grid-cols-1 gap-2 px-3 py-3 text-sm lg:grid-cols-12 lg:items-center lg:gap-3';
         item.innerHTML = `
-            <div class="flex items-center justify-between sm:col-span-2 sm:block">
-                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 sm:hidden">Tanggal</span>
-                <span class="font-bold text-slate-700">${row.date ?? '-'}</span>
+            <div class="flex items-center justify-between lg:col-span-2 lg:block">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 lg:hidden">Tanggal</span>
+                <span class="font-bold text-slate-700">${escapeHtml(row.date ?? '-')}</span>
             </div>
-            <div class="flex items-center justify-between sm:col-span-3 sm:block">
-                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 sm:hidden">Part Number</span>
-                <span class="font-bold text-blue-700">${row.part_number ?? '-'}</span>
+            <div class="flex items-center justify-between lg:col-span-2 lg:block">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 lg:hidden">Part Number</span>
+                <span class="font-bold text-blue-700">${escapeHtml(row.part_number ?? '-')}</span>
             </div>
-            <div class="sm:col-span-5">
-                <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 sm:hidden">Part Name</p>
-                <p class="font-bold text-slate-800">${row.part_name ?? '-'}</p>
+            <div class="lg:col-span-3">
+                <p class="text-[10px] font-black uppercase tracking-wider text-slate-400 lg:hidden">Part Name</p>
+                <p class="font-bold text-slate-800">${escapeHtml(row.part_name ?? '-')}</p>
+                <p class="mt-1 text-[11px] font-semibold text-slate-500">By: ${escapeHtml(row.recommended_by_name ?? '-')}</p>
+                ${note ? `<p class="mt-1 text-[11px] text-slate-500">${escapeHtml(note)}</p>` : ''}
             </div>
-            <div class="flex items-center justify-between sm:col-span-2 sm:block sm:text-right">
-                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 sm:hidden">Qty</span>
-                <span class="inline-flex min-w-8 justify-center rounded-full bg-blue-50 px-2 py-1 text-xs font-black text-blue-700 border border-blue-100">${row.qty ?? 1}</span>
+            <div class="flex items-center justify-between lg:col-span-1 lg:block lg:text-center">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 lg:hidden">Qty</span>
+                <div class="flex justify-end gap-1 lg:justify-center">
+                    <span class="inline-flex min-w-8 justify-center rounded-full bg-blue-50 px-2 py-1 text-xs font-black text-blue-700 border border-blue-100">R:${escapeHtml(row.qty ?? 1)}</span>
+                    <span class="inline-flex min-w-8 justify-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700 border border-emerald-100">S:${escapeHtml(qtySupplied)}</span>
+                    <span class="inline-flex min-w-8 justify-center rounded-full bg-purple-50 px-2 py-1 text-xs font-black text-purple-700 border border-purple-100">I:${escapeHtml(qtyInstalled)}</span>
+                </div>
+            </div>
+            <div class="flex items-center justify-between lg:col-span-2 lg:block">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 lg:hidden">Status</span>
+                <span class="inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${statusClass(recommendationStatus)}">${escapeHtml(recommendationStatus)}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2 lg:col-span-2 lg:block">
+                <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 lg:hidden">Supply</span>
+                <div class="flex flex-wrap items-center justify-end gap-1 lg:justify-start">
+                    <span class="inline-flex rounded-full border px-2 py-1 text-[11px] font-black ${statusClass(supplyStatus)}">${escapeHtml(supplyStatus)}</span>
+                    ${row.is_cross_allocation ? '<span class="inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-black text-red-700">CROSS</span>' : ''}
+                    <a href="${escapeHtml(controlUrl)}" class="inline-flex rounded-full border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-600 hover:bg-slate-50">Control</a>
+                </div>
             </div>
         `;
         tableBody.appendChild(item);
