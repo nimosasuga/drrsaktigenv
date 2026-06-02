@@ -12,8 +12,6 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -24,8 +22,8 @@
 </head>
 
 <body
-    data-user-role="{{ strtolower((string) (Auth::user()->status_user ?? Auth::user()->role ?? '')) }}"
-    data-user-department="{{ strtoupper((string) (Auth::user()->department ?? '')) }}"
+    data-user-status="{{ strtolower(trim((string) (Auth::user()->status_user ?? ''))) }}"
+    data-user-department="{{ strtoupper(trim((string) (Auth::user()->department ?? ''))) }}"
     class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden selection:bg-blue-200 selection:text-blue-900">
 
     <!-- Latar Belakang Gelap untuk Mobile Sidebar -->
@@ -49,7 +47,6 @@
         <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
             <p class="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 mt-4">Menu Utama</p>
 
-            <!-- Menu Item (Active State) -->
             <!-- Menu Item (Active State) Dashboard -->
             <a href="{{ route('dashboard') }}"
                 class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors {{ request()->routeIs('dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
@@ -74,21 +71,19 @@
             </a>
 
             @php
-            $sidebarRoleText = strtolower(trim(implode(' ', array_filter([
-            (string) (Auth::user()->role ?? ''),
-            (string) (Auth::user()->status_user ?? ''),
-            ]))));
+                $sidebarStatusUser = strtolower(trim((string) (Auth::user()->status_user ?? '')));
+                $sidebarStatusUser = str_replace(['-', '_'], ' ', $sidebarStatusUser);
+                $sidebarDepartment = strtoupper(trim((string) (Auth::user()->department ?? '')));
 
-            $sidebarRoleText = str_replace(['-', '_'], ' ', $sidebarRoleText);
+                $canOpenCommandCenter =
+                    in_array($sidebarStatusUser, ['koordinator', 'sect head', 'secthead', 'admin', 'super admin', 'superadmin'], true);
 
-            $canOpenCommandCenter =
-            str_contains($sidebarRoleText, 'koordinator') ||
-            str_contains($sidebarRoleText, 'coordinator') ||
-            str_contains($sidebarRoleText, 'sect head') ||
-            str_contains($sidebarRoleText, 'secthead') ||
-            str_contains($sidebarRoleText, 'admin') ||
-            str_contains($sidebarRoleText, 'super admin') ||
-            str_contains($sidebarRoleText, 'superadmin');
+                $canOpenRentalSparepart =
+                    in_array($sidebarStatusUser, ['admin', 'super admin', 'superadmin'], true) ||
+                    (in_array($sidebarStatusUser, ['koordinator', 'sect head', 'secthead'], true) && $sidebarDepartment === 'RENTAL');
+
+                $canOpenPaymentSettings =
+                    in_array($sidebarStatusUser, ['admin', 'super admin', 'superadmin'], true);
             @endphp
 
             @if($canOpenCommandCenter)
@@ -101,6 +96,40 @@
                     </path>
                 </svg>
                 Command Center
+            </a>
+            @endif
+
+            @if($canOpenRentalSparepart)
+            <a href="{{ route('rental-spareparts.index') }}"
+                class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors mt-1 {{ request()->routeIs('rental-spareparts.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="w-5 h-5 mr-3 {{ request()->routeIs('rental-spareparts.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }}"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+                Management Sparepart
+            </a>
+
+            <a href="{{ route('sparepart-recommendations.index') }}"
+                class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors mt-1 {{ request()->routeIs('sparepart-recommendations.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="w-5 h-5 mr-3 {{ request()->routeIs('sparepart-recommendations.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }}"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Recommendation Control
+            </a>
+            @endif
+
+            @if($canOpenPaymentSettings)
+            <a href="{{ route('payment-settings.edit') }}"
+                class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-colors mt-1 {{ request()->routeIs('payment-settings.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="w-5 h-5 mr-3 {{ request()->routeIs('payment-settings.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }}"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                Payment Settings
             </a>
             @endif
 
@@ -163,8 +192,7 @@
                         </svg>
                         @endif
                     </p>
-                    <p class="text-xs text-slate-500 truncate">{{ str_replace('_', ' ', Auth::user()->role ??
-                        Auth::user()->status_user) }}</p>
+                    <p class="text-xs text-slate-500 truncate">{{ str_replace('_', ' ', Auth::user()->status_user) }}</p>
                 </div>
             </div>
         </div>
@@ -176,59 +204,234 @@
         <!-- TOPBAR (Header Atas) -->
         <header
             class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 shadow-sm">
-            <div class="flex items-center">
-                <button onclick="toggleSidebar()" class="lg:hidden mr-4 text-slate-500 hover:text-slate-700 focus:outline-none">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
-                        </path>
-                    </svg>
-                </button>
-                <h1 class="text-lg font-bold text-slate-800">DRR SAKTI GEN V</h1>
-            </div>
+            <!-- Hamburger Button untuk Mobile -->
+            <button onclick="toggleSidebar()"
+                class="lg:hidden p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
 
-            <div class="flex items-center gap-4">
-                <!-- Notifikasi Icon -->
-                <button class="text-slate-400 hover:text-slate-600 relative">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <!-- Spacer untuk mendorong menu logout ke kanan -->
+            <div class="flex-1"></div>
+
+            <!-- Menu Kanan (Logout) -->
+            <div class="flex items-center space-x-4">
+                <!-- Tombol Notifikasi (Dummy) -->
+                <button class="p-2 text-slate-400 hover:text-slate-500 relative">
+                    <span
+                        class="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
                         </path>
                     </svg>
-                    <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
                 </button>
 
-                <!-- User Dropdown Sederhana -->
-                <div class="hidden sm:block text-right">
-                    <p class="text-sm font-semibold text-slate-700">{{ Auth::user()->name }}</p>
-                    <p class="text-xs text-slate-400">{{ str_replace('_', ' ', Auth::user()->status_user) }}</p>
-                </div>
+                <!-- Pemisah -->
+                <div class="hidden sm:block h-6 w-px bg-slate-200"></div>
 
-                <form method="POST" action="{{ route('logout') }}">
+                <!-- Form Logout -->
+                <form method="POST" action="{{ route('logout') }}" class="m-0">
                     @csrf
                     <button type="submit"
-                        class="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                        title="Keluar">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="flex items-center text-sm font-medium text-slate-600 hover:text-red-600 transition-colors px-2 py-1 rounded-md hover:bg-red-50">
+                        <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1">
                             </path>
                         </svg>
+                        <span class="hidden sm:inline">Keluar</span>
                     </button>
                 </form>
             </div>
         </header>
 
-        <!-- AREA KONTEN YANG BISA DISCROLL -->
-        <main class="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 lg:pb-6">
+        <!-- AREA KONTEN DINAMIS -->
+        <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-28">
             @yield('content')
         </main>
+
     </div>
 
+    <!-- FLOATING BOTTOM NAVIGATION -->
+    @if(Auth::check())
+    <nav
+        class="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-200 bg-white/95 px-2 pb-2 pt-2 shadow-[0_-10px_30px_rgba(15,23,42,0.12)] backdrop-blur lg:bottom-6 lg:left-1/2 lg:right-auto lg:w-auto lg:-translate-x-1/2 lg:rounded-3xl lg:border lg:px-3 lg:shadow-2xl">
+        <div class="grid grid-cols-5 items-end gap-1 lg:flex lg:items-center lg:gap-1">
+            <a href="{{ route('dashboard') }}"
+                class="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition lg:flex-row lg:px-4 lg:text-xs
+                {{ request()->routeIs('dashboard') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 12l9-9 9 9M5 10v10h14V10" />
+                </svg>
+                <span>Home</span>
+            </a>
+
+            <a href="{{ route('calendar.index') }}"
+                class="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition lg:flex-row lg:px-4 lg:text-xs
+                {{ request()->routeIs('calendar.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1z" />
+                </svg>
+                <span>Kalender</span>
+            </a>
+
+            <!-- ========================================== -->
+            <!-- MENU JOB DINAMIS (FLOATING POP-UP) -->
+            <!-- ========================================== -->
+            <div x-data="{ openJobMenu: false }" class="relative flex flex-col items-center justify-center">
+
+                <!-- Backdrop/Overlay Transparan (Klik di luar untuk menutup) -->
+                <div x-show="openJobMenu" @click="openJobMenu = false" x-transition.opacity.duration.300ms
+                    class="fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[2px] lg:bg-transparent lg:backdrop-blur-none"
+                    style="display: none;"></div>
+
+                <!-- Pop-up Menu Box -->
+                <div x-show="openJobMenu" @click.away="openJobMenu = false" style="display: none;"
+                    x-transition:enter="transition-all ease-out duration-500"
+                    x-transition:enter-start="opacity-0 translate-y-16 scale-50 rotate-[-10deg] blur-sm"
+                    x-transition:enter-end="opacity-100 translate-y-0 scale-100 rotate-0 blur-0"
+                    x-transition:leave="transition-all ease-in duration-300"
+                    x-transition:leave-start="opacity-100 translate-y-0 scale-100 blur-0"
+                    x-transition:leave-end="opacity-0 translate-y-12 scale-75 blur-sm"
+                    class="absolute bottom-[calc(100%+1rem)] left-1/2 -translate-x-1/2 w-70 p-2.5 bg-white/95 backdrop-blur-xl border border-slate-200/80 shadow-2xl rounded-4xl z-50 flex flex-col gap-2 origin-bottom">
+
+                    <!-- 1. Update Job (Blue) -->
+                    <a href="{{ route('update-jobs.index') }}"
+                        class="group relative flex items-center gap-4 px-4 py-3 rounded-2xl bg-white hover:bg-blue-50 border border-transparent hover:border-blue-100 transition-all duration-300 active:scale-95 shadow-sm hover:shadow-md">
+                        <div
+                            class="bg-blue-100 text-blue-600 p-2.5 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-slate-700 group-hover:text-blue-700">Update Job</span>
+                    </a>
+
+                    <!-- 2. Battery (Emerald) -->
+                    <a href="{{ route('batteries.index') }}"
+                        class="group relative flex items-center gap-4 px-4 py-3 rounded-2xl bg-white hover:bg-emerald-50 border border-transparent hover:border-emerald-100 transition-all duration-300 active:scale-95 shadow-sm hover:shadow-md">
+                        <div
+                            class="bg-emerald-100 text-emerald-600 p-2.5 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M4 7v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2H6c-1.1 0-2 .9-2 2z">
+                                </path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M11 11h2v2h-2zm-4 0h2v2H7zm8 0h2v2h-2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M22 10v4">
+                                </path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-slate-700 group-hover:text-emerald-700">Manajemen
+                            Battery</span>
+                    </a>
+
+                    <!-- 3. Charger (Amber) -->
+                    <a href="{{ route('chargers.index') }}"
+                        class="group relative flex items-center gap-4 px-4 py-3 rounded-2xl bg-white hover:bg-amber-50 border border-transparent hover:border-amber-100 transition-all duration-300 active:scale-95 shadow-sm hover:shadow-md">
+                        <div
+                            class="bg-amber-100 text-amber-600 p-2.5 rounded-xl group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M13 10V3L4 14h7v7l9-11h-7z">
+                                </path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-slate-700 group-hover:text-amber-700">Management
+                            Charger</span>
+                    </a>
+
+                    <!-- 4. Delivery (Purple) -->
+                    <a href="{{ route('deliveries.index') }}"
+                        class="group relative flex items-center gap-4 px-4 py-3 rounded-2xl bg-white hover:bg-purple-50 border border-transparent hover:border-purple-100 transition-all duration-300 active:scale-95 shadow-sm hover:shadow-md">
+                        <div
+                            class="bg-purple-100 text-purple-600 p-2.5 rounded-xl group-hover:scale-110 group-hover:-translate-x-1 transition-transform duration-300">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M8 14h8m-8 4h8M5 8h14M3 8l1.5-4h15L21 8M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8">
+                                </path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-slate-700 group-hover:text-purple-700">Delivery Unit</span>
+                    </a>
+
+                    <!-- 5. Penarikan (Rose) -->
+                    <a href="{{ route('penarikans.index') }}"
+                        class="group relative flex items-center gap-4 px-4 py-3 rounded-2xl bg-white hover:bg-rose-50 border border-transparent hover:border-rose-100 transition-all duration-300 active:scale-95 shadow-sm hover:shadow-md">
+                        <div
+                            class="bg-rose-100 text-rose-600 p-2.5 rounded-xl group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M3 3h18v18H3zM8 12h8m-8-4h8m-8 8h4"></path>
+                            </svg>
+                        </div>
+                        <span class="text-sm font-bold text-slate-700 group-hover:text-rose-700">Penarikan Unit</span>
+                    </a>
+
+                    <!-- Triangle Pointer (Panah ke bawah) -->
+                    <div
+                        class="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 bg-white border-b border-r border-slate-200/80 rotate-45 rounded-sm z-[-1]">
+                    </div>
+                </div>
+
+                <!-- Tombol Trigger Utama (Job) -->
+                <button type="button" @click="openJobMenu = !openJobMenu"
+                    class="relative -mt-6 flex flex-col items-center justify-center gap-1 rounded-full bg-blue-600 px-4 py-4 text-[11px] font-bold text-white shadow-xl ring-4 ring-blue-100 transition hover:bg-blue-700 lg:mt-0 lg:flex-row lg:rounded-2xl lg:px-5 lg:py-3 lg:text-xs">
+
+                    <!-- Efek rotasi saat menu terbuka -->
+                    <svg class="h-6 w-6 transition-transform duration-500 ease-out lg:h-5 lg:w-5"
+                        :class="openJobMenu ? 'rotate-360 scale-110 text-white' : ''" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    <span class="transition-colors duration-300">Job</span>
+                </button>
+            </div>
+            <!-- ========================================== -->
+
+            <a href="{{ route('reminders.index') }}"
+                class="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition lg:flex-row lg:px-4 lg:text-xs
+                {{ request()->routeIs('reminders.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0a3 3 0 11-6 0" />
+                </svg>
+                <span>Ingat</span>
+            </a>
+
+            <a href="{{ route('profile.index') }}"
+                class="flex flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2 text-[11px] font-semibold transition lg:flex-row lg:px-4 lg:text-xs
+                {{ request()->routeIs('profile.*') ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900' }}">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                <span>Profile</span>
+            </a>
+        </div>
+    </nav>
+    @endif
+
+    <!-- Script Vanilla JS untuk Toggle Sidebar Mobile -->
     <script>
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+
         function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebar-overlay');
+            // Toggle class transform untuk memunculkan/menyembunyikan sidebar
             sidebar.classList.toggle('-translate-x-full');
+
+            // Toggle class hidden pada background hitam transparan
             overlay.classList.toggle('hidden');
         }
     </script>
