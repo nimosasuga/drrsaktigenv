@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - DRR SAKTI GEN V</title>
+    <meta name="theme-color" content="#2563eb">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 460px;
+            border: 1px solid #e2e8f0;
+            border-radius: 28px;
+            background: #ffffff;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+            padding: 28px;
+            text-align: center;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 999px;
+            background: #dbeafe;
+            color: #2563eb;
+            font-weight: 900;
+            font-size: 28px;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+            line-height: 1.2;
+        }
+
+        p {
+            margin: 12px 0 0;
+            color: #64748b;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        button {
+            margin-top: 24px;
+            width: 100%;
+            border: 0;
+            border-radius: 18px;
+            padding: 14px 18px;
+            background: #2563eb;
+            color: #ffffff;
+            font-weight: 800;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <div class="badge">!</div>
+        <h1>Koneksi sedang offline</h1>
+        <p>DRR SAKTI membutuhkan koneksi internet untuk mengambil data terbaru. Cek jaringan Anda, lalu muat ulang halaman.</p>
+        <p>Halaman kerja, form, data aset, sparepart, dan update job sengaja tidak disimpan offline agar data operasional tetap aman dan tidak basi.</p>
+        <button type="button" onclick="window.location.reload()">Muat Ulang</button>
+    </main>
+</body>
+</html>
