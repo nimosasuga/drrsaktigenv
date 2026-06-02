@@ -210,16 +210,49 @@
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label for="job_type" class="block text-xs font-medium text-slate-700 mb-1">Tipe
-                                Pekerjaan</label>
-                            <select name="job_type" id="job_type"
-                                class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                                <option value="">Pilih Tipe</option>
-                                <option value="PM" {{ old('job_type')=='PM' ? 'selected' : '' }}>Preventive (PM)
+                            @php
+                            $selectedJobTypes = collect((array) old('job_type', []))
+                            ->flatMap(fn ($value) => is_array($value) ? $value : explode(',', (string) $value))
+                            ->map(function ($value) {
+                            $value = trim((string) $value);
+
+                            return match (strtoupper($value)) {
+                            'PM' => 'Preventive Maintenance',
+                            'BM' => 'Troubleshooting',
+                            'PDI' => 'Inspection',
+                            default => $value,
+                            };
+                            })
+                            ->filter()
+                            ->unique()
+                            ->values()
+                            ->all();
+                            @endphp
+
+                            <label for="job_type" class="block text-xs font-medium text-slate-700 mb-1">
+                                Tipe Pekerjaan <span class="text-red-500">*</span>
+                            </label>
+
+                            <select name="job_type[]" id="job_type" multiple required size="5"
+                                class="w-full min-h-[11.5rem] px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+                                @foreach(($jobTypeOptions ?? ['Preventive Maintenance', 'Install Part',
+                                'Troubleshooting', 'Inspection',
+                                'Repair']) as $option)
+                                <option value="{{ $option }}" {{ in_array($option, $selectedJobTypes, true) ? 'selected'
+                                    : '' }}>
+                                    {{ $option }}
                                 </option>
-                                <option value="BM" {{ old('job_type')=='BM' ? 'selected' : '' }}>Breakdown (BM)</option>
-                                <option value="PDI" {{ old('job_type')=='PDI' ? 'selected' : '' }}>PDI</option>
+                                @endforeach
                             </select>
+
+                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                                Bisa pilih lebih dari satu. Di desktop gunakan Ctrl/Command + klik. Di HP pilih beberapa
+                                item sesuai kebutuhan.
+                            </p>
+
+                            @error('job_type')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
                         <div>
                             <label for="status_unit" class="block text-xs font-medium text-slate-700 mb-1">Status Akhir
@@ -428,10 +461,10 @@
 <!-- ========================================== -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        
+
         // --- 1. NETWORK INDICATOR ---
         const networkStatus = document.getElementById('network-status');
-        
+
         function updateNetworkStatus() {
             if (navigator.onLine) {
                 const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -444,7 +477,7 @@
                 networkStatus.innerHTML = '<span class="flex items-center text-red-600 bg-red-50 px-2 py-1 rounded-md text-xs font-bold border border-red-100"><span class="w-2 h-2 rounded-full bg-red-500 mr-1.5"></span>Offline</span>';
             }
         }
-        
+
         window.addEventListener('online', updateNetworkStatus);
         window.addEventListener('offline', updateNetworkStatus);
         updateNetworkStatus();
@@ -452,7 +485,7 @@
         // --- 2. PERINGATAN KELUAR HALAMAN ---
         let formChanged = false;
         const formJob = document.getElementById('form-job');
-        
+
         formJob.addEventListener('input', () => {
             formChanged = true;
         });
@@ -478,12 +511,12 @@
                 e.preventDefault();
                 return;
             }
-            
+
             isSubmitting = true;
             btnSubmit.classList.add('opacity-75', 'cursor-not-allowed');
             btnIcon.innerHTML = `<svg class="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
             btnText.innerText = 'Menyimpan...';
-            
+
             window.removeEventListener('beforeunload', beforeUnloadHandler);
         });
 
@@ -525,7 +558,7 @@
                                     unitTypeInput.value = item.unit_type;
                                     customerInput.value = item.customer;
                                     locationInput.value = item.location;
-                                    
+
                                     snDropdown.classList.add('hidden');
                                 });
                                 snDropdown.appendChild(div);

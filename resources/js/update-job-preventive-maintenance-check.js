@@ -1,29 +1,48 @@
 // PATH FILE: resources/js/update-job-preventive-maintenance-check.js
 
 function normalizeJobType(value) {
-    const normalized = String(value || '').trim().toUpperCase();
+    const normalized = String(value || "")
+        .trim()
+        .toUpperCase();
 
-    if (normalized === 'PM') {
-        return 'Preventive Maintenance';
+    if (normalized === "PM") {
+        return "Preventive Maintenance";
     }
 
-    if (normalized === 'PREVENTIVE MAINTENANCE') {
-        return 'Preventive Maintenance';
+    if (normalized === "PREVENTIVE MAINTENANCE") {
+        return "Preventive Maintenance";
     }
 
-    return String(value || '').trim();
+    return String(value || "").trim();
+}
+
+function getSelectedJobTypes(input) {
+    if (!input) {
+        return [];
+    }
+
+    if (input.multiple) {
+        return Array.from(input.selectedOptions || [])
+            .map((option) => normalizeJobType(option.value))
+            .filter(Boolean);
+    }
+
+    const value = normalizeJobType(input.value);
+
+    return value ? [value] : [];
 }
 
 function buildPreventiveMaintenancePopup() {
-    const existingPopup = document.getElementById('pm-duplicate-popup');
+    const existingPopup = document.getElementById("pm-duplicate-popup");
 
     if (existingPopup) {
         return existingPopup;
     }
 
-    const popup = document.createElement('div');
-    popup.id = 'pm-duplicate-popup';
-    popup.className = 'fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm';
+    const popup = document.createElement("div");
+    popup.id = "pm-duplicate-popup";
+    popup.className =
+        "fixed inset-0 z-[9999] hidden items-center justify-center bg-slate-950/60 px-4 py-6 backdrop-blur-sm";
     popup.innerHTML = `
         <div class="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-red-100 overflow-hidden">
             <div class="px-6 py-5 bg-red-50 border-b border-red-100">
@@ -55,15 +74,17 @@ function buildPreventiveMaintenancePopup() {
 
     document.body.appendChild(popup);
 
-    popup.querySelector('#pm-duplicate-close').addEventListener('click', function () {
-        popup.classList.add('hidden');
-        popup.classList.remove('flex');
-    });
+    popup
+        .querySelector("#pm-duplicate-close")
+        .addEventListener("click", function () {
+            popup.classList.add("hidden");
+            popup.classList.remove("flex");
+        });
 
-    popup.addEventListener('click', function (event) {
+    popup.addEventListener("click", function (event) {
         if (event.target === popup) {
-            popup.classList.add('hidden');
-            popup.classList.remove('flex');
+            popup.classList.add("hidden");
+            popup.classList.remove("flex");
         }
     });
 
@@ -72,48 +93,58 @@ function buildPreventiveMaintenancePopup() {
 
 function showPreventiveMaintenancePopup(message) {
     const popup = buildPreventiveMaintenancePopup();
-    const messageElement = popup.querySelector('#pm-duplicate-message');
+    const messageElement = popup.querySelector("#pm-duplicate-message");
 
-    messageElement.textContent = message || 'Preventive Maintenance untuk unit ini sudah pernah dibuat pada bulan yang sama.';
-    popup.classList.remove('hidden');
-    popup.classList.add('flex');
+    messageElement.textContent =
+        message ||
+        "Preventive Maintenance untuk unit ini sudah pernah dibuat pada bulan yang sama.";
+    popup.classList.remove("hidden");
+    popup.classList.add("flex");
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    const form = document.getElementById('form-job');
-    const serialNumberInput = document.getElementById('serial_number');
-    const jobTypeInput = document.getElementById('job_type');
-    const workDateInput = document.getElementById('work_date');
-    const submitButton = document.getElementById('btn-submit');
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("form-job");
+    const serialNumberInput = document.getElementById("serial_number");
+    const jobTypeInput = document.getElementById("job_type");
+    const workDateInput = document.getElementById("work_date");
+    const submitButton = document.getElementById("btn-submit");
 
     if (!form || !serialNumberInput || !jobTypeInput || !workDateInput) {
         return;
     }
 
     let checkTimeout = null;
-    let lastCheckKey = '';
-    let blockedMessage = '';
+    let lastCheckKey = "";
+    let blockedMessage = "";
     let activeController = null;
 
     function setBlockedState(message) {
-        blockedMessage = message || '';
+        blockedMessage = message || "";
         serialNumberInput.setCustomValidity(blockedMessage);
 
         if (submitButton) {
             submitButton.disabled = Boolean(blockedMessage);
-            submitButton.classList.toggle('opacity-60', Boolean(blockedMessage));
-            submitButton.classList.toggle('cursor-not-allowed', Boolean(blockedMessage));
+            submitButton.classList.toggle(
+                "opacity-60",
+                Boolean(blockedMessage),
+            );
+            submitButton.classList.toggle(
+                "cursor-not-allowed",
+                Boolean(blockedMessage),
+            );
         }
     }
 
     function clearBlockedState() {
-        setBlockedState('');
+        setBlockedState("");
     }
 
     function shouldCheck() {
-        return serialNumberInput.value.trim() !== ''
-            && workDateInput.value.trim() !== ''
-            && normalizeJobType(jobTypeInput.value) === 'Preventive Maintenance';
+        return (
+            serialNumberInput.value.trim() !== "" &&
+            workDateInput.value.trim() !== "" &&
+            getSelectedJobTypes(jobTypeInput).includes("Preventive Maintenance")
+        );
     }
 
     function runCheck(showPopup = false) {
@@ -121,14 +152,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!shouldCheck()) {
             clearBlockedState();
-            lastCheckKey = '';
+            lastCheckKey = "";
             return;
         }
 
         const serialNumber = serialNumberInput.value.trim();
         const workDate = workDateInput.value.trim();
-        const jobType = jobTypeInput.value.trim();
-        const exceptJobId = form.dataset.jobId || '';
+        const jobType = getSelectedJobTypes(jobTypeInput).includes(
+            "Preventive Maintenance",
+        )
+            ? "Preventive Maintenance"
+            : "";
+        const exceptJobId = form.dataset.jobId || "";
         const checkKey = `${serialNumber}|${workDate}|${jobType}|${exceptJobId}`;
 
         if (checkKey === lastCheckKey && blockedMessage) {
@@ -154,18 +189,23 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             if (exceptJobId) {
-                params.append('except_job_id', exceptJobId);
+                params.append("except_job_id", exceptJobId);
             }
 
-            fetch(`/update-jobs/check-preventive-maintenance?${params.toString()}`, {
-                headers: {
-                    'Accept': 'application/json',
+            fetch(
+                `/update-jobs/check-preventive-maintenance?${params.toString()}`,
+                {
+                    headers: {
+                        Accept: "application/json",
+                    },
+                    signal: activeController.signal,
                 },
-                signal: activeController.signal,
-            })
+            )
                 .then(function (response) {
                     if (!response.ok) {
-                        throw new Error('Gagal mengecek data Preventive Maintenance.');
+                        throw new Error(
+                            "Gagal mengecek data Preventive Maintenance.",
+                        );
                     }
 
                     return response.json();
@@ -180,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     clearBlockedState();
                 })
                 .catch(function (error) {
-                    if (error.name === 'AbortError') {
+                    if (error.name === "AbortError") {
                         return;
                     }
 
@@ -189,24 +229,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 250);
     }
 
-    serialNumberInput.addEventListener('change', function () {
+    serialNumberInput.addEventListener("change", function () {
         runCheck(true);
     });
 
-    serialNumberInput.addEventListener('blur', function () {
+    serialNumberInput.addEventListener("blur", function () {
         runCheck(true);
     });
 
-    jobTypeInput.addEventListener('change', function () {
+    jobTypeInput.addEventListener("change", function () {
         runCheck(true);
     });
 
-    workDateInput.addEventListener('change', function () {
+    workDateInput.addEventListener("change", function () {
         runCheck(true);
     });
 
-    document.addEventListener('click', function (event) {
-        const option = event.target.closest('#sn-dropdown > div');
+    document.addEventListener("click", function (event) {
+        const option = event.target.closest("#sn-dropdown > div");
 
         if (option) {
             setTimeout(function () {
@@ -215,13 +255,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    form.addEventListener('submit', function (event) {
-        if (blockedMessage) {
-            event.preventDefault();
-            showPreventiveMaintenancePopup(blockedMessage);
-            serialNumberInput.reportValidity();
-        }
-    }, true);
+    form.addEventListener(
+        "submit",
+        function (event) {
+            if (blockedMessage) {
+                event.preventDefault();
+                showPreventiveMaintenancePopup(blockedMessage);
+                serialNumberInput.reportValidity();
+            }
+        },
+        true,
+    );
 
     runCheck(false);
 });

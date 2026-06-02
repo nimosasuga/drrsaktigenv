@@ -35,9 +35,13 @@ class UpdateJobPreventiveMaintenanceCheckController extends Controller
 
         $query = Job::query()
             ->where('serial_number', $serialNumber)
-            ->where('job_type', 'Preventive Maintenance')
             ->whereYear('work_date', $workDate->year)
-            ->whereMonth('work_date', $workDate->month);
+            ->whereMonth('work_date', $workDate->month)
+            ->where(function ($q) {
+                $q->where('job_type', 'Preventive Maintenance')
+                    ->orWhere('job_type', 'PM')
+                    ->orWhere('job_type', 'like', '%Preventive Maintenance%');
+            });
 
         if ($exceptJobId > 0) {
             $query->where('id', '!=', $exceptJobId);

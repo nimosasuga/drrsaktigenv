@@ -47,6 +47,48 @@ class UpdateJobSaveController extends Controller
         };
     }
 
+    private function normalizeJobTypesForStorage($value): ?string
+    {
+        $items = is_array($value) ? $value : preg_split('/\s*,\s*/', (string) $value);
+
+        $normalized = collect($items)
+            ->map(fn($item) => $this->normalizeJobType($item))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return count($normalized) > 0 ? implode(', ', $normalized) : null;
+    }
+
+    private function selectedJobTypes($value): array
+    {
+        $normalized = $this->normalizeJobTypesForStorage($value);
+
+        if (!$normalized) {
+            return [];
+        }
+
+        return collect(preg_split('/\s*,\s*/', $normalized))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function hasPreventiveMaintenance($value): bool
+    {
+        return in_array('Preventive Maintenance', $this->selectedJobTypes($value), true);
+    }
+
+    private function applyPreventiveMaintenanceQuery($query): void
+    {
+        $query->where(function ($q) {
+            $q->where('job_type', 'Preventive Maintenance')
+                ->orWhere('job_type', 'PM')
+                ->orWhere('job_type', 'like', '%Preventive Maintenance%');
+        });
+    }
+
     private function normalizeStatusUnit(?string $value): ?string
     {
         $value = trim((string) $value);
@@ -76,7 +118,7 @@ class UpdateJobSaveController extends Controller
 
     private function rejectDuplicatePreventiveMaintenance(array $validated, ?int $exceptJobId = null)
     {
-        if (($validated['job_type'] ?? null) !== 'Preventive Maintenance') {
+        if (!$this->hasPreventiveMaintenance($validated['job_type'] ?? null)) {
             return null;
         }
 
@@ -84,9 +126,10 @@ class UpdateJobSaveController extends Controller
         $serialNumber = $validated['serial_number'];
 
         $query = Job::where('serial_number', $serialNumber)
-            ->where('job_type', 'Preventive Maintenance')
             ->whereYear('work_date', $workDate->year)
             ->whereMonth('work_date', $workDate->month);
+
+        $this->applyPreventiveMaintenanceQuery($query);
 
         if ($exceptJobId) {
             $query->where('id', '!=', $exceptJobId);
@@ -143,7 +186,7 @@ class UpdateJobSaveController extends Controller
             $merged[$field] = $value;
         }
 
-        $merged['job_type'] = $this->normalizeJobType($merged['job_type'] ?? null);
+        $merged['job_type'] = $this->normalizeJobTypesForStorage($merged['job_type'] ?? null);
         $merged['status_unit'] = $this->normalizeStatusUnit($merged['status_unit'] ?? null);
 
         $request->merge($merged);
@@ -164,7 +207,24 @@ class UpdateJobSaveController extends Controller
             'location' => ['required', 'string', 'max:150'],
             'problem' => ['required', 'string'],
             'action' => ['required', 'string'],
-            'job_type' => ['required', 'string', Rule::in($this->jobTypeOptions())],
+            'job_type' => [
+                'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    $selected = $this->selectedJobTypes($value);
+                    $invalid = array_diff($selected, $this->jobTypeOptions());
+
+                    if (count($selected) < 1) {
+                        $fail('Tipe pekerjaan wajib dipilih minimal satu.');
+                        return;
+                    }
+
+                    if (count($invalid) > 0) {
+                        $fail('Tipe pekerjaan tidak valid: ' . implode(', ', $invalid));
+                    }
+                },
+            ],
             'status_unit' => ['required', 'string', Rule::in($this->statusUnitOptions())],
             'partner' => ['nullable', 'string', 'max:150'],
             'vehicle_type' => ['nullable', 'string', 'max:100'],
