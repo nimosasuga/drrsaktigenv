@@ -1,0 +1,57 @@
+{
+    "name": "DRR SAKTI GEN V",
+    "short_name": "DRR SAKTI",
+    "description": "DRR SAKTI GEN V - Field Service, Planning, Asset, and Sparepart Management.",
+    "id": "/?source=pwa",
+    "start_url": "/login?source=pwa",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#0f172a",
+    "theme_color": "#2563eb",
+    "categories": ["business", "productivity", "utilities"],
+    "lang": "id-ID",
+    "dir": "ltr",
+    "icons": [
+        {
+            "src": "/images/icon.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/images/icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Update Job",
+            "short_name": "Job",
+            "description": "Buka halaman Update Job.",
+            "url": "/update-jobs?source=pwa_shortcut",
+            "icons": [
+                {
+                    "src": "/images/icon.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        },
+        {
+            "name": "Calendar Planning",
+            "short_name": "Calendar",
+            "description": "Buka kalender planning kerja.",
+            "url": "/calendar?source=pwa_shortcut",
+            "icons": [
+                {
+                    "src": "/images/icon.png",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                }
+            ]
+        }
+    ]
+}
