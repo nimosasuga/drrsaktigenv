@@ -269,18 +269,18 @@
                 </a>
             </div>
         </div>
+        @empty
+        <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+            <p class="text-lg font-black text-slate-800">Belum ada serial number dengan recommendation.</p>
+            <p class="mt-2 text-sm text-slate-500">
+                Data akan muncul setelah mekanik mengisi Recommendation Part di Update Job.
+            </p>
+        </div>
+        @endforelse
     </div>
-    @empty
-    <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-        <p class="text-lg font-black text-slate-800">Belum ada serial number dengan recommendation.</p>
-        <p class="mt-2 text-sm text-slate-500">Data akan muncul setelah mekanik mengisi Recommendation Part di
-            Update Job.</p>
-    </div>
-    @endforelse
-</div>
 
-<div>
-    {{ $units->links() }}
-</div>
+    <div>
+        {{ $units->links() }}
+    </div>
 </div>
 @endsection
