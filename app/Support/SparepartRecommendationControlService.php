@@ -70,6 +70,60 @@ class SparepartRecommendationControlService
         });
     }
 
+    public function syncFromJobRecommendation(JobRecommendation $recommendation): void
+    {
+        $recommendation->loadMissing('job.user');
+        $job = $recommendation->job;
+
+        if (!$job) {
+            return;
+        }
+
+        $department = $this->normalize($job->department ?? '');
+
+        if ($department === '') {
+            return;
+        }
+
+        $partNumber = $this->normalizeNullable($recommendation->part_number ?? null);
+        $serialNumber = $this->normalizeNullable($job->serial_number ?? null);
+
+        if ($partNumber === null && trim((string) ($recommendation->part_name ?? '')) === '') {
+            return;
+        }
+
+        DB::transaction(function () use ($recommendation, $job, $department, $partNumber, $serialNumber) {
+            $control = SparepartRecommendationControl::query()
+                ->where('job_recommendation_id', $recommendation->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$control || $control->isClosed()) {
+                return;
+            }
+
+            $control->fill([
+                'department' => $department,
+                'job_id' => $job->id,
+                'work_date' => $job->work_date,
+                'serial_number' => $serialNumber,
+                'customer' => $job->customer,
+                'location' => $job->location,
+                'unit_type' => $job->unit_type,
+                'part_number' => $partNumber,
+                'part_name' => $recommendation->part_name,
+                'qty_recommended' => max(1, (int) ($recommendation->qty ?? 1)),
+                'recommended_by' => $job->user_id,
+                'recommended_by_name' => $job->pic ?: $job->user?->name,
+                'remarks' => $recommendation->remarks,
+            ]);
+
+            if ($control->isDirty()) {
+                $control->save();
+            }
+        });
+    }
+
     public function cancelFromJobRecommendation(JobRecommendation $recommendation): void
     {
         DB::transaction(function () use ($recommendation) {

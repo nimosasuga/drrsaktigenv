@@ -29,6 +29,10 @@ class JobRecommendation extends Model
             app(SparepartRecommendationControlService::class)->createFromJobRecommendation($recommendation);
         });
 
+        static::updated(function (JobRecommendation $recommendation) {
+            app(SparepartRecommendationControlService::class)->syncFromJobRecommendation($recommendation);
+        });
+
         static::deleting(function (JobRecommendation $recommendation) {
             app(SparepartRecommendationControlService::class)->cancelFromJobRecommendation($recommendation);
         });
