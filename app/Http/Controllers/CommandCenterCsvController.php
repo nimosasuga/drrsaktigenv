@@ -62,12 +62,13 @@ class CommandCenterCsvController extends Controller
         abort_unless(Schema::hasTable($table), 404, 'Tabel tidak ditemukan.');
 
         $columns = Schema::getColumnListing($table);
+        $exportColumns = $this->exportColumns($table, $columns);
         $filters = $this->filters($request);
         $filename = $module . '-' . now()->format('Ymd-His') . '.csv';
 
-        return response()->streamDownload(function () use ($table, $columns, $moduleConfig, $filters) {
+        return response()->streamDownload(function () use ($table, $columns, $exportColumns, $moduleConfig, $filters) {
             $handle = fopen('php://output', 'w');
-            fputcsv($handle, $columns, ';');
+            fputcsv($handle, $exportColumns, ';');
 
             $query = DB::table($table);
             $this->applyFilters($query, $moduleConfig, $columns, $filters);
@@ -76,18 +77,126 @@ class CommandCenterCsvController extends Controller
                 $query->orderBy('id');
             }
 
-            $query->chunk(500, function ($rows) use ($handle, $columns) {
+            $query->chunk(500, function ($rows) use ($handle, $table, $columns, $exportColumns) {
+                $relationMaps = $this->updateJobExportRelationMaps($table, $rows);
+
                 foreach ($rows as $row) {
                     $line = [];
-                    foreach ($columns as $column) {
-                        $line[] = $row->{$column} ?? null;
+
+                    foreach ($exportColumns as $column) {
+                        if (in_array($column, $columns, true)) {
+                            $line[] = $row->{$column} ?? null;
+                            continue;
+                        }
+
+                        $line[] = $relationMaps[$column][$row->id] ?? null;
                     }
+
                     fputcsv($handle, $line, ';');
                 }
             });
 
             fclose($handle);
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
+    private function exportColumns(string $table, array $columns): array
+    {
+        if ($table !== 'update_jobs') {
+            return $columns;
+        }
+
+        $extraColumns = [];
+
+        if (Schema::hasTable('job_recommendations')) {
+            $extraColumns[] = 'recommendation_parts';
+        }
+
+        if (Schema::hasTable('job_install_parts')) {
+            $extraColumns[] = 'install_parts';
+        }
+
+        return array_merge($columns, $extraColumns);
+    }
+
+    private function updateJobExportRelationMaps(string $table, $rows): array
+    {
+        if ($table !== 'update_jobs') {
+            return [];
+        }
+
+        $jobIds = $rows
+            ->pluck('id')
+            ->filter()
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($jobIds->isEmpty()) {
+            return [];
+        }
+
+        return [
+            'recommendation_parts' => $this->recommendationPartsMap($jobIds->all()),
+            'install_parts' => $this->installPartsMap($jobIds->all()),
+        ];
+    }
+
+    private function recommendationPartsMap(array $jobIds): array
+    {
+        if (!Schema::hasTable('job_recommendations')) {
+            return [];
+        }
+
+        return DB::table('job_recommendations')
+            ->whereIn('job_id', $jobIds)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('job_id')
+            ->map(function ($parts) {
+                return $parts->map(function ($part) {
+                    return implode(' | ', array_filter([
+                        'PN: ' . $this->csvText($part->part_number ?? null),
+                        'NAME: ' . $this->csvText($part->part_name ?? null),
+                        'QTY: ' . $this->csvText($part->qty ?? null),
+                        'REMARKS: ' . $this->csvText($part->remarks ?? null),
+                    ]));
+                })->implode("\n");
+            })
+            ->all();
+    }
+
+    private function installPartsMap(array $jobIds): array
+    {
+        if (!Schema::hasTable('job_install_parts')) {
+            return [];
+        }
+
+        return DB::table('job_install_parts')
+            ->whereIn('job_id', $jobIds)
+            ->orderBy('id')
+            ->get()
+            ->groupBy('job_id')
+            ->map(function ($parts) {
+                return $parts->map(function ($part) {
+                    return implode(' | ', array_filter([
+                        'PN: ' . $this->csvText($part->part_number ?? null),
+                        'NAME: ' . $this->csvText($part->part_name ?? null),
+                        'QTY: ' . $this->csvText($part->qty ?? null),
+                        'NO JOB: ' . $this->csvText($part->no_job ?? null),
+                        'NO PR: ' . $this->csvText($part->no_pr ?? null),
+                        'REMARKS: ' . $this->csvText($part->remarks ?? null),
+                    ]));
+                })->implode("\n");
+            })
+            ->all();
+    }
+
+    private function csvText($value): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value !== '' ? $value : '-';
     }
 
     public function import(Request $request, string $module)
@@ -115,7 +224,7 @@ class CommandCenterCsvController extends Controller
             return back()->withErrors(['error' => 'Header CSV tidak ditemukan.']);
         }
 
-        $headers = array_map(fn ($header) => trim((string) preg_replace('/^\xEF\xBB\xBF/', '', (string) $header)), $headers);
+        $headers = array_map(fn($header) => trim((string) preg_replace('/^\xEF\xBB\xBF/', '', (string) $header)), $headers);
         $columns = Schema::getColumnListing($table);
         $allowedColumns = array_values(array_diff(array_intersect($headers, $columns), ['id']));
 
@@ -138,7 +247,7 @@ class CommandCenterCsvController extends Controller
 
         try {
             while (($line = fgetcsv($handle, 0, ';')) !== false) {
-                if (count(array_filter($line, fn ($value) => $value !== null && $value !== '')) === 0) {
+                if (count(array_filter($line, fn($value) => $value !== null && $value !== '')) === 0) {
                     $skipped++;
                     continue;
                 }
