@@ -346,24 +346,66 @@ class UpdateJobSaveController extends Controller
     private function syncRecommendations(Request $request, Job $job, bool $replaceExisting): void
     {
         if (!$request->has('rec_part_name')) {
+            if ($replaceExisting) {
+                $job->recommendations()->get()->each(function ($recommendation) {
+                    $recommendation->delete();
+                });
+            }
+
             return;
         }
 
-        if ($replaceExisting) {
-            $job->recommendations()->delete();
-        }
+        $submittedRecommendationIds = [];
 
         foreach ((array) $request->input('rec_part_name', []) as $key => $partName) {
-            if (trim((string) $partName) === '') {
+            $partName = trim((string) $partName);
+
+            if ($partName === '') {
                 continue;
             }
 
-            $job->recommendations()->create([
+            $payload = [
                 'part_number' => $request->input("rec_part_number.{$key}"),
                 'part_name' => $partName,
-                'qty' => $request->input("rec_qty.{$key}", 1),
+                'qty' => max(1, (int) $request->input("rec_qty.{$key}", 1)),
                 'remarks' => $request->input("rec_remarks.{$key}"),
-            ]);
+            ];
+
+            $recommendationId = (int) $request->input("rec_id.{$key}", 0);
+
+            if ($replaceExisting && $recommendationId > 0) {
+                $recommendation = $job->recommendations()
+                    ->whereKey($recommendationId)
+                    ->first();
+
+                if ($recommendation) {
+                    $recommendation->fill($payload);
+
+                    if ($recommendation->isDirty()) {
+                        $recommendation->save();
+                    }
+
+                    $submittedRecommendationIds[] = $recommendation->id;
+                    continue;
+                }
+            }
+
+            $recommendation = $job->recommendations()->create($payload);
+            $submittedRecommendationIds[] = $recommendation->id;
         }
+
+        if (!$replaceExisting) {
+            return;
+        }
+
+        $deleteQuery = $job->recommendations();
+
+        if (!empty($submittedRecommendationIds)) {
+            $deleteQuery->whereNotIn('id', $submittedRecommendationIds);
+        }
+
+        $deleteQuery->get()->each(function ($recommendation) {
+            $recommendation->delete();
+        });
     }
 }
