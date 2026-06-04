@@ -16,7 +16,7 @@
                 </p>
             </div>
 
-            <div class="w-full shrink-0 lg:w-[360px]">
+            <div class="w-full shrink-0 lg:w-90">
                 <div class="grid grid-cols-2 gap-2">
                     <a href="{{ route('sparepart-recommendations.index') }}"
                         class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
