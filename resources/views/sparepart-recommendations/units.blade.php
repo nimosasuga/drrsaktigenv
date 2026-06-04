@@ -64,7 +64,37 @@
         </div>
     </div>
 
+    @php
+    $exportFilteredQuery = request()->except('page');
+    $exportAllQuery = [
+    'department' => $filters['department'],
+    'export_scope' => 'all',
+    ];
+    @endphp
+
     <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <p class="text-sm font-black text-slate-900">Filter & Export Unit</p>
+                <p class="mt-1 text-xs leading-5 text-slate-500">
+                    Export memakai format CSV delimiter titik koma agar rapi saat dibuka di Excel Indonesia.
+                </p>
+            </div>
+
+            <div class="flex flex-col gap-2 sm:flex-row">
+                <a href="{{ route('sparepart-recommendations.units.export', $exportFilteredQuery) }}"
+                    class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700">
+                    Export Filter Terpilih
+                </a>
+
+                <a href="{{ route('sparepart-recommendations.units.export', $exportAllQuery) }}"
+                    onclick="return confirm('Export semua rekomendasi unit untuk department {{ $filters['department'] }}?');"
+                    class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+                    Export Semua
+                </a>
+            </div>
+        </div>
+
         <form method="GET" action="{{ route('sparepart-recommendations.units') }}" class="grid gap-3 lg:grid-cols-6">
             @if(in_array(strtolower((string) (auth()->user()->status_user ?? auth()->user()->role ?? '')), ['admin',
             'super_admin'], true))

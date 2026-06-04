@@ -216,6 +216,167 @@ class SparepartRecommendationControlController extends Controller
         ));
     }
 
+    public function unitsExport(Request $request)
+    {
+        abort_unless($this->canAccess(), 403);
+
+        $department = $this->departmentFilter($request);
+        $exportScope = strtolower(trim((string) $request->input('export_scope', 'filtered')));
+
+        $filters = [
+            'department' => $department,
+            'search' => trim((string) $request->input('search', '')),
+            'serial_number' => strtoupper(trim((string) $request->input('serial_number', ''))),
+            'customer' => strtoupper(trim((string) $request->input('customer', ''))),
+            'part_number' => strtoupper(trim((string) $request->input('part_number', ''))),
+            'recommendation_status' => strtoupper(trim((string) $request->input('recommendation_status', ''))),
+            'supply_status' => strtoupper(trim((string) $request->input('supply_status', ''))),
+            'date_from' => trim((string) $request->input('date_from', '')),
+            'date_to' => trim((string) $request->input('date_to', '')),
+        ];
+
+        $query = SparepartRecommendationControl::query()
+            ->where('department', $department)
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '');
+
+        if ($exportScope !== 'all') {
+            if ($filters['search'] !== '') {
+                $search = $filters['search'];
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->where('serial_number', 'like', "%{$search}%")
+                        ->orWhere('customer', 'like', "%{$search}%")
+                        ->orWhere('location', 'like', "%{$search}%")
+                        ->orWhere('unit_type', 'like', "%{$search}%")
+                        ->orWhere('part_number', 'like', "%{$search}%")
+                        ->orWhere('part_name', 'like', "%{$search}%")
+                        ->orWhere('recommended_by_name', 'like', "%{$search}%");
+                });
+            }
+
+            if ($filters['serial_number'] !== '') {
+                $query->where('serial_number', 'like', '%' . $filters['serial_number'] . '%');
+            }
+
+            if ($filters['customer'] !== '') {
+                $query->where('customer', 'like', '%' . $filters['customer'] . '%');
+            }
+
+            if ($filters['part_number'] !== '') {
+                $query->where('part_number', 'like', '%' . $filters['part_number'] . '%');
+            }
+
+            if ($filters['recommendation_status'] !== '') {
+                $query->where('recommendation_status', $filters['recommendation_status']);
+            }
+
+            if ($filters['supply_status'] !== '') {
+                $query->where('supply_status', $filters['supply_status']);
+            }
+
+            if ($filters['date_from'] !== '') {
+                $query->whereDate('work_date', '>=', $filters['date_from']);
+            }
+
+            if ($filters['date_to'] !== '') {
+                $query->whereDate('work_date', '<=', $filters['date_to']);
+            }
+        }
+
+        $rows = $query
+            ->selectRaw("
+                serial_number,
+                MAX(customer) as customer,
+                MAX(location) as location,
+                MAX(unit_type) as unit_type,
+                COUNT(*) as total_items,
+                SUM(qty_recommended) as qty_recommended,
+                SUM(qty_supplied) as qty_supplied,
+                SUM(qty_installed) as qty_installed,
+                SUM(CASE WHEN supply_status = 'NEED_SUPPLY' THEN 1 ELSE 0 END) as need_supply_count,
+                SUM(CASE WHEN supply_status = 'SUPPLIED' THEN 1 ELSE 0 END) as supplied_count,
+                SUM(CASE WHEN recommendation_status IN ('INSTALLED', 'PARTIAL_INSTALLED') THEN 1 ELSE 0 END) as installed_count,
+                SUM(CASE WHEN recommendation_status IN ('CLOSED', 'REJECTED', 'CANCELLED') THEN 1 ELSE 0 END) as closed_count,
+                MAX(work_date) as latest_work_date
+            ")
+            ->groupBy('serial_number')
+            ->orderByDesc('need_supply_count')
+            ->orderByDesc('latest_work_date')
+            ->get();
+
+        $filename = 'rekomendasi-unit-' . strtolower($department) . '-' . ($exportScope === 'all' ? 'semua' : 'filter') . '-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($rows, $department) {
+            $handle = fopen('php://output', 'w');
+
+            fwrite($handle, "\xEF\xBB\xBF");
+            fwrite($handle, "sep=;\r\n");
+
+            fputcsv($handle, [
+                'Departemen',
+                'Serial Number',
+                'Customer',
+                'Lokasi',
+                'Unit Type',
+                'Total Item',
+                'Qty Rekomendasi',
+                'Qty Supply',
+                'Qty Terpasang',
+                'Jumlah Need Supply',
+                'Jumlah Supplied',
+                'Jumlah Installed',
+                'Jumlah Closed',
+                'Tanggal Job Terakhir',
+                'Status Ringkas',
+            ], ';');
+
+            foreach ($rows as $row) {
+                fputcsv($handle, [
+                    $department,
+                    $row->serial_number ?: '-',
+                    $row->customer ?: '-',
+                    $row->location ?: '-',
+                    $row->unit_type ?: '-',
+                    (int) $row->total_items,
+                    (int) $row->qty_recommended,
+                    (int) $row->qty_supplied,
+                    (int) $row->qty_installed,
+                    (int) $row->need_supply_count,
+                    (int) $row->supplied_count,
+                    (int) $row->installed_count,
+                    (int) $row->closed_count,
+                    $row->latest_work_date ?: '-',
+                    $this->unitExportStatus($row),
+                ], ';');
+            }
+
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    private function unitExportStatus($row): string
+    {
+        if ((int) $row->need_supply_count > 0) {
+            return 'NEED SUPPLY';
+        }
+
+        if ((int) $row->total_items > 0 && (int) $row->closed_count >= (int) $row->total_items) {
+            return 'CLOSED';
+        }
+
+        if ((int) $row->supplied_count > 0) {
+            return 'SUPPLIED';
+        }
+
+        if ((int) $row->installed_count > 0) {
+            return 'INSTALLED';
+        }
+
+        return 'ACTIVE';
+    }
+
     public function unitShow(Request $request, string $serialNumber)
     {
         abort_unless($this->canAccess(), 403);
