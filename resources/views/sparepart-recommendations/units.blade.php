@@ -192,7 +192,7 @@
                     </p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-[520px]">
+                <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:w-130">
                     <div class="rounded-2xl bg-slate-50 px-4 py-3">
                         <p class="text-[10px] font-black uppercase text-slate-400">Items</p>
                         <p class="text-lg font-black text-slate-900">{{ number_format($unit->total_items) }}</p>
