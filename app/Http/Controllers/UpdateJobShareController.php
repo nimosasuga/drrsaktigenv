@@ -10,7 +10,7 @@ class UpdateJobShareController extends Controller
 {
     public function message(int $id)
     {
-        $job = Job::with(['installParts', 'recommendations'])->findOrFail($id);
+        $job = Job::with(['user', 'installParts', 'recommendations'])->findOrFail($id);
         $message = $this->formatMessage($job);
         $whatsappUrl = 'https://wa.me/?text=' . urlencode($message);
 
@@ -55,6 +55,13 @@ class UpdateJobShareController extends Controller
         return strtoupper($this->value($value, $fallback));
     }
 
+    private function userPosition(Job $job): string
+    {
+        $position = $this->value($job->user?->position, '');
+
+        return $position !== '' ? $position : $this->value($job->status_mekanik);
+    }
+
     private function recommendationsText(Job $job): string
     {
         if ($job->recommendations->isEmpty()) {
@@ -96,14 +103,14 @@ class UpdateJobShareController extends Controller
         $vehicle = trim($this->value($job->vehicle_type, '') . ' - ' . $this->value($job->nopol, ''));
 
         return [
-            '*UPDATE JOB RENTAL* _' . $this->value($job->status_mekanik) . '_',
+            '*UPDATE JOB RENTAL* _' . $this->userPosition($job) . '_',
             $this->value($job->job_type),
             '',
             '*' . $this->upper($job->customer) . '*',
             '*LOCATION :* ' . $this->upper($job->location),
             '*DATE :* ' . $this->formatDate($job->work_date),
-            '*IN :* ' . $this->formatTime($job->in_time),
-            '*OUT :* ' . $this->formatTime($job->out_time),
+            '*START :* ' . $this->formatTime($job->in_time),
+            '*FINISH :* ' . $this->formatTime($job->out_time),
             '*MAN POWER :* ' . $this->value($manPower),
             '*KENDARAAN :* ' . $this->value($vehicle),
         ];
