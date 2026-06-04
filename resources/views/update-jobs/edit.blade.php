@@ -212,6 +212,14 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             @php
+                            $jobTypeChoices = $jobTypeOptions ?? [
+                            'Preventive Maintenance',
+                            'Install Part',
+                            'Troubleshooting',
+                            'Inspection',
+                            'Repair',
+                            ];
+
                             $selectedJobTypes = collect((array) old('job_type', $job->job_type ? explode(',', (string)
                             $job->job_type) : []))
                             ->flatMap(fn ($value) => is_array($value) ? $value : explode(',', (string) $value))
@@ -229,27 +237,48 @@
                             ->unique()
                             ->values()
                             ->all();
+
+                            $selectedJobTypeLabel = count($selectedJobTypes) > 0
+                            ? implode(', ', $selectedJobTypes)
+                            : 'Pilih Tipe Pekerjaan';
                             @endphp
 
-                            <label for="job_type" class="block text-xs font-medium text-slate-700 mb-1">
+                            <label class="block text-xs font-medium text-slate-700 mb-1">
                                 Tipe Pekerjaan <span class="text-red-500">*</span>
                             </label>
 
-                            <select name="job_type[]" id="job_type" multiple required size="5"
-                                class="w-full min-h-[11.5rem] px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                                @foreach(($jobTypeOptions ?? ['Preventive Maintenance', 'Install Part',
-                                'Troubleshooting', 'Inspection',
-                                'Repair']) as $option)
-                                <option value="{{ $option }}" {{ in_array($option, $selectedJobTypes, true) ? 'selected'
-                                    : '' }}>
-                                    {{ $option }}
-                                </option>
-                                @endforeach
-                            </select>
+                            <div class="relative" data-multi-job-type>
+                                <input type="hidden" name="job_type" id="job_type"
+                                    value="{{ implode(', ', $selectedJobTypes) }}" data-multi-job-type-value>
+
+                                <button type="button" data-multi-job-type-button
+                                    class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow flex items-center justify-between gap-3 text-left">
+                                    <span data-multi-job-type-label class="truncate">{{ $selectedJobTypeLabel }}</span>
+                                    <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </button>
+
+                                <div data-multi-job-type-menu
+                                    class="hidden absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                    <div class="max-h-64 overflow-y-auto p-2 space-y-1">
+                                        @foreach($jobTypeChoices as $option)
+                                        <label
+                                            class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer text-sm text-slate-700">
+                                            <input type="checkbox" value="{{ $option }}" data-multi-job-type-option {{
+                                                in_array($option, $selectedJobTypes, true) ? 'checked' : '' }}
+                                                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                            <span>{{ $option }}</span>
+                                        </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
 
                             <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                Bisa pilih lebih dari satu. Di desktop gunakan Ctrl/Command + klik. Di HP pilih beberapa
-                                item sesuai kebutuhan.
+                                Bisa pilih lebih dari satu.
                             </p>
 
                             @error('job_type')
