@@ -355,13 +355,14 @@
                         @if($canManage)
                         <div>
                             <form method="POST" action="{{ route('sparepart-recommendations.status', $control) }}"
+                                data-smart-action-form
                                 class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                 @csrf
                                 @method('PATCH')
 
                                 <label
                                     class="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Action</label>
-                                <select name="action_type"
+                                <select name="action_type" data-action-type-select
                                     class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold">
                                     <option value="REVIEWED">Mark Reviewed</option>
                                     <option value="APPROVED">Approve</option>
@@ -372,104 +373,112 @@
                                     <option value="CANCELLED">Cancel</option>
                                 </select>
 
-                                <div class="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
-                                    <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Data Supply /
-                                        Barang Masuk</p>
-                                    <p class="mt-1 text-[11px] leading-5 text-emerald-700">
-                                        Jika Source Stock dikosongkan, Mark Supplied akan membuat stok IN baru dari
-                                        rekomendasi ini.
-                                    </p>
+                                <p data-action-help
+                                    class="mt-2 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500">
+                                    Pilih action. Field supply hanya muncul saat Mark Supplied / Create Stock IN.
+                                </p>
 
-                                    <label
-                                        class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Tanggal
-                                        Supply</label>
-                                    <input type="date" name="supply_date" value="{{ now()->toDateString() }}"
-                                        class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm">
+                                <div data-supply-fields class="mt-3 hidden space-y-3">
+                                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                                        <p class="text-xs font-black uppercase tracking-wide text-emerald-700">Data
+                                            Supply /
+                                            Barang Masuk</p>
+                                        <p class="mt-1 text-[11px] leading-5 text-emerald-700">
+                                            Jika Source Stock dikosongkan, Mark Supplied akan membuat stok IN baru dari
+                                            rekomendasi ini.
+                                        </p>
 
-                                    <label
-                                        class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">No
-                                        Job</label>
-                                    <input type="text" name="supply_no_job" placeholder="No job dari sparepart masuk"
-                                        class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
+                                        <label
+                                            class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Tanggal
+                                            Supply</label>
+                                        <input type="date" name="supply_date" value="{{ now()->toDateString() }}"
+                                            class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm">
 
-                                    <label
-                                        class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Qty
-                                        Supplied</label>
-                                    <input type="number" name="qty_supplied" min="1"
-                                        value="{{ max(1, (int) $control->qty_recommended - (int) $control->qty_supplied) }}"
-                                        class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm">
+                                        <label
+                                            class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">No
+                                            Job</label>
+                                        <input type="text" name="supply_no_job"
+                                            placeholder="No job dari sparepart masuk"
+                                            class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
 
-                                    <label
-                                        class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Location
-                                        Code</label>
-                                    <input type="text" name="location_code" value="RECOMMENDATION-SUPPLY"
-                                        class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
+                                        <label
+                                            class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Qty
+                                            Supplied</label>
+                                        <input type="number" name="qty_supplied" min="1"
+                                            value="{{ max(1, (int) $control->qty_recommended - (int) $control->qty_supplied) }}"
+                                            class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm">
 
-                                    <label
-                                        class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Location
-                                        Name</label>
-                                    <input type="text" name="location_name" value="RECOMMENDATION SUPPLY"
-                                        class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
+                                        <label
+                                            class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Location
+                                            Code</label>
+                                        <input type="text" name="location_code" value="RECOMMENDATION-SUPPLY"
+                                            class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
 
-                                    <div class="mt-3 grid grid-cols-3 gap-2">
-                                        <div>
-                                            <label
-                                                class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Cabinet</label>
-                                            <input type="text" name="cabinet"
-                                                class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
-                                        </div>
-                                        <div>
-                                            <label
-                                                class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Shelf</label>
-                                            <input type="text" name="shelf"
-                                                class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
-                                        </div>
-                                        <div>
-                                            <label
-                                                class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Box</label>
-                                            <input type="text" name="box"
-                                                class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
+                                        <label
+                                            class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Location
+                                            Name</label>
+                                        <input type="text" name="location_name" value="RECOMMENDATION SUPPLY"
+                                            class="w-full rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-sm uppercase">
+
+                                        <div class="mt-3 grid grid-cols-3 gap-2">
+                                            <div>
+                                                <label
+                                                    class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Cabinet</label>
+                                                <input type="text" name="cabinet"
+                                                    class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Shelf</label>
+                                                <input type="text" name="shelf"
+                                                    class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
+                                            </div>
+                                            <div>
+                                                <label
+                                                    class="mb-1 block text-[10px] font-black uppercase tracking-wide text-slate-500">Box</label>
+                                                <input type="text" name="box"
+                                                    class="w-full rounded-xl border border-emerald-200 bg-white px-2 py-2 text-xs uppercase">
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <label
-                                    class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Source
-                                    Stock Existing</label>
-                                <select name="source_stock_id"
-                                    class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                                    <option value="">Kosongkan untuk Create Stock IN baru</option>
-                                    @foreach($sourceStocks as $stock)
-                                    <option value="{{ $stock->id }}">
-                                        #{{ $stock->id }} | {{ $stock->item?->part_number }} | Sisa {{
-                                        $stock->qty_available }} | SN {{ $stock->allocation_sn_unit ?:
-                                        $stock->source_sn_unit ?: '-' }}
-                                    </option>
-                                    @endforeach
-                                </select>
+                                    <label
+                                        class="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Source
+                                        Stock Existing</label>
+                                    <select name="source_stock_id"
+                                        class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                        <option value="">Kosongkan untuk Create Stock IN baru</option>
+                                        @foreach($sourceStocks as $stock)
+                                        <option value="{{ $stock->id }}">
+                                            #{{ $stock->id }} | {{ $stock->item?->part_number }} | Sisa {{
+                                            $stock->qty_available }} | SN {{ $stock->allocation_sn_unit ?:
+                                            $stock->source_sn_unit ?: '-' }}
+                                        </option>
+                                        @endforeach
+                                    </select>
 
-                                <label
-                                    class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Source
-                                    Type</label>
-                                <select name="source_type"
-                                    class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
-                                    <option value="MANUAL">MANUAL</option>
-                                    <option value="STOCK">STOCK</option>
-                                    <option value="PURCHASE">PURCHASE</option>
-                                    <option value="BORROWED">BORROWED</option>
-                                </select>
+                                    <label
+                                        class="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Source
+                                        Type</label>
+                                    <select name="source_type"
+                                        class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                                        <option value="MANUAL">MANUAL</option>
+                                        <option value="STOCK">STOCK</option>
+                                        <option value="PURCHASE">PURCHASE</option>
+                                        <option value="BORROWED">BORROWED</option>
+                                    </select>
 
-                                <label
-                                    class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Note</label>
-                                <textarea name="note" rows="2"
-                                    class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                                    placeholder="Catatan koordinator"></textarea>
+                                    <label
+                                        class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Note</label>
+                                    <textarea name="note" rows="2"
+                                        class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                                        placeholder="Catatan koordinator"></textarea>
 
-                                <button type="submit"
-                                    onclick="return confirm('Update recommendation control ini? Jika action Mark Supplied dan Source Stock kosong, sistem akan membuat stok IN baru.');"
-                                    class="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
-                                    Save Action
-                                </button>
+                                    <button type="submit"
+                                        onclick="return confirm('Update recommendation control ini? Jika action Mark Supplied dan Source Stock kosong, sistem akan membuat stok IN baru.');"
+                                        class="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
+                                        Save Action
+                                    </button>
                             </form>
                         </div>
                         @endif
@@ -490,4 +499,61 @@
         {{ $controls->links() }}
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('[data-smart-action-form]').forEach(function (form) {
+            const actionSelect = form.querySelector('[data-action-type-select]');
+            const supplyFields = form.querySelector('[data-supply-fields]');
+            const actionHelp = form.querySelector('[data-action-help]');
+
+            if (!actionSelect || !supplyFields) {
+                return;
+            }
+
+            const supplyInputs = Array.from(
+                supplyFields.querySelectorAll('input, select, textarea')
+            );
+
+            function syncActionFields() {
+                const selectedAction = String(actionSelect.value || '').trim().toUpperCase();
+                const shouldShowSupply = selectedAction === 'SUPPLIED';
+
+                supplyFields.classList.toggle('hidden', !shouldShowSupply);
+
+                supplyInputs.forEach(function (input) {
+                    input.disabled = !shouldShowSupply;
+                });
+
+                if (!actionHelp) {
+                    return;
+                }
+
+                if (shouldShowSupply) {
+                    actionHelp.textContent = 'Mode Mark Supplied aktif. Isi data supply, atau pilih Source Stock Existing jika memakai stok yang sudah ada.';
+                    actionHelp.className = 'mt-2 rounded-2xl bg-emerald-50 px-3 py-2 text-xs font-semibold leading-5 text-emerald-700';
+                    return;
+                }
+
+                if (selectedAction === 'NEED_SUPPLY') {
+                    actionHelp.textContent = 'Mode Need Supply aktif. Isi Note jika perlu menjelaskan kebutuhan supply.';
+                    actionHelp.className = 'mt-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-700';
+                    return;
+                }
+
+                if (selectedAction === 'REJECTED' || selectedAction === 'CANCELLED') {
+                    actionHelp.textContent = 'Mode reject/cancel aktif. Isi Note agar alasan keputusan tercatat.';
+                    actionHelp.className = 'mt-2 rounded-2xl bg-red-50 px-3 py-2 text-xs font-semibold leading-5 text-red-700';
+                    return;
+                }
+
+                actionHelp.textContent = 'Field supply disembunyikan karena action ini tidak membutuhkan data barang masuk.';
+                actionHelp.className = 'mt-2 rounded-2xl bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-500';
+            }
+
+            actionSelect.addEventListener('change', syncActionFields);
+            syncActionFields();
+        });
+    });
+</script>
 @endsection
