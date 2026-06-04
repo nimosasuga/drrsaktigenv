@@ -324,27 +324,7 @@ class SparepartRecommendationControlController extends Controller
             ->orderByDesc('work_date')
             ->orderBy('part_number')
             ->get()
-            ->groupBy('serial_number')
-            ->map(function ($items) {
-                return $items
-                    ->values()
-                    ->map(function ($item, int $index) {
-                        return ($index + 1) . '. ' . implode(' | ', [
-                            'PN: ' . $this->exportText($item->part_number),
-                            'Nama: ' . $this->exportText($item->part_name),
-                            'Qty Rekomendasi: ' . (int) $item->qty_recommended,
-                            'Qty Supply: ' . (int) $item->qty_supplied,
-                            'Qty Terpasang: ' . (int) $item->qty_installed,
-                            'Rec Status: ' . $this->exportText($item->recommendation_status),
-                            'Supply Status: ' . $this->exportText($item->supply_status),
-                            'Tanggal: ' . $this->exportText($item->work_date),
-                            'Mekanik: ' . $this->exportText($item->recommended_by_name),
-                            'Catatan: ' . $this->exportText($item->remarks),
-                        ]);
-                    })
-                    ->implode("\n");
-            })
-            ->all();
+            ->groupBy('serial_number');
 
         $filename = 'rekomendasi-unit-' . strtolower($department) . '-' . ($exportScope === 'all' ? 'semua' : 'filter') . '-' . now()->format('Ymd-His') . '.csv';
 
@@ -360,38 +340,92 @@ class SparepartRecommendationControlController extends Controller
                 'Customer',
                 'Lokasi',
                 'Unit Type',
-                'Total Item',
-                'Qty Rekomendasi',
-                'Qty Supply',
-                'Qty Terpasang',
-                'Jumlah Need Supply',
-                'Jumlah Supplied',
-                'Jumlah Installed',
-                'Jumlah Closed',
-                'Tanggal Job Terakhir',
-                'Status Ringkas',
-                'Detail Item Sparepart',
+                'Total Item Unit',
+                'Total Qty Rekomendasi Unit',
+                'Total Qty Supply Unit',
+                'Total Qty Terpasang Unit',
+                'Jumlah Need Supply Unit',
+                'Jumlah Supplied Unit',
+                'Jumlah Installed Unit',
+                'Jumlah Closed Unit',
+                'Tanggal Job Terakhir Unit',
+                'Status Ringkas Unit',
+                'Part Number',
+                'Nama Sparepart',
+                'Qty Rekomendasi Part',
+                'Qty Supply Part',
+                'Qty Terpasang Part',
+                'Recommendation Status',
+                'Supply Status',
+                'Tanggal Job Part',
+                'Recommended By',
+                'Catatan',
             ], ';');
 
             foreach ($rows as $row) {
-                fputcsv($handle, [
-                    $department,
-                    $row->serial_number ?: '-',
-                    $row->customer ?: '-',
-                    $row->location ?: '-',
-                    $row->unit_type ?: '-',
-                    (int) $row->total_items,
-                    (int) $row->qty_recommended,
-                    (int) $row->qty_supplied,
-                    (int) $row->qty_installed,
-                    (int) $row->need_supply_count,
-                    (int) $row->supplied_count,
-                    (int) $row->installed_count,
-                    (int) $row->closed_count,
-                    $row->latest_work_date ?: '-',
-                    $this->unitExportStatus($row),
-                    $detailItemsBySerialNumber[$row->serial_number] ?? '-',
-                ], ';');
+                $items = $detailItemsBySerialNumber->get($row->serial_number, collect());
+
+                if ($items->isEmpty()) {
+                    fputcsv($handle, [
+                        $department,
+                        $row->serial_number ?: '-',
+                        $row->customer ?: '-',
+                        $row->location ?: '-',
+                        $row->unit_type ?: '-',
+                        (int) $row->total_items,
+                        (int) $row->qty_recommended,
+                        (int) $row->qty_supplied,
+                        (int) $row->qty_installed,
+                        (int) $row->need_supply_count,
+                        (int) $row->supplied_count,
+                        (int) $row->installed_count,
+                        (int) $row->closed_count,
+                        $row->latest_work_date ?: '-',
+                        $this->unitExportStatus($row),
+                        '-',
+                        '-',
+                        0,
+                        0,
+                        0,
+                        '-',
+                        '-',
+                        '-',
+                        '-',
+                        '-',
+                    ], ';');
+
+                    continue;
+                }
+
+                foreach ($items as $item) {
+                    fputcsv($handle, [
+                        $department,
+                        $row->serial_number ?: '-',
+                        $row->customer ?: '-',
+                        $row->location ?: '-',
+                        $row->unit_type ?: '-',
+                        (int) $row->total_items,
+                        (int) $row->qty_recommended,
+                        (int) $row->qty_supplied,
+                        (int) $row->qty_installed,
+                        (int) $row->need_supply_count,
+                        (int) $row->supplied_count,
+                        (int) $row->installed_count,
+                        (int) $row->closed_count,
+                        $row->latest_work_date ?: '-',
+                        $this->unitExportStatus($row),
+                        $this->exportText($item->part_number),
+                        $this->exportText($item->part_name),
+                        (int) $item->qty_recommended,
+                        (int) $item->qty_supplied,
+                        (int) $item->qty_installed,
+                        $this->exportText($item->recommendation_status),
+                        $this->exportText($item->supply_status),
+                        $this->exportText($item->work_date),
+                        $this->exportText($item->recommended_by_name),
+                        $this->exportText($item->remarks),
+                    ], ';');
+                }
             }
 
             fclose($handle);
