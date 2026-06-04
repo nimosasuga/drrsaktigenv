@@ -141,13 +141,88 @@
         </div>
     </div>
 
-    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p class="text-sm font-black text-slate-900">Catatan fase 1</p>
-        <p class="mt-2 text-sm leading-6 text-slate-500">
-            Halaman ini hanya mengubah pintu masuk Recommendation Control. Workflow approval, Mark Supplied, Create
-            Stock IN,
-            status lifecycle, role access, dan department isolation tetap menggunakan logic yang sudah stabil.
-        </p>
+    <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Panduan Cepat</p>
+                <h2 class="mt-2 text-xl font-black tracking-tight text-slate-950">
+                    Cara memakai Recommendation Control
+                </h2>
+                <p class="mt-2 text-sm leading-6 text-slate-500">
+                    Geser card untuk memahami fungsi Mode Unit, Mode Sparepart, dan export data.
+                </p>
+            </div>
+
+            <p class="text-xs font-bold text-slate-400">
+                Swipe / scroll horizontal →
+            </p>
+        </div>
+
+        <div class="mt-5 flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-indigo-200 bg-indigo-50 p-5">
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white">
+                    <span class="text-sm font-black">01</span>
+                </div>
+                <h3 class="mt-4 text-base font-black text-slate-950">
+                    Mode Unit
+                </h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">
+                    Gunakan untuk melihat kebutuhan sparepart berdasarkan serial number unit. Cocok untuk analisa unit
+                    mana yang paling banyak membutuhkan supply.
+                </p>
+                <a href="{{ route('sparepart-recommendations.units') }}"
+                    class="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
+                    Buka Mode Unit
+                </a>
+            </div>
+
+            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                    <span class="text-sm font-black">02</span>
+                </div>
+                <h3 class="mt-4 text-base font-black text-slate-950">
+                    Mode Sparepart
+                </h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">
+                    Gunakan untuk review item rekomendasi satu per satu. Action seperti Reviewed, Approve, Need Supply,
+                    Mark Supplied, Reject, Close, dan Cancel dilakukan dari mode ini.
+                </p>
+                <a href="{{ route('sparepart-recommendations.parts') }}"
+                    class="mt-4 inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white hover:bg-emerald-700">
+                    Buka Mode Sparepart
+                </a>
+            </div>
+
+            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500 text-white">
+                    <span class="text-sm font-black">03</span>
+                </div>
+                <h3 class="mt-4 text-base font-black text-slate-950">
+                    Alur Supply
+                </h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">
+                    Jika Mark Supplied tanpa memilih existing stock, sistem membuat Barang Masuk dan stok sparepart
+                    otomatis. Jika memakai stock existing, pilih source stock lebih dulu.
+                </p>
+            </div>
+
+            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                    <span class="text-sm font-black">04</span>
+                </div>
+                <h3 class="mt-4 text-base font-black text-slate-950">
+                    Export Excel
+                </h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">
+                    Di Mode Unit, export tersedia dalam format CSV Excel Indonesia. Bisa export sesuai filter aktif atau
+                    export semua data department.
+                </p>
+                <a href="{{ route('sparepart-recommendations.units') }}"
+                    class="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-100">
+                    Buka Export Unit
+                </a>
+            </div>
+        </div>
     </div>
 </div>
 @endsection
