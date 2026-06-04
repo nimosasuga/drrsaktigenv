@@ -78,7 +78,7 @@ class CommandCenterCsvController extends Controller
             }
 
             $query->chunk(500, function ($rows) use ($handle, $table, $columns, $exportColumns) {
-                $relationMaps = $this->updateJobExportRelationMaps($table, $rows);
+                $relationMaps = $this->exportRelationMaps($table, $rows);
 
                 foreach ($rows as $row) {
                     $line = [];
@@ -100,59 +100,93 @@ class CommandCenterCsvController extends Controller
         }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
+    private function exportRelationConfig(string $table): ?array
+    {
+        return match ($table) {
+            'update_jobs' => [
+                'recommendations_table' => 'job_recommendations',
+                'install_parts_table' => 'job_install_parts',
+                'foreign_key' => 'job_id',
+            ],
+            'batteries' => [
+                'recommendations_table' => 'battery_recommendations',
+                'install_parts_table' => 'battery_install_parts',
+                'foreign_key' => 'battery_id',
+            ],
+            'chargers' => [
+                'recommendations_table' => 'charger_recommendations',
+                'install_parts_table' => 'charger_install_parts',
+                'foreign_key' => 'charger_id',
+            ],
+            default => null,
+        };
+    }
+
     private function exportColumns(string $table, array $columns): array
     {
-        if ($table !== 'update_jobs') {
+        $config = $this->exportRelationConfig($table);
+
+        if (!$config) {
             return $columns;
         }
 
         $extraColumns = [];
 
-        if (Schema::hasTable('job_recommendations')) {
+        if (Schema::hasTable($config['recommendations_table'])) {
             $extraColumns[] = 'recommendation_parts';
         }
 
-        if (Schema::hasTable('job_install_parts')) {
+        if (Schema::hasTable($config['install_parts_table'])) {
             $extraColumns[] = 'install_parts';
         }
 
         return array_merge($columns, $extraColumns);
     }
 
-    private function updateJobExportRelationMaps(string $table, $rows): array
+    private function exportRelationMaps(string $table, $rows): array
     {
-        if ($table !== 'update_jobs') {
+        $config = $this->exportRelationConfig($table);
+
+        if (!$config) {
             return [];
         }
 
-        $jobIds = $rows
+        $itemIds = $rows
             ->pluck('id')
             ->filter()
             ->map(fn($id) => (int) $id)
             ->unique()
             ->values();
 
-        if ($jobIds->isEmpty()) {
+        if ($itemIds->isEmpty()) {
             return [];
         }
 
         return [
-            'recommendation_parts' => $this->recommendationPartsMap($jobIds->all()),
-            'install_parts' => $this->installPartsMap($jobIds->all()),
+            'recommendation_parts' => $this->recommendationPartsMap(
+                $config['recommendations_table'],
+                $config['foreign_key'],
+                $itemIds->all()
+            ),
+            'install_parts' => $this->installPartsMap(
+                $config['install_parts_table'],
+                $config['foreign_key'],
+                $itemIds->all()
+            ),
         ];
     }
 
-    private function recommendationPartsMap(array $jobIds): array
+    private function recommendationPartsMap(string $relationTable, string $foreignKey, array $itemIds): array
     {
-        if (!Schema::hasTable('job_recommendations')) {
+        if (!Schema::hasTable($relationTable)) {
             return [];
         }
 
-        return DB::table('job_recommendations')
-            ->whereIn('job_id', $jobIds)
+        return DB::table($relationTable)
+            ->whereIn($foreignKey, $itemIds)
             ->orderBy('id')
             ->get()
-            ->groupBy('job_id')
+            ->groupBy($foreignKey)
             ->map(function ($parts) {
                 return $parts->map(function ($part) {
                     return implode(' | ', array_filter([
@@ -166,17 +200,17 @@ class CommandCenterCsvController extends Controller
             ->all();
     }
 
-    private function installPartsMap(array $jobIds): array
+    private function installPartsMap(string $relationTable, string $foreignKey, array $itemIds): array
     {
-        if (!Schema::hasTable('job_install_parts')) {
+        if (!Schema::hasTable($relationTable)) {
             return [];
         }
 
-        return DB::table('job_install_parts')
-            ->whereIn('job_id', $jobIds)
+        return DB::table($relationTable)
+            ->whereIn($foreignKey, $itemIds)
             ->orderBy('id')
             ->get()
-            ->groupBy('job_id')
+            ->groupBy($foreignKey)
             ->map(function ($parts) {
                 return $parts->map(function ($part) {
                     return implode(' | ', array_filter([
