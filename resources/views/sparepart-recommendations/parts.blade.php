@@ -16,21 +16,23 @@
                 </p>
             </div>
 
-            <div class="flex flex-wrap gap-2">
-                <a href="{{ route('sparepart-recommendations.index') }}"
-                    class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
-                    ← Kembali
-                </a>
+            <div class="w-full shrink-0 lg:w-[360px]">
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="{{ route('sparepart-recommendations.index') }}"
+                        class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+                        ← Kembali
+                    </a>
 
-                <a href="{{ route('update-jobs.index') }}"
-                    class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
-                    Update Job
-                </a>
+                    <a href="{{ route('update-jobs.index') }}"
+                        class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                        Update Job
+                    </a>
 
-                <a href="{{ route('rental-spareparts.index') }}"
-                    class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800">
-                    Management Sparepart
-                </a>
+                    <a href="{{ route('rental-spareparts.index') }}"
+                        class="col-span-2 inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800">
+                        Management Sparepart
+                    </a>
+                </div>
             </div>
         </div>
     </div>
