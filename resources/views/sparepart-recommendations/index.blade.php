@@ -360,17 +360,37 @@
                                 @csrf
                                 @method('PATCH')
 
+                                @php
+                                $currentAction = match($control->recommendation_status) {
+                                'RECOMMENDED', 'REVIEWED' => 'REVIEWED',
+                                'APPROVED' => 'APPROVED',
+                                'NEED_SUPPLY' => 'NEED_SUPPLY',
+                                'SUPPLIED' => 'SUPPLIED',
+                                'REJECTED' => 'REJECTED',
+                                'CLOSED', 'INSTALLED', 'PARTIAL_INSTALLED' => 'CLOSED',
+                                'CANCELLED' => 'CANCELLED',
+                                default => 'REVIEWED',
+                                };
+                                @endphp
+
                                 <label
                                     class="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Action</label>
                                 <select name="action_type" data-action-type-select
                                     class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold">
-                                    <option value="REVIEWED">Mark Reviewed</option>
-                                    <option value="APPROVED">Approve</option>
-                                    <option value="NEED_SUPPLY">Need Supply</option>
-                                    <option value="SUPPLIED">Mark Supplied / Create Stock IN</option>
-                                    <option value="REJECTED">Reject</option>
-                                    <option value="CLOSED">Close</option>
-                                    <option value="CANCELLED">Cancel</option>
+                                    <option value="REVIEWED" {{ $currentAction==='REVIEWED' ? 'selected' : '' }}>Mark
+                                        Reviewed</option>
+                                    <option value="APPROVED" {{ $currentAction==='APPROVED' ? 'selected' : '' }}>Approve
+                                    </option>
+                                    <option value="NEED_SUPPLY" {{ $currentAction==='NEED_SUPPLY' ? 'selected' : '' }}>
+                                        Need Supply</option>
+                                    <option value="SUPPLIED" {{ $currentAction==='SUPPLIED' ? 'selected' : '' }}>Mark
+                                        Supplied / Create Stock IN</option>
+                                    <option value="REJECTED" {{ $currentAction==='REJECTED' ? 'selected' : '' }}>Reject
+                                    </option>
+                                    <option value="CLOSED" {{ $currentAction==='CLOSED' ? 'selected' : '' }}>Close
+                                    </option>
+                                    <option value="CANCELLED" {{ $currentAction==='CANCELLED' ? 'selected' : '' }}>
+                                        Cancel</option>
                                 </select>
 
                                 <p data-action-help
@@ -467,18 +487,19 @@
                                         <option value="PURCHASE">PURCHASE</option>
                                         <option value="BORROWED">BORROWED</option>
                                     </select>
+                                </div>
 
-                                    <label
-                                        class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Note</label>
-                                    <textarea name="note" rows="2"
-                                        class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                                        placeholder="Catatan koordinator"></textarea>
+                                <label
+                                    class="mb-1 mt-3 block text-xs font-black uppercase tracking-wide text-slate-500">Note</label>
+                                <textarea name="note" rows="2"
+                                    class="w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                                    placeholder="Catatan koordinator"></textarea>
 
-                                    <button type="submit"
-                                        onclick="return confirm('Update recommendation control ini? Jika action Mark Supplied dan Source Stock kosong, sistem akan membuat stok IN baru.');"
-                                        class="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
-                                        Save Action
-                                    </button>
+                                <button type="submit"
+                                    onclick="return confirm('Update recommendation control ini? Jika action Mark Supplied dan Source Stock kosong, sistem akan membuat stok IN baru.');"
+                                    class="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
+                                    Save Action
+                                </button>
                             </form>
                         </div>
                         @endif
