@@ -37,7 +37,7 @@
         </div>
     </div>
 
-    <div class="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm sm:p-6">
+    <div class="rounded-3xl border border-indigo-200 bg-linear-to-br from-indigo-50 to-white p-5 shadow-sm sm:p-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
                 <p class="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">Serial Number</p>
