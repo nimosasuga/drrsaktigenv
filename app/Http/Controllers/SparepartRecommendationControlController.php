@@ -22,6 +22,19 @@ class SparepartRecommendationControlController extends Controller
         abort_unless($this->canAccess(), 403);
 
         $department = $this->departmentFilter($request);
+        $summary = $this->summary($department);
+
+        return view('sparepart-recommendations.index', compact(
+            'department',
+            'summary'
+        ));
+    }
+
+    public function parts(Request $request)
+    {
+        abort_unless($this->canAccess(), 403);
+
+        $department = $this->departmentFilter($request);
 
         $filters = [
             'department' => $department,
@@ -93,7 +106,7 @@ class SparepartRecommendationControlController extends Controller
         $supplyStatusOptions = $this->supplyStatusOptions();
         $canManage = $this->canManage($department);
 
-        return view('sparepart-recommendations.index', compact(
+        return view('sparepart-recommendations.parts', compact(
             'controls',
             'filters',
             'summary',

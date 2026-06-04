@@ -93,7 +93,10 @@ Route::middleware(['auth'])->group(function () {
 
         Route::middleware([EnsureRentalSparepartManager::class])->group(function () {
             Route::get('/sparepart-recommendations', [SparepartRecommendationControlController::class, 'index'])->name('sparepart-recommendations.index');
+            Route::get('/sparepart-recommendations/parts', [SparepartRecommendationControlController::class, 'parts'])->name('sparepart-recommendations.parts');
             Route::patch('/sparepart-recommendations/{control}/status', [SparepartRecommendationControlController::class, 'updateStatus'])->name('sparepart-recommendations.status');
+
+
             Route::get('/rental-spareparts', [RentalSparepartController::class, 'index'])->name('rental-spareparts.index');
             Route::get('/rental-spareparts/export', RentalSparepartStockExportController::class)->name('rental-spareparts.export');
             Route::get('/rental-spareparts/stocks/{stock}/edit', [RentalSparepartStockController::class, 'edit'])->name('rental-spareparts.stocks.edit');
