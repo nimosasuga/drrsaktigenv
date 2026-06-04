@@ -283,6 +283,8 @@ class SparepartRecommendationControlController extends Controller
             }
         }
 
+        $detailQuery = clone $query;
+
         $rows = $query
             ->selectRaw("
                 serial_number,
@@ -304,9 +306,49 @@ class SparepartRecommendationControlController extends Controller
             ->orderByDesc('latest_work_date')
             ->get();
 
+        $detailItemsBySerialNumber = $detailQuery
+            ->select([
+                'serial_number',
+                'work_date',
+                'part_number',
+                'part_name',
+                'qty_recommended',
+                'qty_supplied',
+                'qty_installed',
+                'recommendation_status',
+                'supply_status',
+                'recommended_by_name',
+                'remarks',
+            ])
+            ->orderBy('serial_number')
+            ->orderByDesc('work_date')
+            ->orderBy('part_number')
+            ->get()
+            ->groupBy('serial_number')
+            ->map(function ($items) {
+                return $items
+                    ->values()
+                    ->map(function ($item, int $index) {
+                        return ($index + 1) . '. ' . implode(' | ', [
+                            'PN: ' . $this->exportText($item->part_number),
+                            'Nama: ' . $this->exportText($item->part_name),
+                            'Qty Rekomendasi: ' . (int) $item->qty_recommended,
+                            'Qty Supply: ' . (int) $item->qty_supplied,
+                            'Qty Terpasang: ' . (int) $item->qty_installed,
+                            'Rec Status: ' . $this->exportText($item->recommendation_status),
+                            'Supply Status: ' . $this->exportText($item->supply_status),
+                            'Tanggal: ' . $this->exportText($item->work_date),
+                            'Mekanik: ' . $this->exportText($item->recommended_by_name),
+                            'Catatan: ' . $this->exportText($item->remarks),
+                        ]);
+                    })
+                    ->implode("\n");
+            })
+            ->all();
+
         $filename = 'rekomendasi-unit-' . strtolower($department) . '-' . ($exportScope === 'all' ? 'semua' : 'filter') . '-' . now()->format('Ymd-His') . '.csv';
 
-        return response()->streamDownload(function () use ($rows, $department) {
+        return response()->streamDownload(function () use ($rows, $department, $detailItemsBySerialNumber) {
             $handle = fopen('php://output', 'w');
 
             fwrite($handle, "\xEF\xBB\xBF");
@@ -328,6 +370,7 @@ class SparepartRecommendationControlController extends Controller
                 'Jumlah Closed',
                 'Tanggal Job Terakhir',
                 'Status Ringkas',
+                'Detail Item Sparepart',
             ], ';');
 
             foreach ($rows as $row) {
@@ -347,6 +390,7 @@ class SparepartRecommendationControlController extends Controller
                     (int) $row->closed_count,
                     $row->latest_work_date ?: '-',
                     $this->unitExportStatus($row),
+                    $detailItemsBySerialNumber[$row->serial_number] ?? '-',
                 ], ';');
             }
 
@@ -375,6 +419,13 @@ class SparepartRecommendationControlController extends Controller
         }
 
         return 'ACTIVE';
+    }
+
+    private function exportText($value): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value !== '' ? $value : '-';
     }
 
     public function unitShow(Request $request, string $serialNumber)
