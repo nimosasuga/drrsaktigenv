@@ -42,7 +42,90 @@ class OperationalShareController extends Controller
 
     private function redirectToWhatsapp(string $message)
     {
-        return redirect()->away('https://wa.me/?text=' . urlencode($message));
+        $encodedMessage = rawurlencode($message);
+        $appUrl = 'whatsapp://send?text=' . $encodedMessage;
+        $webUrl = 'https://wa.me/?text=' . $encodedMessage;
+
+        $html = <<<HTML
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Membuka WhatsApp...</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        .box {
+            width: min(92vw, 420px);
+            padding: 24px;
+            border-radius: 20px;
+            background: #ffffff;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.12);
+            text-align: center;
+        }
+        .title {
+            margin: 0 0 8px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .text {
+            margin: 0 0 18px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #475569;
+        }
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 44px;
+            border-radius: 12px;
+            background: #16a34a;
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .muted {
+            margin-top: 12px;
+            font-size: 12px;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <p class="title">Membuka WhatsApp...</p>
+        <p class="text">Jika WhatsApp tidak terbuka otomatis, tekan tombol di bawah.</p>
+        <a class="button" href="{$appUrl}">Buka WhatsApp</a>
+        <p class="muted">Fallback browser akan aktif otomatis jika aplikasi WhatsApp tidak tersedia.</p>
+    </div>
+
+    <script>
+        const appUrl = "{$appUrl}";
+        const webUrl = "{$webUrl}";
+
+        window.location.href = appUrl;
+
+        setTimeout(function () {
+            window.location.href = webUrl;
+        }, 1200);
+    </script>
+</body>
+</html>
+HTML;
+
+        return response($html);
     }
 
     private function value($value, string $fallback = '-'): string
