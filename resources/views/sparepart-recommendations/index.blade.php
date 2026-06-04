@@ -159,7 +159,7 @@
         </div>
 
         <div class="mt-5 flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
-            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-indigo-200 bg-indigo-50 p-5">
+            <div class="min-w-70 max-w-sm snap-start rounded-3xl border border-indigo-200 bg-indigo-50 p-5">
                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-600 text-white">
                     <span class="text-sm font-black">01</span>
                 </div>
@@ -176,7 +176,7 @@
                 </a>
             </div>
 
-            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
+            <div class="min-w-70 max-w-sm snap-start rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white">
                     <span class="text-sm font-black">02</span>
                 </div>
@@ -193,7 +193,7 @@
                 </a>
             </div>
 
-            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-amber-200 bg-amber-50 p-5">
+            <div class="min-w-70 max-w-sm snap-start rounded-3xl border border-amber-200 bg-amber-50 p-5">
                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500 text-white">
                     <span class="text-sm font-black">03</span>
                 </div>
@@ -206,7 +206,7 @@
                 </p>
             </div>
 
-            <div class="min-w-[280px] max-w-sm snap-start rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div class="min-w-70 max-w-sm snap-start rounded-3xl border border-slate-200 bg-slate-50 p-5">
                 <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
                     <span class="text-sm font-black">04</span>
                 </div>
