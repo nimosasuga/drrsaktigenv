@@ -160,19 +160,33 @@
                     @endif
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 xl:w-80">
-                    <div class="rounded-2xl bg-slate-50 px-4 py-3">
-                        <p class="text-[10px] font-black uppercase text-slate-400">Recommended</p>
-                        <p class="text-lg font-black text-slate-900">{{ number_format($control->qty_recommended) }}</p>
+                <div class="space-y-2 xl:w-80">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                            <p class="text-[10px] font-black uppercase text-slate-400">Recommended</p>
+                            <p class="text-lg font-black text-slate-900">{{ number_format($control->qty_recommended) }}
+                            </p>
+                        </div>
+                        <div class="rounded-2xl bg-emerald-50 px-4 py-3">
+                            <p class="text-[10px] font-black uppercase text-emerald-500">Supplied</p>
+                            <p class="text-lg font-black text-emerald-700">{{ number_format($control->qty_supplied) }}
+                            </p>
+                        </div>
+                        <div class="rounded-2xl bg-purple-50 px-4 py-3">
+                            <p class="text-[10px] font-black uppercase text-purple-500">Installed</p>
+                            <p class="text-lg font-black text-purple-700">{{ number_format($control->qty_installed) }}
+                            </p>
+                        </div>
                     </div>
-                    <div class="rounded-2xl bg-emerald-50 px-4 py-3">
-                        <p class="text-[10px] font-black uppercase text-emerald-500">Supplied</p>
-                        <p class="text-lg font-black text-emerald-700">{{ number_format($control->qty_supplied) }}</p>
-                    </div>
-                    <div class="rounded-2xl bg-purple-50 px-4 py-3">
-                        <p class="text-[10px] font-black uppercase text-purple-500">Installed</p>
-                        <p class="text-lg font-black text-purple-700">{{ number_format($control->qty_installed) }}</p>
-                    </div>
+
+                    <a href="{{ route('sparepart-recommendations.parts', array_filter([
+                                                    'serial_number' => $serialNumber,
+                                                    'part_number' => $control->part_number,
+                                                    'department' => $department,
+                                                ])) }}"
+                        class="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-black text-white hover:bg-indigo-700">
+                        Buka Action
+                    </a>
                 </div>
             </div>
         </div>
