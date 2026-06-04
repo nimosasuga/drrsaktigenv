@@ -51,8 +51,7 @@
     </div>
 
     <div class="grid gap-4 lg:grid-cols-2">
-        <div
-            class="rounded-3xl border border-indigo-200 bg-gradient-to-br from-indigo-50 to-white p-5 shadow-sm sm:p-6">
+        <div class="rounded-3xl border border-indigo-200 bg-linear-to-br from-indigo-50 to-white p-5 shadow-sm sm:p-6">
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <p class="text-xs font-black uppercase tracking-[0.18em] text-indigo-600">
@@ -75,23 +74,29 @@
                 </div>
             </div>
 
-            <div class="mt-5 rounded-2xl border border-dashed border-indigo-200 bg-white/70 px-4 py-3">
-                <p class="text-sm font-bold text-indigo-700">
-                    Fase 2
-                </p>
-                <p class="mt-1 text-xs leading-5 text-slate-500">
-                    Menu ini akan diaktifkan setelah halaman group by serial number dibuat.
-                </p>
+            <div class="mt-5 grid grid-cols-3 gap-2">
+                <div class="rounded-2xl bg-white/80 px-3 py-3">
+                    <p class="text-[10px] font-black uppercase text-slate-400">Total</p>
+                    <p class="mt-1 text-lg font-black text-slate-900">{{ number_format($summary['total']) }}</p>
+                </div>
+                <div class="rounded-2xl bg-white/80 px-3 py-3">
+                    <p class="text-[10px] font-black uppercase text-slate-400">Need Supply</p>
+                    <p class="mt-1 text-lg font-black text-amber-700">{{ number_format($summary['need_supply']) }}</p>
+                </div>
+                <div class="rounded-2xl bg-white/80 px-3 py-3">
+                    <p class="text-[10px] font-black uppercase text-slate-400">Closed</p>
+                    <p class="mt-1 text-lg font-black text-slate-700">{{ number_format($summary['closed']) }}</p>
+                </div>
             </div>
 
-            <button type="button" disabled
-                class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-slate-200 px-5 py-3 text-sm font-black text-slate-500 cursor-not-allowed">
-                Segera Dibuat
-            </button>
+            <a href="{{ route('sparepart-recommendations.units') }}"
+                class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white hover:bg-indigo-700">
+                Buka Rekomendasi Unit
+            </a>
         </div>
 
         <div
-            class="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm sm:p-6">
+            class="rounded-3xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-white p-5 shadow-sm sm:p-6">
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-600">

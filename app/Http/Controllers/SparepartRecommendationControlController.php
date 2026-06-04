@@ -117,6 +117,105 @@ class SparepartRecommendationControlController extends Controller
         ));
     }
 
+    public function units(Request $request)
+    {
+        abort_unless($this->canAccess(), 403);
+
+        $department = $this->departmentFilter($request);
+
+        $filters = [
+            'department' => $department,
+            'search' => trim((string) $request->input('search', '')),
+            'serial_number' => strtoupper(trim((string) $request->input('serial_number', ''))),
+            'customer' => strtoupper(trim((string) $request->input('customer', ''))),
+            'part_number' => strtoupper(trim((string) $request->input('part_number', ''))),
+            'recommendation_status' => strtoupper(trim((string) $request->input('recommendation_status', ''))),
+            'supply_status' => strtoupper(trim((string) $request->input('supply_status', ''))),
+            'date_from' => trim((string) $request->input('date_from', '')),
+            'date_to' => trim((string) $request->input('date_to', '')),
+        ];
+
+        $query = SparepartRecommendationControl::query()
+            ->where('department', $department)
+            ->whereNotNull('serial_number')
+            ->where('serial_number', '!=', '');
+
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+            $query->where(function ($subQuery) use ($search) {
+                $subQuery->where('serial_number', 'like', "%{$search}%")
+                    ->orWhere('customer', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('unit_type', 'like', "%{$search}%")
+                    ->orWhere('part_number', 'like', "%{$search}%")
+                    ->orWhere('part_name', 'like', "%{$search}%")
+                    ->orWhere('recommended_by_name', 'like', "%{$search}%");
+            });
+        }
+
+        if ($filters['serial_number'] !== '') {
+            $query->where('serial_number', 'like', '%' . $filters['serial_number'] . '%');
+        }
+
+        if ($filters['customer'] !== '') {
+            $query->where('customer', 'like', '%' . $filters['customer'] . '%');
+        }
+
+        if ($filters['part_number'] !== '') {
+            $query->where('part_number', 'like', '%' . $filters['part_number'] . '%');
+        }
+
+        if ($filters['recommendation_status'] !== '') {
+            $query->where('recommendation_status', $filters['recommendation_status']);
+        }
+
+        if ($filters['supply_status'] !== '') {
+            $query->where('supply_status', $filters['supply_status']);
+        }
+
+        if ($filters['date_from'] !== '') {
+            $query->whereDate('work_date', '>=', $filters['date_from']);
+        }
+
+        if ($filters['date_to'] !== '') {
+            $query->whereDate('work_date', '<=', $filters['date_to']);
+        }
+
+        $units = $query
+            ->selectRaw("
+                serial_number,
+                MAX(customer) as customer,
+                MAX(location) as location,
+                MAX(unit_type) as unit_type,
+                COUNT(*) as total_items,
+                SUM(qty_recommended) as qty_recommended,
+                SUM(qty_supplied) as qty_supplied,
+                SUM(qty_installed) as qty_installed,
+                SUM(CASE WHEN supply_status = 'NEED_SUPPLY' THEN 1 ELSE 0 END) as need_supply_count,
+                SUM(CASE WHEN supply_status = 'SUPPLIED' THEN 1 ELSE 0 END) as supplied_count,
+                SUM(CASE WHEN recommendation_status IN ('INSTALLED', 'PARTIAL_INSTALLED') THEN 1 ELSE 0 END) as installed_count,
+                SUM(CASE WHEN recommendation_status IN ('CLOSED', 'REJECTED', 'CANCELLED') THEN 1 ELSE 0 END) as closed_count,
+                MAX(work_date) as latest_work_date
+            ")
+            ->groupBy('serial_number')
+            ->orderByDesc('need_supply_count')
+            ->orderByDesc('latest_work_date')
+            ->paginate(10)
+            ->withQueryString();
+
+        $summary = $this->summary($department);
+        $statusOptions = $this->statusOptions();
+        $supplyStatusOptions = $this->supplyStatusOptions();
+
+        return view('sparepart-recommendations.units', compact(
+            'units',
+            'filters',
+            'summary',
+            'statusOptions',
+            'supplyStatusOptions'
+        ));
+    }
+
     public function updateStatus(Request $request, SparepartRecommendationControl $control)
     {
         abort_unless($this->canManage($control->department), 403);
