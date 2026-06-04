@@ -216,6 +216,62 @@ class SparepartRecommendationControlController extends Controller
         ));
     }
 
+    public function unitShow(Request $request, string $serialNumber)
+    {
+        abort_unless($this->canAccess(), 403);
+
+        $department = $this->departmentFilter($request);
+        $serialNumber = strtoupper(trim((string) $serialNumber));
+
+        abort_if($serialNumber === '', 404);
+
+        $controls = SparepartRecommendationControl::query()
+            ->with(['job', 'recommendation', 'sourceStock.item', 'sourceStock.location', 'recommendedBy', 'reviewedBy', 'suppliedBy'])
+            ->where('department', $department)
+            ->where('serial_number', $serialNumber)
+            ->orderByRaw("FIELD(recommendation_status, 'RECOMMENDED', 'REVIEWED', 'APPROVED', 'NEED_SUPPLY', 'SUPPLIED', 'PARTIAL_INSTALLED', 'INSTALLED', 'CLOSED', 'REJECTED', 'CANCELLED')")
+            ->orderByDesc('work_date')
+            ->orderByDesc('id')
+            ->get();
+
+        abort_if($controls->isEmpty(), 404);
+
+        $unit = (object) [
+            'serial_number' => $serialNumber,
+            'customer' => $controls->pluck('customer')->filter()->first() ?: '-',
+            'location' => $controls->pluck('location')->filter()->first() ?: '-',
+            'unit_type' => $controls->pluck('unit_type')->filter()->first() ?: '-',
+            'latest_work_date' => $controls->pluck('work_date')->filter()->max(),
+            'total_items' => $controls->count(),
+            'qty_recommended' => $controls->sum('qty_recommended'),
+            'qty_supplied' => $controls->sum('qty_supplied'),
+            'qty_installed' => $controls->sum('qty_installed'),
+            'need_supply_count' => $controls->where('supply_status', SparepartRecommendationControl::SUPPLY_NEED_SUPPLY)->count(),
+            'supplied_count' => $controls->where('supply_status', SparepartRecommendationControl::SUPPLY_SUPPLIED)->count(),
+            'installed_count' => $controls->whereIn('recommendation_status', [
+                SparepartRecommendationControl::STATUS_INSTALLED,
+                SparepartRecommendationControl::STATUS_PARTIAL_INSTALLED,
+            ])->count(),
+            'closed_count' => $controls->whereIn('recommendation_status', [
+                SparepartRecommendationControl::STATUS_CLOSED,
+                SparepartRecommendationControl::STATUS_REJECTED,
+                SparepartRecommendationControl::STATUS_CANCELLED,
+            ])->count(),
+        ];
+
+        $summary = $this->summary($department);
+        $canManage = $this->canManage($department);
+
+        return view('sparepart-recommendations.unit-show', compact(
+            'department',
+            'serialNumber',
+            'unit',
+            'controls',
+            'summary',
+            'canManage'
+        ));
+    }
+
     public function updateStatus(Request $request, SparepartRecommendationControl $control)
     {
         abort_unless($this->canManage($control->department), 403);

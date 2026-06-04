@@ -226,18 +226,31 @@
                     <p class="mt-1 text-lg font-black text-purple-700">{{ number_format($unit->qty_installed) }}</p>
                 </div>
             </div>
-        </div>
-        @empty
-        <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
-            <p class="text-lg font-black text-slate-800">Belum ada serial number dengan recommendation.</p>
-            <p class="mt-2 text-sm text-slate-500">Data akan muncul setelah mekanik mengisi Recommendation Part di
-                Update Job.</p>
-        </div>
-        @endforelse
-    </div>
 
-    <div>
-        {{ $units->links() }}
+            <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <a href="{{ route('sparepart-recommendations.units.show', ['serialNumber' => $unit->serial_number, 'department' => $filters['department']]) }}"
+                    class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-black text-white hover:bg-indigo-700">
+                    Lihat Detail Unit
+                </a>
+
+                <a href="{{ route('sparepart-recommendations.parts', ['serial_number' => $unit->serial_number, 'department' => $filters['department']]) }}"
+                    class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                    Buka di List Sparepart
+                </a>
+            </div>
+        </div>
     </div>
+    @empty
+    <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+        <p class="text-lg font-black text-slate-800">Belum ada serial number dengan recommendation.</p>
+        <p class="mt-2 text-sm text-slate-500">Data akan muncul setelah mekanik mengisi Recommendation Part di
+            Update Job.</p>
+    </div>
+    @endforelse
+</div>
+
+<div>
+    {{ $units->links() }}
+</div>
 </div>
 @endsection
