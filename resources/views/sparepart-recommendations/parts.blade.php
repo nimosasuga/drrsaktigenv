@@ -3,33 +3,32 @@
 @section('content')
 <div class="mx-auto max-w-7xl space-y-6">
     <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
+        <div class="grid gap-5 xl:grid-cols-12 xl:items-start">
+            <div class="xl:col-span-8">
                 <p class="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">Recommendation Control</p>
                 <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
                     Sparepart Recommendation Control Center
                 </h1>
                 <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
                     Kontrol rekomendasi sparepart dari Update Job. Jika action Mark Supplied dipakai tanpa memilih
-                    existing stock,
-                    sistem akan membuat Barang Masuk dan stok sparepart otomatis.
+                    existing stock, sistem akan membuat Barang Masuk dan stok sparepart otomatis.
                 </p>
             </div>
 
-            <div class="w-full shrink-0 lg:w-90">
+            <div class="xl:col-span-4">
                 <div class="grid grid-cols-2 gap-2">
                     <a href="{{ route('sparepart-recommendations.index') }}"
-                        class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
+                        class="inline-flex min-h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black text-slate-700 hover:bg-slate-50">
                         ← Kembali
                     </a>
 
                     <a href="{{ route('update-jobs.index') }}"
-                        class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
+                        class="inline-flex min-h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50">
                         Update Job
                     </a>
 
                     <a href="{{ route('rental-spareparts.index') }}"
-                        class="col-span-2 inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800">
+                        class="col-span-2 inline-flex min-h-12 items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-slate-800">
                         Management Sparepart
                     </a>
                 </div>
