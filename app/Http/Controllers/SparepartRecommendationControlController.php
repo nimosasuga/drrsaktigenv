@@ -84,7 +84,7 @@ class SparepartRecommendationControlController extends Controller
             ->orderByRaw("FIELD(recommendation_status, 'RECOMMENDED', 'REVIEWED', 'APPROVED', 'NEED_SUPPLY', 'SUPPLIED', 'PARTIAL_INSTALLED', 'INSTALLED', 'CLOSED', 'REJECTED', 'CANCELLED')")
             ->orderByDesc('work_date')
             ->orderByDesc('id')
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         $summary = $this->summary($department);

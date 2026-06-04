@@ -68,6 +68,45 @@
         </div>
     </div>
 
+    @php
+    $quickStatusItems = [
+    '' => 'All',
+    'RECOMMENDED' => 'Recommended',
+    'NEED_SUPPLY' => 'Need Supply',
+    'SUPPLIED' => 'Supplied',
+    'INSTALLED' => 'Installed',
+    'CLOSED' => 'Closed',
+    ];
+
+    $quickStatusBaseQuery = request()->except(['page', 'recommendation_status']);
+    @endphp
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Quick Filter</p>
+                <p class="mt-1 text-sm font-semibold text-slate-600">Pilih status rekomendasi yang ingin dikerjakan.</p>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+                @foreach($quickStatusItems as $statusValue => $statusLabel)
+                @php
+                $isActive = (string) $filters['recommendation_status'] === (string) $statusValue;
+                $query = $statusValue === ''
+                ? $quickStatusBaseQuery
+                : array_merge($quickStatusBaseQuery, ['recommendation_status' => $statusValue]);
+                @endphp
+
+                <a href="{{ route('sparepart-recommendations.index', $query) }}"
+                    class="inline-flex items-center justify-center rounded-2xl border px-4 py-2 text-xs font-black transition
+                                {{ $isActive ? 'border-indigo-600 bg-indigo-600 text-white shadow-sm' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">
+                    {{ $statusLabel }}
+                </a>
+                @endforeach
+            </div>
+        </div>
+    </div>
+
     <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
         <form method="GET" action="{{ route('sparepart-recommendations.index') }}" class="grid gap-3 lg:grid-cols-6">
             @if(in_array(strtolower((string) (auth()->user()->status_user ?? auth()->user()->role ?? '')), ['admin',
