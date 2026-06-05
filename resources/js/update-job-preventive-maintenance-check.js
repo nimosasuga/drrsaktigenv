@@ -32,6 +32,22 @@ function getSelectedJobTypes(input) {
     return value ? [value] : [];
 }
 
+function getYearMonth(value) {
+    const text = String(value || "").trim();
+
+    if (/^\d{4}-\d{2}/.test(text)) {
+        return text.slice(0, 7);
+    }
+
+    const date = new Date(text);
+
+    if (Number.isNaN(date.getTime())) {
+        return "";
+    }
+
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function buildPreventiveMaintenancePopup() {
     const existingPopup = document.getElementById("pm-duplicate-popup");
 
@@ -108,6 +124,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const jobTypeInput = document.getElementById("job_type");
     const workDateInput = document.getElementById("work_date");
     const submitButton = document.getElementById("btn-submit");
+    const originalSerialNumber = String(form.dataset.originalSerialNumber || "")
+        .trim()
+        .toUpperCase();
+    const originalWorkMonth = String(
+        form.dataset.originalWorkMonth || "",
+    ).trim();
+    const preventiveLocked = form.dataset.preventiveLocked === "1";
 
     if (!form || !serialNumberInput || !jobTypeInput || !workDateInput) {
         return;
@@ -139,7 +162,32 @@ document.addEventListener("DOMContentLoaded", function () {
         setBlockedState("");
     }
 
+    function isLockedPreventiveEditUnchanged() {
+        if (!preventiveLocked) {
+            return false;
+        }
+
+        const currentSerialNumber = serialNumberInput.value
+            .trim()
+            .toUpperCase();
+        const currentWorkMonth = getYearMonth(workDateInput.value);
+
+        return (
+            currentSerialNumber !== "" &&
+            originalSerialNumber !== "" &&
+            currentSerialNumber === originalSerialNumber &&
+            currentWorkMonth !== "" &&
+            originalWorkMonth !== "" &&
+            currentWorkMonth === originalWorkMonth &&
+            getSelectedJobTypes(jobTypeInput).includes("Preventive Maintenance")
+        );
+    }
+
     function shouldCheck() {
+        if (isLockedPreventiveEditUnchanged()) {
+            return false;
+        }
+
         return (
             serialNumberInput.value.trim() !== "" &&
             workDateInput.value.trim() !== "" &&

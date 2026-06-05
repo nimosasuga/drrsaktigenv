@@ -39,7 +39,19 @@
 
     <!-- Form Container -->
     <!-- PERHATIKAN: Route diarahkan ke update dan menggunakan @method('PUT') -->
-    <form id="form-job" action="{{ route('update-jobs.update', $job->id) }}" method="POST" class="space-y-6 pb-12">
+    @php
+    $formJobTypes = collect(explode(',', (string) $job->job_type))
+    ->map(fn ($value) => strtoupper(trim((string) $value)))
+    ->filter()
+    ->values();
+
+    $formHasPreventiveMaintenance = $formJobTypes->contains('PREVENTIVE MAINTENANCE') || $formJobTypes->contains('PM');
+    @endphp
+
+    <form id="form-job" action="{{ route('update-jobs.update', $job->id) }}" method="POST" class="space-y-6 pb-12"
+        data-job-id="{{ $job->id }}" data-preventive-locked="{{ $formHasPreventiveMaintenance ? '1' : '0' }}"
+        data-original-serial-number="{{ strtoupper(trim((string) $job->serial_number)) }}"
+        data-original-work-month="{{ $job->work_date ? \Carbon\Carbon::parse($job->work_date)->format('Y-m') : '' }}">
         @csrf
         @method('PUT')
 
