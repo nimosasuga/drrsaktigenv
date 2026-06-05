@@ -107,7 +107,8 @@
         </div>
 
         <!-- Section 2: Data Unit & Customer -->
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100"
+            style="overflow: visible; position: relative; z-index: 20;">
             <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
                 <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wider">Data Unit & Customer</h2>
             </div>
@@ -262,7 +263,8 @@
                                 </button>
 
                                 <div data-multi-job-type-menu
-                                    class="hidden absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+                                    class="hidden absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden"
+                                    style="z-index: 9999;">
                                     <div class="max-h-64 overflow-y-auto p-2 space-y-1">
                                         @foreach($jobTypeChoices as $option)
                                         <label

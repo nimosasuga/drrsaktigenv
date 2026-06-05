@@ -260,139 +260,139 @@
                                 </button>
 
                                 <div data-multi-job-type-menu
-                                    class="hidden absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
-                                    <div class="max-h-64 overflow-y-auto p-2 space-y-1">
-                                        @foreach($jobTypeChoices as $option)
-                                        <label
-                                            class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer text-sm text-slate-700">
-                                            <input type="checkbox" value="{{ $option }}" data-multi-job-type-option {{
-                                                in_array($option, $selectedJobTypes, true) ? 'checked' : '' }}
-                                                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                                            <span>{{ $option }}</span>
-                                        </label>
-                                        @endforeach
-                                    </div>
+                                    class="hidden absolute z-30 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden"
+                                    style="z-index: 9999;">
+                                    @foreach($jobTypeChoices as $option)
+                                    <label
+                                        class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer text-sm text-slate-700">
+                                        <input type="checkbox" value="{{ $option }}" data-multi-job-type-option {{
+                                            in_array($option, $selectedJobTypes, true) ? 'checked' : '' }}
+                                            class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                                        <span>{{ $option }}</span>
+                                    </label>
+                                    @endforeach
                                 </div>
                             </div>
-
-                            <p class="mt-1 text-[11px] leading-4 text-slate-500">
-                                Bisa pilih lebih dari satu.
-                            </p>
-
-                            @error('job_type')
-                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                            @enderror
                         </div>
-                        <div>
-                            <label for="status_unit" class="block text-xs font-medium text-slate-700 mb-1">Status Akhir
-                                Unit</label>
-                            <select name="status_unit" id="status_unit"
-                                class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                                <option value="">Pilih Status</option>
-                                <option value="RFU" {{ old('status_unit')=='RFU' ? 'selected' : '' }}>RFU (Ready)
-                                </option>
-                                <option value="B/D" {{ old('status_unit')=='B/D' ? 'selected' : '' }}>Breakdown</option>
-                                <option value="Standby" {{ old('status_unit')=='Standby' ? 'selected' : '' }}>Standby
-                                </option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Section 3: Temuan & Tindakan -->
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wider">Temuan & Tindakan</h2>
-            </div>
-            <div class="p-6 space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <p class="mt-1 text-[11px] leading-4 text-slate-500">
+                            Bisa pilih lebih dari satu.
+                        </p>
+
+                        @error('job_type')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
                     <div>
-                        <label for="problem_date" class="block text-xs font-medium text-slate-700 mb-1">Tanggal Problem
-                            / Breakdown</label>
-                        <input type="date" name="problem_date" id="problem_date" value="{{ old('problem_date') }}"
+                        <label for="status_unit" class="block text-xs font-medium text-slate-700 mb-1">Status Akhir
+                            Unit</label>
+                        <select name="status_unit" id="status_unit"
                             class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                    </div>
-                    <div>
-                        <label for="rfu_date" class="block text-xs font-medium text-slate-700 mb-1">Tanggal RFU (Ready
-                            For Use)</label>
-                        <input type="date" name="rfu_date" id="rfu_date" value="{{ old('rfu_date') }}"
-                            class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label for="problem" class="block text-xs font-medium text-slate-700 mb-1">Problem / Temuan
-                            <span class="text-red-500">*</span></label>
-                        <textarea name="problem" id="problem" rows="3" required placeholder="Jelaskan masalah unit..."
-                            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('problem') }}</textarea>
-                    </div>
-                    <div>
-                        <label for="action" class="block text-xs font-medium text-slate-700 mb-1">Action / Tindakan
-                            <span class="text-red-500">*</span></label>
-                        <textarea name="action" id="action" rows="3" required
-                            placeholder="Jelaskan tindakan perbaikan..."
-                            class="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('action') }}</textarea>
+                            <option value="">Pilih Status</option>
+                            <option value="RFU" {{ old('status_unit')=='RFU' ? 'selected' : '' }}>RFU (Ready)
+                            </option>
+                            <option value="B/D" {{ old('status_unit')=='B/D' ? 'selected' : '' }}>Breakdown</option>
+                            <option value="Standby" {{ old('status_unit')=='Standby' ? 'selected' : '' }}>Standby
+                            </option>
+                        </select>
                     </div>
                 </div>
             </div>
         </div>
+</div>
 
-        <!-- Section 4: Install Parts -->
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wider">Parts Terpasang (Install Part)
-                </h2>
-                <button type="button" id="btn-add-inst"
-                    class="inline-flex items-center px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg transition-colors border border-blue-200">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                    Tambah Part
-                </button>
+<!-- Section 3: Temuan & Tindakan -->
+<div class="bg-white rounded-3xl shadow-sm border border-slate-100"
+    style="overflow: visible; position: relative; z-index: 20;">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wider">Temuan & Tindakan</h2>
+    </div>
+    <div class="p-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="problem_date" class="block text-xs font-medium text-slate-700 mb-1">Tanggal Problem
+                    / Breakdown</label>
+                <input type="date" name="problem_date" id="problem_date" value="{{ old('problem_date') }}"
+                    class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
             </div>
-            <div class="p-6">
-                <div id="inst-container" class="space-y-4">
-                    <p id="inst-empty-text" class="text-sm text-slate-400 text-center py-4">Tidak ada part yang
-                        dipasang. Klik 'Tambah Part' jika ada.</p>
-                </div>
+            <div>
+                <label for="rfu_date" class="block text-xs font-medium text-slate-700 mb-1">Tanggal RFU (Ready
+                    For Use)</label>
+                <input type="date" name="rfu_date" id="rfu_date" value="{{ old('rfu_date') }}"
+                    class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
             </div>
         </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="problem" class="block text-xs font-medium text-slate-700 mb-1">Problem / Temuan
+                    <span class="text-red-500">*</span></label>
+                <textarea name="problem" id="problem" rows="3" required placeholder="Jelaskan masalah unit..."
+                    class="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('problem') }}</textarea>
+            </div>
+            <div>
+                <label for="action" class="block text-xs font-medium text-slate-700 mb-1">Action / Tindakan
+                    <span class="text-red-500">*</span></label>
+                <textarea name="action" id="action" rows="3" required placeholder="Jelaskan tindakan perbaikan..."
+                    class="w-full px-4 py-3 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">{{ old('action') }}</textarea>
+            </div>
+        </div>
+    </div>
+</div>
 
-        <!-- Section 5: Rekomendasi Parts -->
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 bg-amber-50/50 flex items-center justify-between">
-                <h2 class="text-sm font-semibold text-amber-900 uppercase tracking-wider">Rekomendasi Part (Next Job)
-                </h2>
-                <button type="button" id="btn-add-rec"
-                    class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-semibold rounded-lg transition-colors border border-amber-300">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                    </svg>
-                    Tambah Rekomendasi
-                </button>
-            </div>
-            <div class="p-6">
-                <div id="rec-container" class="space-y-4">
-                    <p id="rec-empty-text" class="text-sm text-slate-400 text-center py-4">Tidak ada rekomendasi part.
-                        Klik 'Tambah Rekomendasi' jika ada.</p>
-                </div>
-            </div>
+<!-- Section 4: Install Parts -->
+<div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-800 uppercase tracking-wider">Parts Terpasang (Install Part)
+        </h2>
+        <button type="button" id="btn-add-inst"
+            class="inline-flex items-center px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-lg transition-colors border border-blue-200">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Tambah Part
+        </button>
+    </div>
+    <div class="p-6">
+        <div id="inst-container" class="space-y-4">
+            <p id="inst-empty-text" class="text-sm text-slate-400 text-center py-4">Tidak ada part yang
+                dipasang. Klik 'Tambah Part' jika ada.</p>
         </div>
+    </div>
+</div>
 
-        <div class="flex justify-end pt-4">
-            <button type="submit" id="btn-submit"
-                class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all focus:ring-4 focus:ring-blue-100">
-                <span id="btn-icon">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                </span>
-                <span id="btn-text">Simpan Update Job</span>
-            </button>
+<!-- Section 5: Rekomendasi Parts -->
+<div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 bg-amber-50/50 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-amber-900 uppercase tracking-wider">Rekomendasi Part (Next Job)
+        </h2>
+        <button type="button" id="btn-add-rec"
+            class="inline-flex items-center px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 text-xs font-semibold rounded-lg transition-colors border border-amber-300">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            Tambah Rekomendasi
+        </button>
+    </div>
+    <div class="p-6">
+        <div id="rec-container" class="space-y-4">
+            <p id="rec-empty-text" class="text-sm text-slate-400 text-center py-4">Tidak ada rekomendasi part.
+                Klik 'Tambah Rekomendasi' jika ada.</p>
         </div>
-    </form>
+    </div>
+</div>
+
+<div class="flex justify-end pt-4">
+    <button type="submit" id="btn-submit"
+        class="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-lg shadow-blue-200 transition-all focus:ring-4 focus:ring-blue-100">
+        <span id="btn-icon">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </span>
+        <span id="btn-text">Simpan Update Job</span>
+    </button>
+</div>
+</form>
 </div>
 
 <!-- ========================================== -->
