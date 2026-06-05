@@ -221,6 +221,17 @@
                             'Repair',
                             ];
 
+                            $originalJobTypes = collect(explode(',', (string) $job->job_type))
+                            ->map(fn ($value) => trim((string) $value))
+                            ->filter()
+                            ->values()
+                            ->all();
+
+                            $jobHasLockedPreventiveMaintenance = in_array('Preventive Maintenance', $originalJobTypes,
+                            true)
+                            || in_array('PM', array_map(fn ($value) => strtoupper((string) $value), $originalJobTypes),
+                            true);
+
                             $selectedJobTypes = collect((array) old('job_type', $job->job_type ? explode(',', (string)
                             $job->job_type) : []))
                             ->flatMap(fn ($value) => is_array($value) ? $value : explode(',', (string) $value))
@@ -238,6 +249,11 @@
                             ->unique()
                             ->values()
                             ->all();
+
+                            if ($jobHasLockedPreventiveMaintenance && !in_array('Preventive Maintenance',
+                            $selectedJobTypes, true)) {
+                            array_unshift($selectedJobTypes, 'Preventive Maintenance');
+                            }
 
                             $selectedJobTypeLabel = count($selectedJobTypes) > 0
                             ? implode(', ', $selectedJobTypes)
@@ -269,10 +285,22 @@
                                         @foreach($jobTypeChoices as $option)
                                         <label
                                             class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer text-sm text-slate-700">
+                                            @php
+                                            $isPreventiveLocked = $jobHasLockedPreventiveMaintenance && $option ===
+                                            'Preventive Maintenance';
+                                            @endphp
+
                                             <input type="checkbox" value="{{ $option }}" data-multi-job-type-option {{
-                                                in_array($option, $selectedJobTypes, true) ? 'checked' : '' }}
-                                                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                                            <span>{{ $option }}</span>
+                                                in_array($option, $selectedJobTypes, true) ? 'checked' : '' }} {{
+                                                $isPreventiveLocked ? 'disabled' : '' }}
+                                                class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-60">
+                                            <span>
+                                                {{ $option }}
+                                                @if($isPreventiveLocked)
+                                                <span
+                                                    class="ml-1 text-[10px] font-black uppercase text-amber-600">(Locked)</span>
+                                                @endif
+                                            </span>
                                         </label>
                                         @endforeach
                                     </div>
@@ -281,6 +309,9 @@
 
                             <p class="mt-1 text-[11px] leading-4 text-slate-500">
                                 Bisa pilih lebih dari satu.
+                                @if($jobHasLockedPreventiveMaintenance)
+                                Preventive Maintenance dikunci karena job ini sudah tercatat sebagai PM bulan berjalan.
+                                @endif
                             </p>
 
                             @error('job_type')

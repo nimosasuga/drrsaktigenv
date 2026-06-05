@@ -116,6 +116,40 @@ class UpdateJobSaveController extends Controller
         return $asset && strtoupper(trim((string) ($asset->status ?? ''))) === 'DITARIK';
     }
 
+    private function preventiveMaintenanceMonthChanged(Job $job, array $validated): bool
+    {
+        $oldWorkDate = $job->work_date ? Carbon::parse($job->work_date) : null;
+        $newWorkDate = Carbon::parse($validated['work_date']);
+
+        $oldSerialNumber = strtoupper(trim((string) $job->serial_number));
+        $newSerialNumber = strtoupper(trim((string) $validated['serial_number']));
+
+        if (!$oldWorkDate) {
+            return true;
+        }
+
+        return $oldSerialNumber !== $newSerialNumber
+            || (int) $oldWorkDate->year !== (int) $newWorkDate->year
+            || (int) $oldWorkDate->month !== (int) $newWorkDate->month;
+    }
+
+    private function keepLockedPreventiveMaintenance(Job $job, array $validated): array
+    {
+        if (!$this->hasPreventiveMaintenance($job->job_type)) {
+            return $validated;
+        }
+
+        $types = $this->selectedJobTypes($validated['job_type'] ?? null);
+
+        if (!in_array('Preventive Maintenance', $types, true)) {
+            array_unshift($types, 'Preventive Maintenance');
+        }
+
+        $validated['job_type'] = $this->normalizeJobTypesForStorage($types);
+
+        return $validated;
+    }
+
     private function rejectDuplicatePreventiveMaintenance(array $validated, ?int $exceptJobId = null)
     {
         if (!$this->hasPreventiveMaintenance($validated['job_type'] ?? null)) {
@@ -286,7 +320,13 @@ class UpdateJobSaveController extends Controller
             return back()->withInput()->withErrors(['error' => 'Serial Number ' . $validated['serial_number'] . ' tidak bisa digunakan karena status unit asset sudah DITARIK.']);
         }
 
-        if ($duplicatePmResponse = $this->rejectDuplicatePreventiveMaintenance($validated, $job->id)) {
+        $jobHadPreventiveMaintenance = $this->hasPreventiveMaintenance($job->job_type);
+        $validated = $this->keepLockedPreventiveMaintenance($job, $validated);
+
+        if (
+            (!$jobHadPreventiveMaintenance || $this->preventiveMaintenanceMonthChanged($job, $validated))
+            && ($duplicatePmResponse = $this->rejectDuplicatePreventiveMaintenance($validated, $job->id))
+        ) {
             return $duplicatePmResponse;
         }
 
