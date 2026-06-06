@@ -354,8 +354,6 @@ class UpdateJobSaveController extends Controller
             return;
         }
 
-        $rows = [];
-
         foreach ((array) $request->input('inst_part_name', []) as $key => $partName) {
             $partName = trim((string) $partName);
 
@@ -363,7 +361,7 @@ class UpdateJobSaveController extends Controller
                 continue;
             }
 
-            $rows[] = [
+            $payload = [
                 'part_number' => $request->input("inst_part_number.{$key}"),
                 'part_name' => $partName,
                 'qty' => max(1, (int) $request->input("inst_qty.{$key}", 1)),
@@ -371,36 +369,23 @@ class UpdateJobSaveController extends Controller
                 'no_job' => $request->input("inst_no_job.{$key}"),
                 'no_pr' => $request->input("inst_no_pr.{$key}"),
             ];
-        }
 
-        if (empty($rows)) {
-            return;
-        }
+            $installPartId = (int) $request->input("inst_id.{$key}", 0);
 
-        /*
-    |--------------------------------------------------------------------------
-    | SAFETY RULE:
-    | Jangan hapus Install Part existing saat update.
-    | Data lama hanya di-update berdasarkan urutan row.
-    | Row baru hanya ditambahkan jika jumlah input lebih banyak dari data existing.
-    |--------------------------------------------------------------------------
-    */
-        $existingParts = $job->installParts()
-            ->orderBy('id')
-            ->get()
-            ->values();
+            if ($installPartId > 0) {
+                $installPart = $job->installParts()
+                    ->whereKey($installPartId)
+                    ->first();
 
-        foreach ($rows as $index => $payload) {
-            $existing = $existingParts->get($index);
+                if ($installPart) {
+                    $installPart->fill($payload);
 
-            if ($existing) {
-                $existing->fill($payload);
+                    if ($installPart->isDirty()) {
+                        $installPart->save();
+                    }
 
-                if ($existing->isDirty()) {
-                    $existing->save();
+                    continue;
                 }
-
-                continue;
             }
 
             $job->installParts()->create($payload);
@@ -422,8 +407,6 @@ class UpdateJobSaveController extends Controller
             return;
         }
 
-        $rows = [];
-
         foreach ((array) $request->input('rec_part_name', []) as $key => $partName) {
             $partName = trim((string) $partName);
 
@@ -431,33 +414,14 @@ class UpdateJobSaveController extends Controller
                 continue;
             }
 
-            $rows[] = [
-                'id' => (int) $request->input("rec_id.{$key}", 0),
-                'payload' => [
-                    'part_number' => $request->input("rec_part_number.{$key}"),
-                    'part_name' => $partName,
-                    'qty' => max(1, (int) $request->input("rec_qty.{$key}", 1)),
-                    'remarks' => $request->input("rec_remarks.{$key}"),
-                ],
+            $payload = [
+                'part_number' => $request->input("rec_part_number.{$key}"),
+                'part_name' => $partName,
+                'qty' => max(1, (int) $request->input("rec_qty.{$key}", 1)),
+                'remarks' => $request->input("rec_remarks.{$key}"),
             ];
-        }
 
-        if (empty($rows)) {
-            return;
-        }
-
-        /*
-    |--------------------------------------------------------------------------
-    | SAFETY RULE:
-    | Jangan hapus Recommendation existing saat update.
-    | Update berdasarkan rec_id jika ada.
-    | Jika rec_id tidak ada, cari berdasarkan part_name + part_number.
-    | Kalau tidak ketemu, baru create.
-    |--------------------------------------------------------------------------
-    */
-        foreach ($rows as $row) {
-            $recommendationId = $row['id'];
-            $payload = $row['payload'];
+            $recommendationId = (int) $request->input("rec_id.{$key}", 0);
 
             if ($recommendationId > 0) {
                 $recommendation = $job->recommendations()
@@ -475,33 +439,7 @@ class UpdateJobSaveController extends Controller
                 }
             }
 
-            $existingQuery = $job->recommendations()
-                ->where('part_name', $payload['part_name']);
-
-            if ($payload['part_number'] === null || $payload['part_number'] === '') {
-                $existingQuery->where(function ($query) {
-                    $query->whereNull('part_number')
-                        ->orWhere('part_number', '');
-                });
-            } else {
-                $existingQuery->where('part_number', $payload['part_number']);
-            }
-
-            $existing = $existingQuery->first();
-
-            if ($existing) {
-                $existing->fill($payload);
-
-                if ($existing->isDirty()) {
-                    $existing->save();
-                }
-
-                continue;
-            }
-
             $job->recommendations()->create($payload);
         }
     }
 }
-
-
