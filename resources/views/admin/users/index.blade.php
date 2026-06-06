@@ -93,7 +93,7 @@
                     <td class="px-6 py-4">
                         <div class="flex items-center">
                             <div
-                                class="h-10 w-10 flex-shrink-0 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                                class="h-10 w-10 shrink-0 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
                                 <span class="text-sm font-bold text-slate-600">{{ strtoupper(substr($user->name, 0, 2))
                                     }}</span>
                             </div>
@@ -149,6 +149,55 @@
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+
+                        @php
+                        $currentRole = strtolower(trim((string) auth()->user()->status_user));
+                        $currentRole = str_replace(['-', ' '], '_', $currentRole);
+
+                        if ($currentRole === 'superadmin') {
+                        $currentRole = 'super_admin';
+                        }
+
+                        $targetRole = strtolower(trim((string) $user->status_user));
+                        $targetRole = str_replace(['-', ' '], '_', $targetRole);
+
+                        if ($targetRole === 'secthead') {
+                        $targetRole = 'sect_head';
+                        }
+
+                        if ($targetRole === 'superadmin') {
+                        $targetRole = 'super_admin';
+                        }
+
+                        $canLoginAs = false;
+
+                        if (!session()->has('impersonator_id') && auth()->id() !== $user->id) {
+                        if ($currentRole === 'super_admin') {
+                        $canLoginAs = true;
+                        } elseif ($currentRole === 'admin' && in_array($targetRole, ['mekanik', 'koordinator',
+                        'sect_head'], true)) {
+                        $canLoginAs = true;
+                        }
+                        }
+                        @endphp
+
+                        @if($canLoginAs)
+                        <form action="{{ route('login-as.start', $user) }}" method="POST"
+                            onsubmit="return confirm('Masuk sebagai {{ $user->name }}? Anda bisa kembali ke admin dari banner atas.');"
+                            class="inline-block">
+                            @csrf
+                            <button type="submit"
+                                class="text-violet-600 hover:text-violet-900 bg-violet-50 hover:bg-violet-100 p-2 rounded-lg transition-colors"
+                                title="Masuk Sebagai User">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H3v-4l6.257-6.257A6 6 0 1121 9z">
+                                    </path>
+                                </svg>
+                            </button>
+                        </form>
+                        @endif
+
                         <div class="flex items-center justify-end gap-3">
                             <a href="{{ route('admin.users.edit', $user) }}"
                                 class="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 p-2 rounded-lg transition-colors"
