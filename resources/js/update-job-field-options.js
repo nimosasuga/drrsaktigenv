@@ -18,6 +18,13 @@ function normalizeLegacyValue(value) {
     return map[normalized] || String(value || "").trim();
 }
 
+function splitJobTypeValue(value) {
+    return String(value || "")
+        .split(",")
+        .map((item) => normalizeLegacyValue(item))
+        .filter(Boolean);
+}
+
 function replaceSelectOptions(select, placeholder, options) {
     if (!select || select.tagName !== "SELECT") {
         return;
@@ -114,18 +121,60 @@ function initializeMultiJobTypeDropdown() {
             return;
         }
 
+        const form = root.closest("form");
+        const formAction = String(form?.getAttribute("action") || form?.action || "");
+        const isEditForm = /\/update-jobs\/\d+(?:\b|\/|\?|#)/.test(formAction);
+        const hasExistingPreventiveMaintenance = splitJobTypeValue(hiddenInput.value).includes(
+            "Preventive Maintenance",
+        );
+        const lockPreventiveMaintenance = isEditForm && hasExistingPreventiveMaintenance;
+        const preventiveMaintenanceOption = options.find(
+            (option) => normalizeLegacyValue(option.value) === "Preventive Maintenance",
+        );
+
+        if (lockPreventiveMaintenance && preventiveMaintenanceOption) {
+            preventiveMaintenanceOption.checked = true;
+            preventiveMaintenanceOption.disabled = true;
+            preventiveMaintenanceOption.setAttribute("aria-disabled", "true");
+            preventiveMaintenanceOption.dataset.lockedPreventiveMaintenance = "true";
+
+            const optionLabel = preventiveMaintenanceOption.closest("label");
+            if (optionLabel) {
+                optionLabel.classList.add("cursor-not-allowed", "bg-blue-50", "text-blue-800");
+                optionLabel.title = "Preventive Maintenance terkunci karena job ini sudah memiliki PM. Tambahkan tipe pekerjaan lain tanpa menghapus PM.";
+
+                if (!optionLabel.querySelector("[data-pm-locked-badge]")) {
+                    const badge = document.createElement("span");
+                    badge.dataset.pmLockedBadge = "true";
+                    badge.className = "ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700";
+                    badge.textContent = "Locked";
+                    optionLabel.appendChild(badge);
+                }
+            }
+        }
+
         if (menu.parentElement !== document.body) {
             document.body.appendChild(menu);
         }
 
         function selectedValues() {
-            return options
+            const values = options
                 .filter((option) => option.checked)
                 .map((option) => option.value.trim())
                 .filter(Boolean);
+
+            if (lockPreventiveMaintenance && !values.includes("Preventive Maintenance")) {
+                values.unshift("Preventive Maintenance");
+            }
+
+            return Array.from(new Set(values));
         }
 
         function syncValue() {
+            if (lockPreventiveMaintenance && preventiveMaintenanceOption) {
+                preventiveMaintenanceOption.checked = true;
+            }
+
             const values = selectedValues();
             const text =
                 values.length > 0 ? values.join(", ") : "Pilih Tipe Pekerjaan";
