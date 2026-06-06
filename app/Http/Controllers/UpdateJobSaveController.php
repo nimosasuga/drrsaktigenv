@@ -272,7 +272,46 @@ class UpdateJobSaveController extends Controller
 
     public function store(Request $request)
     {
+        logger()->warning('UPDATE_JOB_STORE_BEFORE_VALIDATION_DEBUG', [
+            'user_id' => Auth::id(),
+            'method' => $request->method(),
+            'path' => $request->path(),
+            'has_inst_part_name' => $request->has('inst_part_name'),
+            'inst_part_name' => $request->input('inst_part_name'),
+            'inst_part_number' => $request->input('inst_part_number'),
+            'inst_qty' => $request->input('inst_qty'),
+            'has_rec_part_name' => $request->has('rec_part_name'),
+            'rec_part_name' => $request->input('rec_part_name'),
+            'rec_part_number' => $request->input('rec_part_number'),
+            'rec_qty' => $request->input('rec_qty'),
+            'job_type_raw' => $request->input('job_type'),
+            'status_unit_raw' => $request->input('status_unit'),
+            'all_keys' => array_keys($request->all()),
+        ]);
+
+        logger()->warning('UPDATE_JOB_SAFE_DYNAMIC_PAYLOAD_DEBUG', [
+            'safe_inst_part_name' => $request->input('safe_inst_part_name'),
+            'safe_inst_part_number' => $request->input('safe_inst_part_number'),
+            'safe_inst_qty' => $request->input('safe_inst_qty'),
+            'safe_rec_part_name' => $request->input('safe_rec_part_name'),
+            'safe_rec_part_number' => $request->input('safe_rec_part_number'),
+            'safe_rec_qty' => $request->input('safe_rec_qty'),
+        ]);
+
         $this->normalizeRequest($request);
+
+        logger()->warning('UPDATE_JOB_STORE_AFTER_NORMALIZE_DEBUG', [
+            'job_type' => $request->input('job_type'),
+            'status_unit' => $request->input('status_unit'),
+            'serial_number' => $request->input('serial_number'),
+            'unit_type' => $request->input('unit_type'),
+            'customer' => $request->input('customer'),
+            'location' => $request->input('location'),
+            'hour_meter' => $request->input('hour_meter'),
+            'problem' => $request->input('problem'),
+            'action' => $request->input('action'),
+        ]);
+
         $validated = $this->validateRequest($request);
         logger()->warning('UPDATE_JOB_STORE_PAYLOAD_DEBUG', [
             'user_id' => Auth::id(),
@@ -364,11 +403,30 @@ class UpdateJobSaveController extends Controller
         }
     }
 
+    private function arrayInput(Request $request, string $primaryKey, string $fallbackKey): array
+    {
+        $primary = $request->input($primaryKey);
+
+        if (is_array($primary) && count($primary) > 0) {
+            return $primary;
+        }
+
+        $fallback = $request->input($fallbackKey);
+
+        return is_array($fallback) ? $fallback : [];
+    }
+
     private function syncInstallParts(Request $request, Job $job, bool $replaceExisting): void
     {
-        $partNames = (array) $request->input('inst_part_name', []);
+        $ids = $this->arrayInput($request, 'inst_id', 'safe_inst_id');
+        $partNumbers = $this->arrayInput($request, 'inst_part_number', 'safe_inst_part_number');
+        $partNames = $this->arrayInput($request, 'inst_part_name', 'safe_inst_part_name');
+        $qtys = $this->arrayInput($request, 'inst_qty', 'safe_inst_qty');
+        $noJobs = $this->arrayInput($request, 'inst_no_job', 'safe_inst_no_job');
+        $noPrs = $this->arrayInput($request, 'inst_no_pr', 'safe_inst_no_pr');
+        $remarks = $this->arrayInput($request, 'inst_remarks', 'safe_inst_remarks');
 
-        if (!$request->has('inst_part_name') || count($partNames) < 1) {
+        if (count($partNames) < 1) {
             return;
         }
 
@@ -381,15 +439,15 @@ class UpdateJobSaveController extends Controller
 
             $payload = [
                 'job_id' => $job->id,
-                'part_number' => $request->input("inst_part_number.{$key}"),
+                'part_number' => $partNumbers[$key] ?? null,
                 'part_name' => $partName,
-                'qty' => max(1, (int) $request->input("inst_qty.{$key}", 1)),
-                'remarks' => $request->input("inst_remarks.{$key}"),
-                'no_job' => $request->input("inst_no_job.{$key}"),
-                'no_pr' => $request->input("inst_no_pr.{$key}"),
+                'qty' => max(1, (int) ($qtys[$key] ?? 1)),
+                'remarks' => $remarks[$key] ?? null,
+                'no_job' => $noJobs[$key] ?? null,
+                'no_pr' => $noPrs[$key] ?? null,
             ];
 
-            $installPartId = (int) $request->input("inst_id.{$key}", 0);
+            $installPartId = (int) ($ids[$key] ?? 0);
 
             if ($installPartId > 0) {
                 $installPart = JobInstallPart::query()
@@ -407,7 +465,6 @@ class UpdateJobSaveController extends Controller
                     continue;
                 }
             }
-            logger()->warning('UPDATE_JOB_CREATE_INSTALL_PART_DEBUG', $payload);
 
             JobInstallPart::create($payload);
         }
@@ -423,9 +480,13 @@ class UpdateJobSaveController extends Controller
 
     private function syncRecommendations(Request $request, Job $job, bool $replaceExisting): void
     {
-        $partNames = (array) $request->input('rec_part_name', []);
+        $ids = $this->arrayInput($request, 'rec_id', 'safe_rec_id');
+        $partNumbers = $this->arrayInput($request, 'rec_part_number', 'safe_rec_part_number');
+        $partNames = $this->arrayInput($request, 'rec_part_name', 'safe_rec_part_name');
+        $qtys = $this->arrayInput($request, 'rec_qty', 'safe_rec_qty');
+        $remarks = $this->arrayInput($request, 'rec_remarks', 'safe_rec_remarks');
 
-        if (!$request->has('rec_part_name') || count($partNames) < 1) {
+        if (count($partNames) < 1) {
             return;
         }
 
@@ -438,13 +499,13 @@ class UpdateJobSaveController extends Controller
 
             $payload = [
                 'job_id' => $job->id,
-                'part_number' => $request->input("rec_part_number.{$key}"),
+                'part_number' => $partNumbers[$key] ?? null,
                 'part_name' => $partName,
-                'qty' => max(1, (int) $request->input("rec_qty.{$key}", 1)),
-                'remarks' => $request->input("rec_remarks.{$key}"),
+                'qty' => max(1, (int) ($qtys[$key] ?? 1)),
+                'remarks' => $remarks[$key] ?? null,
             ];
 
-            $recommendationId = (int) $request->input("rec_id.{$key}", 0);
+            $recommendationId = (int) ($ids[$key] ?? 0);
 
             if ($recommendationId > 0) {
                 $recommendation = JobRecommendation::query()
@@ -462,7 +523,6 @@ class UpdateJobSaveController extends Controller
                     continue;
                 }
             }
-            logger()->warning('UPDATE_JOB_CREATE_RECOMMENDATION_DEBUG', $payload);
 
             JobRecommendation::create($payload);
         }

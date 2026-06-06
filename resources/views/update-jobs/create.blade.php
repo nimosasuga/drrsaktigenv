@@ -2,6 +2,7 @@
 @extends('layouts.app')
 
 @section('content')
+
 <div class="max-w-5xl mx-auto">
 
     @if($errors->has('error'))
@@ -300,6 +301,16 @@
             </div>
         </div>
 </div>
+@if($errors->any())
+<div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 shadow-sm">
+    <p class="text-sm font-black uppercase tracking-wide">Form belum bisa disimpan</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm font-semibold">
+        @foreach($errors->all() as $error)
+        <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
 
 <!-- Section 3: Temuan & Tindakan -->
 <div class="bg-white rounded-3xl shadow-sm border border-slate-100"
@@ -538,19 +549,63 @@
         const btnIcon = document.getElementById('btn-icon');
         const btnText = document.getElementById('btn-text');
 
-        formJob.addEventListener('submit', function(e) {
-            if (isSubmitting) {
-                e.preventDefault();
-                return;
-            }
+function appendSyncedHidden(form, name, value) {
+const input = document.createElement('input');
+input.type = 'hidden';
+input.name = name;
+input.value = value ?? '';
+input.setAttribute('data-dynamic-row-sync', '1');
+form.appendChild(input);
+}
 
-            isSubmitting = true;
-            btnSubmit.classList.add('opacity-75', 'cursor-not-allowed');
-            btnIcon.innerHTML = `<svg class="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-            btnText.innerText = 'Menyimpan...';
+function rowValue(row, selector) {
+const input = row.querySelector(selector);
+return input ? input.value : '';
+}
 
-            window.removeEventListener('beforeunload', beforeUnloadHandler);
-        });
+function syncDynamicRowsBeforeSubmit() {
+formJob.querySelectorAll('[data-dynamic-row-sync="1"]').forEach((input) => input.remove());
+
+document.querySelectorAll('#inst-container .inst-item').forEach((row) => {
+appendSyncedHidden(formJob, 'safe_inst_id[]', rowValue(row, 'input[name="inst_id[]"]'));
+appendSyncedHidden(formJob, 'safe_inst_part_number[]', rowValue(row, 'input[name="inst_part_number[]"]'));
+appendSyncedHidden(formJob, 'safe_inst_part_name[]', rowValue(row, 'input[name="inst_part_name[]"]'));
+appendSyncedHidden(formJob, 'safe_inst_qty[]', rowValue(row, 'input[name="inst_qty[]"]'));
+appendSyncedHidden(formJob, 'safe_inst_no_job[]', rowValue(row, 'input[name="inst_no_job[]"]'));
+appendSyncedHidden(formJob, 'safe_inst_no_pr[]', rowValue(row, 'input[name="inst_no_pr[]"]'));
+appendSyncedHidden(formJob, 'safe_inst_remarks[]', rowValue(row, 'input[name="inst_remarks[]"]'));
+});
+
+document.querySelectorAll('#rec-container .rec-item').forEach((row) => {
+appendSyncedHidden(formJob, 'safe_rec_id[]', rowValue(row, 'input[name="rec_id[]"]'));
+appendSyncedHidden(formJob, 'safe_rec_part_number[]', rowValue(row, 'input[name="rec_part_number[]"]'));
+appendSyncedHidden(formJob, 'safe_rec_part_name[]', rowValue(row, 'input[name="rec_part_name[]"]'));
+appendSyncedHidden(formJob, 'safe_rec_qty[]', rowValue(row, 'input[name="rec_qty[]"]'));
+appendSyncedHidden(formJob, 'safe_rec_remarks[]', rowValue(row, 'input[name="rec_remarks[]"]'));
+});
+}
+
+formJob.addEventListener('submit', function(e) {
+syncDynamicRowsBeforeSubmit();
+
+if (isSubmitting) {
+e.preventDefault();
+return;
+}
+
+isSubmitting = true;
+btnSubmit.classList.add('opacity-75', 'cursor-not-allowed');
+btnIcon.innerHTML = `<svg class="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none"
+    viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+    </path>
+</svg>`;
+btnText.innerText = 'Menyimpan...';
+
+window.removeEventListener('beforeunload', beforeUnloadHandler);
+});
 
 
         // --- 4. AUTOCOMPLETE S/N (FIELD LAIN DI-LOCK PERMANEN) ---

@@ -555,6 +555,16 @@
         </div>
     </form>
 </div>
+@if($errors->any())
+<div class="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700 shadow-sm">
+    <p class="text-sm font-black uppercase tracking-wide">Form belum bisa disimpan</p>
+    <ul class="mt-2 list-disc space-y-1 pl-5 text-sm font-semibold">
+        @foreach($errors->all() as $error)
+        <li>{{ $error }}</li>
+        @endforeach
+    </ul>
+</div>
+@endif
 
 <!-- ========================================== -->
 <!-- TEMPLATE ROWS (Inst & Rec) -->
