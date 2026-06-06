@@ -7,29 +7,11 @@
 @extends('layouts.app')
 
 @section('content')
-@php
-    $normalizeLicenseRole = function (?string $role): string {
-        $role = strtolower(trim((string) $role));
-        $role = str_replace(['-', '_'], ' ', $role);
-        $role = preg_replace('/\s+/', ' ', $role) ?: '';
-
-        return match ($role) {
-            'sect head', 'secthead' => 'sect_head',
-            'super admin', 'superadmin' => 'super_admin',
-            default => str_replace(' ', '_', $role),
-        };
-    };
-
-    $licenseRoleLabel = function (?string $role) use ($normalizeLicenseRole): string {
-        return strtoupper(str_replace('_', ' ', $normalizeLicenseRole($role)));
-    };
-@endphp
-
 <div class="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
     <div>
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">Kontrol Lisensi</h1>
         <p class="mt-1 text-sm text-slate-500">
-            Kelola lisensi berdasarkan role pengguna. Paket yang bisa dipilih akan mengikuti status user seperti mekanik, koordinator, sect head, admin, atau super admin.
+            Kelola lisensi berdasarkan role pengguna. Paket yang bisa dipilih mengikuti status user seperti mekanik, koordinator, sect head, admin, atau super admin.
         </p>
     </div>
 
@@ -40,20 +22,20 @@
 </div>
 
 @if(session('success'))
-<div class="mb-6 rounded-r-md border-l-4 border-emerald-500 bg-emerald-50 p-4 shadow-sm">
-    <p class="text-sm font-bold text-emerald-700">{{ session('success') }}</p>
-</div>
+    <div class="mb-6 rounded-r-md border-l-4 border-emerald-500 bg-emerald-50 p-4 shadow-sm">
+        <p class="text-sm font-bold text-emerald-700">{{ session('success') }}</p>
+    </div>
 @endif
 
 @if($errors->any())
-<div class="mb-6 rounded-r-md border-l-4 border-red-500 bg-red-50 p-4 shadow-sm">
-    <p class="text-sm font-bold text-red-700">Gagal memproses lisensi</p>
-    <ul class="mt-1 list-inside list-disc text-sm text-red-600">
-        @foreach($errors->all() as $error)
-            <li>{{ $error }}</li>
-        @endforeach
-    </ul>
-</div>
+    <div class="mb-6 rounded-r-md border-l-4 border-red-500 bg-red-50 p-4 shadow-sm">
+        <p class="text-sm font-bold text-red-700">Gagal memproses lisensi</p>
+        <ul class="mt-1 list-inside list-disc text-sm text-red-600">
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
 @endif
 
 <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -92,8 +74,21 @@
                 <select id="licenseUserSelect" name="user_id" required class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
                     <option value="" data-license-role="">Pilih pengguna</option>
                     @foreach($users as $user)
-                        <option value="{{ $user->id }}" data-license-role="{{ $normalizeLicenseRole($user->status_user) }}" @selected(old('user_id') == $user->id)>
-                            {{ $user->name }} · {{ $licenseRoleLabel($user->status_user) }} · NRPP {{ $user->nrpp ?? '-' }}
+                        @php
+                            $userRole = strtolower(trim((string) ($user->status_user ?? '')));
+                            $userRole = str_replace(['-', '_'], ' ', $userRole);
+                            $userRole = preg_replace('/\s+/', ' ', $userRole) ?: '';
+                            if ($userRole === 'sect head' || $userRole === 'secthead') {
+                                $userRole = 'sect_head';
+                            } elseif ($userRole === 'super admin' || $userRole === 'superadmin') {
+                                $userRole = 'super_admin';
+                            } else {
+                                $userRole = str_replace(' ', '_', $userRole);
+                            }
+                            $userRoleLabel = strtoupper(str_replace('_', ' ', $userRole));
+                        @endphp
+                        <option value="{{ $user->id }}" data-license-role="{{ $userRole }}" {{ old('user_id') == $user->id ? 'selected' : '' }}>
+                            {{ $user->name }} · {{ $userRoleLabel }} · NRPP {{ $user->nrpp ?? '-' }}
                         </option>
                     @endforeach
                 </select>
@@ -104,9 +99,21 @@
                 <select id="licensePackageSelect" name="subscription_package_id" required class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
                     <option value="" data-package-role="">Pilih user dulu</option>
                     @foreach($packages as $package)
-                        @php($packageRole = $normalizeLicenseRole($package->role_name))
-                        <option value="{{ $package->id }}" data-package-role="{{ $packageRole }}" @selected(old('subscription_package_id') == $package->id)>
-                            Lisensi {{ $licenseRoleLabel($package->role_name) }} · {{ (int) $package->duration_months }} bulan · Rp{{ number_format($package->price, 0, ',', '.') }}
+                        @php
+                            $packageRole = strtolower(trim((string) ($package->role_name ?? '')));
+                            $packageRole = str_replace(['-', '_'], ' ', $packageRole);
+                            $packageRole = preg_replace('/\s+/', ' ', $packageRole) ?: '';
+                            if ($packageRole === 'sect head' || $packageRole === 'secthead') {
+                                $packageRole = 'sect_head';
+                            } elseif ($packageRole === 'super admin' || $packageRole === 'superadmin') {
+                                $packageRole = 'super_admin';
+                            } else {
+                                $packageRole = str_replace(' ', '_', $packageRole);
+                            }
+                            $packageRoleLabel = strtoupper(str_replace('_', ' ', $packageRole));
+                        @endphp
+                        <option value="{{ $package->id }}" data-package-role="{{ $packageRole }}" {{ old('subscription_package_id') == $package->id ? 'selected' : '' }}>
+                            Lisensi {{ $packageRoleLabel }} · {{ (int) $package->duration_months }} bulan · Rp{{ number_format($package->price, 0, ',', '.') }}
                         </option>
                     @endforeach
                 </select>
@@ -118,7 +125,7 @@
                     <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Status</label>
                     <select name="status" required class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
                         @foreach(['pending', 'active', 'expired', 'cancelled'] as $statusOption)
-                            <option value="{{ $statusOption }}" @selected(old('status', 'active') === $statusOption)>{{ strtoupper($statusOption) }}</option>
+                            <option value="{{ $statusOption }}" {{ old('status', 'active') === $statusOption ? 'selected' : '' }}>{{ strtoupper($statusOption) }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -152,15 +159,28 @@
             <select name="status" class="rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="">Semua status</option>
                 @foreach(['pending', 'active', 'expired', 'cancelled'] as $statusOption)
-                    <option value="{{ $statusOption }}" @selected(request('status') === $statusOption)>{{ strtoupper($statusOption) }}</option>
+                    <option value="{{ $statusOption }}" {{ request('status') === $statusOption ? 'selected' : '' }}>{{ strtoupper($statusOption) }}</option>
                 @endforeach
             </select>
 
             <select name="package_id" class="rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
                 <option value="">Semua paket</option>
                 @foreach($packages as $package)
-                    <option value="{{ $package->id }}" @selected((string) request('package_id') === (string) $package->id)>
-                        Lisensi {{ $licenseRoleLabel($package->role_name) }} · {{ (int) $package->duration_months }} bulan
+                    @php
+                        $filterPackageRole = strtolower(trim((string) ($package->role_name ?? '')));
+                        $filterPackageRole = str_replace(['-', '_'], ' ', $filterPackageRole);
+                        $filterPackageRole = preg_replace('/\s+/', ' ', $filterPackageRole) ?: '';
+                        if ($filterPackageRole === 'sect head' || $filterPackageRole === 'secthead') {
+                            $filterPackageRole = 'sect_head';
+                        } elseif ($filterPackageRole === 'super admin' || $filterPackageRole === 'superadmin') {
+                            $filterPackageRole = 'super_admin';
+                        } else {
+                            $filterPackageRole = str_replace(' ', '_', $filterPackageRole);
+                        }
+                        $filterPackageRoleLabel = strtoupper(str_replace('_', ' ', $filterPackageRole));
+                    @endphp
+                    <option value="{{ $package->id }}" {{ (string) request('package_id') === (string) $package->id ? 'selected' : '' }}>
+                        Lisensi {{ $filterPackageRoleLabel }} · {{ (int) $package->duration_months }} bulan
                     </option>
                 @endforeach
             </select>
@@ -217,17 +237,61 @@
                         $user = $license->user;
                         $package = $license->package;
                         $payment = $license->payment;
-                        $userRole = $normalizeLicenseRole($user->status_user ?? null);
-                        $matchingPackages = $packages->filter(fn ($packageOption) => $normalizeLicenseRole($packageOption->role_name) === $userRole);
+
+                        $userRole = strtolower(trim((string) ($user->status_user ?? '')));
+                        $userRole = str_replace(['-', '_'], ' ', $userRole);
+                        $userRole = preg_replace('/\s+/', ' ', $userRole) ?: '';
+                        if ($userRole === 'sect head' || $userRole === 'secthead') {
+                            $userRole = 'sect_head';
+                        } elseif ($userRole === 'super admin' || $userRole === 'superadmin') {
+                            $userRole = 'super_admin';
+                        } else {
+                            $userRole = str_replace(' ', '_', $userRole);
+                        }
+                        $userRoleLabel = strtoupper(str_replace('_', ' ', $userRole));
+
+                        $matchingPackages = [];
+                        foreach ($packages as $packageOption) {
+                            $optionRole = strtolower(trim((string) ($packageOption->role_name ?? '')));
+                            $optionRole = str_replace(['-', '_'], ' ', $optionRole);
+                            $optionRole = preg_replace('/\s+/', ' ', $optionRole) ?: '';
+                            if ($optionRole === 'sect head' || $optionRole === 'secthead') {
+                                $optionRole = 'sect_head';
+                            } elseif ($optionRole === 'super admin' || $optionRole === 'superadmin') {
+                                $optionRole = 'super_admin';
+                            } else {
+                                $optionRole = str_replace(' ', '_', $optionRole);
+                            }
+
+                            if ($optionRole === $userRole) {
+                                $matchingPackages[] = $packageOption;
+                            }
+                        }
+
+                        $packageRole = strtolower(trim((string) ($package->role_name ?? '')));
+                        $packageRole = str_replace(['-', '_'], ' ', $packageRole);
+                        $packageRole = preg_replace('/\s+/', ' ', $packageRole) ?: '';
+                        if ($packageRole === 'sect head' || $packageRole === 'secthead') {
+                            $packageRole = 'sect_head';
+                        } elseif ($packageRole === 'super admin' || $packageRole === 'superadmin') {
+                            $packageRole = 'super_admin';
+                        } else {
+                            $packageRole = str_replace(' ', '_', $packageRole);
+                        }
+                        $packageRoleLabel = strtoupper(str_replace('_', ' ', $packageRole));
+
                         $isExpiredByDate = $license->status === 'active' && $license->expired_at && $license->expired_at->isPast();
                         $displayStatus = $isExpiredByDate ? 'expired' : $license->status;
-                        $badgeClass = match ($displayStatus) {
-                            'active' => 'bg-emerald-100 text-emerald-700',
-                            'pending' => 'bg-amber-100 text-amber-700',
-                            'expired' => 'bg-rose-100 text-rose-700',
-                            'cancelled' => 'bg-slate-200 text-slate-700',
-                            default => 'bg-slate-100 text-slate-700',
-                        };
+                        $badgeClass = 'bg-slate-100 text-slate-700';
+                        if ($displayStatus === 'active') {
+                            $badgeClass = 'bg-emerald-100 text-emerald-700';
+                        } elseif ($displayStatus === 'pending') {
+                            $badgeClass = 'bg-amber-100 text-amber-700';
+                        } elseif ($displayStatus === 'expired') {
+                            $badgeClass = 'bg-rose-100 text-rose-700';
+                        } elseif ($displayStatus === 'cancelled') {
+                            $badgeClass = 'bg-slate-200 text-slate-700';
+                        }
                     @endphp
                     <tr class="align-top hover:bg-slate-50/60">
                         <td class="px-4 py-4">
@@ -243,7 +307,7 @@
                             </div>
                         </td>
                         <td class="px-4 py-4">
-                            <div class="font-bold text-slate-900">Lisensi {{ $licenseRoleLabel($package->role_name ?? null) }}</div>
+                            <div class="font-bold text-slate-900">Lisensi {{ $packageRoleLabel }}</div>
                             <div class="mt-1 text-xs text-slate-500">
                                 {{ $package->package_name ?? '-' }} · {{ (int) ($package->duration_months ?? 0) }} bulan
                             </div>
@@ -270,11 +334,11 @@
                         <td class="px-4 py-4">
                             <div class="min-w-[300px] rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left">
                                 <p class="text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi Lisensi</p>
-                                <p class="mt-1 text-xs text-slate-500">Paket dibatasi untuk role: <strong>{{ $licenseRoleLabel($user->status_user ?? null) }}</strong></p>
+                                <p class="mt-1 text-xs text-slate-500">Paket dibatasi untuk role: <strong>{{ $userRoleLabel }}</strong></p>
 
-                                @if($matchingPackages->isEmpty())
+                                @if(count($matchingPackages) === 0)
                                     <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                                        Belum ada paket lisensi untuk role {{ $licenseRoleLabel($user->status_user ?? null) }}.
+                                        Belum ada paket lisensi untuk role {{ $userRoleLabel }}.
                                     </div>
                                 @else
                                     <form method="POST" action="{{ route('admin.licenses.update', $license) }}" class="mt-3 space-y-2">
@@ -286,8 +350,11 @@
                                             <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Paket Role</label>
                                             <select name="subscription_package_id" class="w-full rounded-lg border-slate-300 bg-white text-xs focus:border-blue-500 focus:ring-blue-500">
                                                 @foreach($matchingPackages as $packageOption)
-                                                    <option value="{{ $packageOption->id }}" @selected($license->subscription_package_id === $packageOption->id)>
-                                                        Lisensi {{ $licenseRoleLabel($packageOption->role_name) }} · {{ (int) $packageOption->duration_months }} bulan · Rp{{ number_format((int) $packageOption->price, 0, ',', '.') }}
+                                                    @php
+                                                        $optionRoleLabel = strtoupper(str_replace('_', ' ', $userRole));
+                                                    @endphp
+                                                    <option value="{{ $packageOption->id }}" {{ $license->subscription_package_id === $packageOption->id ? 'selected' : '' }}>
+                                                        Lisensi {{ $optionRoleLabel }} · {{ (int) $packageOption->duration_months }} bulan · Rp{{ number_format((int) $packageOption->price, 0, ',', '.') }}
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -298,7 +365,7 @@
                                                 <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Status</label>
                                                 <select name="status" class="w-full rounded-lg border-slate-300 bg-white text-xs focus:border-blue-500 focus:ring-blue-500">
                                                     @foreach(['pending', 'active', 'expired', 'cancelled'] as $statusOption)
-                                                        <option value="{{ $statusOption }}" @selected($license->status === $statusOption)>{{ strtoupper($statusOption) }}</option>
+                                                        <option value="{{ $statusOption }}" {{ $license->status === $statusOption ? 'selected' : '' }}>{{ strtoupper($statusOption) }}</option>
                                                     @endforeach
                                                 </select>
                                             </div>
@@ -378,7 +445,7 @@
             }
 
             const selectedUser = userSelect.options[userSelect.selectedIndex];
-            const selectedRole = normalizeLicenseRole(selectedUser?.dataset.licenseRole || '');
+            const selectedRole = normalizeLicenseRole(selectedUser ? selectedUser.dataset.licenseRole : '');
             let visibleCount = 0;
             let firstVisibleValue = '';
 
