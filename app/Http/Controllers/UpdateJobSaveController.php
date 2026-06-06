@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Job;
 use App\Models\UnitAsset;
+use App\Models\JobInstallPart;
+use App\Models\JobRecommendation;
 use App\Services\RentalSparepartUsageService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -294,6 +296,7 @@ class UpdateJobSaveController extends Controller
             $this->syncInstallParts($request, $job, false);
             $this->syncRentalSparepartUsage($job);
             $this->syncRecommendations($request, $job, false);
+            $job->load(['installParts', 'recommendations']);
 
             DB::commit();
 
@@ -337,6 +340,7 @@ class UpdateJobSaveController extends Controller
             $this->syncInstallParts($request, $job, true);
             $this->syncRentalSparepartUsage($job);
             $this->syncRecommendations($request, $job, true);
+            $job->load(['installParts', 'recommendations']);
 
             DB::commit();
 
@@ -350,11 +354,13 @@ class UpdateJobSaveController extends Controller
 
     private function syncInstallParts(Request $request, Job $job, bool $replaceExisting): void
     {
-        if (!$request->has('inst_part_name')) {
+        $partNames = (array) $request->input('inst_part_name', []);
+
+        if (!$request->has('inst_part_name') || count($partNames) < 1) {
             return;
         }
 
-        foreach ((array) $request->input('inst_part_name', []) as $key => $partName) {
+        foreach ($partNames as $key => $partName) {
             $partName = trim((string) $partName);
 
             if ($partName === '') {
@@ -362,6 +368,7 @@ class UpdateJobSaveController extends Controller
             }
 
             $payload = [
+                'job_id' => $job->id,
                 'part_number' => $request->input("inst_part_number.{$key}"),
                 'part_name' => $partName,
                 'qty' => max(1, (int) $request->input("inst_qty.{$key}", 1)),
@@ -373,7 +380,8 @@ class UpdateJobSaveController extends Controller
             $installPartId = (int) $request->input("inst_id.{$key}", 0);
 
             if ($installPartId > 0) {
-                $installPart = $job->installParts()
+                $installPart = JobInstallPart::query()
+                    ->where('job_id', $job->id)
                     ->whereKey($installPartId)
                     ->first();
 
@@ -388,10 +396,9 @@ class UpdateJobSaveController extends Controller
                 }
             }
 
-            $job->installParts()->create($payload);
+            JobInstallPart::create($payload);
         }
     }
-
     private function syncRentalSparepartUsage(Job $job): void
     {
         if (strtoupper(trim((string) $job->department)) !== 'RENTAL') {
@@ -403,11 +410,13 @@ class UpdateJobSaveController extends Controller
 
     private function syncRecommendations(Request $request, Job $job, bool $replaceExisting): void
     {
-        if (!$request->has('rec_part_name')) {
+        $partNames = (array) $request->input('rec_part_name', []);
+
+        if (!$request->has('rec_part_name') || count($partNames) < 1) {
             return;
         }
 
-        foreach ((array) $request->input('rec_part_name', []) as $key => $partName) {
+        foreach ($partNames as $key => $partName) {
             $partName = trim((string) $partName);
 
             if ($partName === '') {
@@ -415,6 +424,7 @@ class UpdateJobSaveController extends Controller
             }
 
             $payload = [
+                'job_id' => $job->id,
                 'part_number' => $request->input("rec_part_number.{$key}"),
                 'part_name' => $partName,
                 'qty' => max(1, (int) $request->input("rec_qty.{$key}", 1)),
@@ -424,7 +434,8 @@ class UpdateJobSaveController extends Controller
             $recommendationId = (int) $request->input("rec_id.{$key}", 0);
 
             if ($recommendationId > 0) {
-                $recommendation = $job->recommendations()
+                $recommendation = JobRecommendation::query()
+                    ->where('job_id', $job->id)
                     ->whereKey($recommendationId)
                     ->first();
 
@@ -439,7 +450,7 @@ class UpdateJobSaveController extends Controller
                 }
             }
 
-            $job->recommendations()->create($payload);
+            JobRecommendation::create($payload);
         }
     }
 }
