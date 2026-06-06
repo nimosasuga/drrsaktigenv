@@ -153,17 +153,17 @@ class JobController extends Controller
 
     private function countRfu($jobs): int
     {
-        return $jobs->filter(fn ($job) => $this->isRfuStatus($job->status_unit))->count();
+        return $jobs->filter(fn($job) => $this->isRfuStatus($job->status_unit))->count();
     }
 
     private function countBreakdown($jobs): int
     {
-        return $jobs->filter(fn ($job) => $this->isBreakdownStatus($job->status_unit))->count();
+        return $jobs->filter(fn($job) => $this->isBreakdownStatus($job->status_unit))->count();
     }
 
     private function countTroubleshooting($jobs): int
     {
-        return $jobs->filter(fn ($job) => $this->isTroubleshootingJob($job))->count();
+        return $jobs->filter(fn($job) => $this->isTroubleshootingJob($job))->count();
     }
 
     /**
@@ -245,7 +245,7 @@ class JobController extends Controller
 
         $summary = [
             'total_bd_units' => $jobs
-                ->filter(fn ($job) => $this->isBreakdownStatus($job->status_unit))
+                ->filter(fn($job) => $this->isBreakdownStatus($job->status_unit))
                 ->pluck('serial_number')
                 ->filter()
                 ->unique()
@@ -275,7 +275,7 @@ class JobController extends Controller
                     'rfu_total' => $this->countRfu($monthJobs),
                     'breakdown_total' => $this->countBreakdown($monthJobs),
                     'pics' => $monthJobs
-                        ->groupBy(fn ($job) => $job->pic ?: 'Tanpa PIC')
+                        ->groupBy(fn($job) => $job->pic ?: 'Tanpa PIC')
                         ->map(function ($picJobs, $picName) {
                             return [
                                 'name' => $picName,
@@ -374,13 +374,13 @@ class JobController extends Controller
         }
 
         $assets = UnitAsset::where(function ($query) use ($search) {
-                $query->where('serial_number', 'LIKE', "%{$search}%")
-                    ->orWhere('unit_type', 'LIKE', "%{$search}%")
-                    ->orWhere('nomor_lambung', 'LIKE', "%{$search}%")
-                    ->orWhere('year', 'LIKE', "%{$search}%")
-                    ->orWhere('customer', 'LIKE', "%{$search}%")
-                    ->orWhere('location', 'LIKE', "%{$search}%");
-            })
+            $query->where('serial_number', 'LIKE', "%{$search}%")
+                ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                ->orWhere('nomor_lambung', 'LIKE', "%{$search}%")
+                ->orWhere('year', 'LIKE', "%{$search}%")
+                ->orWhere('customer', 'LIKE', "%{$search}%")
+                ->orWhere('location', 'LIKE', "%{$search}%");
+        })
             ->when(!$includeWithdrawn, function ($query) {
                 $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'");
             })
@@ -656,13 +656,34 @@ class JobController extends Controller
 
     public function destroy($id)
     {
-        $job = Job::findOrFail($id);
+        $job = Job::with(['recommendations', 'installParts'])->findOrFail($id);
 
         if (!$this->canEditJob($job)) {
             return redirect()->route('update-jobs.show', $id)->withErrors(['error' => 'Akses Ditolak: Anda tidak memiliki hak untuk menghapus data ini.']);
         }
 
-        $job->delete();
-        return redirect()->route('update-jobs.index')->with('success', 'Update Job berhasil dihapus.');
+        DB::beginTransaction();
+
+        try {
+            foreach ($job->recommendations as $recommendation) {
+                $recommendation->delete();
+            }
+
+            foreach ($job->installParts as $installPart) {
+                $installPart->delete();
+            }
+
+            $job->delete();
+
+            DB::commit();
+
+            return redirect()->route('update-jobs.index')->with('success', 'Update Job berhasil dihapus.');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return redirect()
+                ->route('update-jobs.show', $id)
+                ->withErrors(['error' => 'Gagal menghapus Update Job: ' . $e->getMessage()]);
+        }
     }
 }

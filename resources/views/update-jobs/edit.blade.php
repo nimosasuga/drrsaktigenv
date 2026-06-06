@@ -407,6 +407,8 @@
                     @forelse($job->installParts as $part)
                     <div
                         class="inst-item relative bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 pt-8 sm:pt-5 transition-all">
+                        <input type="hidden" name="inst_id[]" value="{{ $part->id }}">
+
                         <button type="button"
                             class="btn-remove-inst absolute top-2 right-2 sm:top-4 sm:right-4 p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -560,6 +562,8 @@
 <template id="tmpl-inst">
     <div
         class="inst-item relative bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 pt-8 sm:pt-5 transition-all">
+        <input type="hidden" name="inst_id[]" value="">
+
         <button type="button"
             class="btn-remove-inst absolute top-2 right-2 sm:top-4 sm:right-4 p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

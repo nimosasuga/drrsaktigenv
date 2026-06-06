@@ -132,21 +132,18 @@ class SparepartRecommendationControlService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$control || $control->isClosed()) {
+            if (!$control) {
                 return;
             }
 
             if ((int) $control->qty_supplied > 0 || (int) $control->qty_installed > 0) {
-                $control->review_note = trim((string) $control->review_note . "\nRekomendasi sumber di Update Job sudah dihapus/diedit, tetapi control tidak dibatalkan karena sudah ada supply/install.");
+                $control->review_note = trim((string) $control->review_note . "\nRekomendasi sumber di Update Job sudah dihapus, tetapi control tidak dihapus karena sudah ada supply/install.");
                 $control->save();
+
                 return;
             }
 
-            $control->recommendation_status = SparepartRecommendationControl::STATUS_CANCELLED;
-            $control->supply_status = SparepartRecommendationControl::SUPPLY_NOT_REQUIRED;
-            $control->closed_at = now();
-            $control->review_note = trim((string) $control->review_note . "\nOtomatis dibatalkan karena rekomendasi sumber di Update Job dihapus/diedit sebelum supply/install.");
-            $control->save();
+            $control->delete();
         });
     }
 

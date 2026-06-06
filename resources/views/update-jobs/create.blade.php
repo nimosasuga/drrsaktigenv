@@ -410,6 +410,7 @@
                 </path>
             </svg>
         </button>
+        <input type="hidden" name="inst_id[]" value="">
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4">
             <div class="lg:col-span-3">
                 <label class="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Part
@@ -448,6 +449,8 @@
 <template id="tmpl-rec">
     <div
         class="rec-item relative bg-amber-50/30 border border-amber-200 rounded-2xl p-4 sm:p-5 pt-8 sm:pt-5 transition-all">
+        <input type="hidden" name="rec_id[]" value="">
+
         <button type="button"
             class="btn-remove-rec absolute top-2 right-2 sm:top-4 sm:right-4 p-1.5 text-amber-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
