@@ -1,67 +1,77 @@
 # DRR SAKTI GEN V
 
-DRR SAKTI GEN V adalah aplikasi Laravel untuk manajemen operasional field service, aset unit, update job, battery, charger, delivery unit, penarikan unit, kalender planning kerja, command center statistik, Management Sparepart Rental, Usage Review, dan Recommendation Control.
+DRR SAKTI GEN V adalah aplikasi Laravel untuk operasional field service dan rental management. Aplikasi ini dipakai untuk mengelola aset unit, update job mekanik, battery, charger, delivery unit, penarikan unit, calendar planning, command center, payment/subscription, PWA, Management Sparepart Rental, Usage Review, dan Recommendation Control.
 
-Project ini adalah **project lanjutan**, **bukan project baru**, dan sudah masuk tahap **produksi awal / initial production**. Setiap perubahan wajib kecil, aman, bertahap, bisa dites, dan tidak boleh merusak fitur stabil.
-
-Repository:
-
-```text
-https://github.com/nimosasuga/drrsaktigenv.git
-```
-
-Local path:
-
-```text
-C:\laragon\www\drrsakti
-```
-
-Production domain:
-
-```text
-https://drrsakti.exprosalab.com
-```
-
-Recommended production root:
-
-```text
-/home/exprosal/drrsaktigenv
-```
-
-Recommended document root:
-
-```text
-/home/exprosal/drrsaktigenv/public
-```
+Project ini adalah **project lanjutan yang sudah masuk production**. Jangan memperlakukan project ini sebagai project baru.
 
 ---
 
-## 1. Stack Project
+## 1. Informasi Project
+
+| Item | Nilai |
+|---|---|
+| Repository | `https://github.com/nimosasuga/drrsaktigenv.git` |
+| Local path | `C:\laragon\www\drrsakti` |
+| Production URL | `https://drrsakti.exprosalab.com` |
+| Production root cPanel | `/home/exprosal/drrsaktigenv` |
+| Production document root | `/home/exprosal/drrsaktigenv/public` |
+| Status | Production aktif |
+
+---
+
+## 2. Stack
 
 ```text
 Laravel 13
 PHP 8.3
 MySQL
-Laragon
-HeidiSQL
 Blade
 Tailwind CSS
 Vite
-PowerShell
-cPanel Production
+Laragon
+HeidiSQL
+cPanel
 Cloudflare
+PWA aktif
 ```
 
-Command standar lokal setelah pull/perubahan kode:
+---
+
+## 3. Prinsip Utama
+
+1. Project ini **bukan project baru**.
+2. Jangan melakukan rewrite besar untuk masalah kecil.
+3. Jangan menghapus tombol, route, field, tampilan, menu, atau fitur stabil tanpa persetujuan eksplisit.
+4. Jangan mengubah database tanpa alasan kuat dan persetujuan eksplisit.
+5. Jangan menebak nama tabel atau kolom. Cek model, migration, controller, dan view target terlebih dahulu.
+6. Perubahan harus kecil, aman, bertahap, mudah dites, dan mudah di-rollback.
+7. Jangan commit atau upload `.env`, password database, token, credential cPanel, credential Cloudflare, atau secret apa pun.
+8. Jangan upload `node_modules`, `.git`, database lokal, `storage/logs`, atau file tidak perlu ke production.
+9. Jangan menjalankan `npm run build` dan upload production sebelum lokal dites aman.
+10. Jangan mengganggu fitur stabil yang sedang dipakai operasional.
+
+---
+
+## 4. Command Lokal Standar
+
+Jalankan dari PowerShell:
 
 ```powershell
 cd C:\laragon\www\drrsakti
+
 git pull origin main
 php artisan optimize:clear
 php artisan view:clear
 php artisan route:clear
+php artisan config:clear
 composer dump-autoload
 npm run dev
+```
+
+Jika ada perubahan JavaScript atau CSS:
+
+```powershell
+npm run build
 ```
 
 Jika ada migration baru:
@@ -70,348 +80,280 @@ Jika ada migration baru:
 php artisan migrate
 ```
 
-Build production lokal sebelum ZIP/upload:
+Cek route penting:
 
 ```powershell
-cd C:\laragon\www\drrsakti
-php artisan optimize:clear
-php artisan view:clear
-php artisan route:clear
-php artisan config:clear
-composer dump-autoload
-npm run build
+php artisan route:list
+php artisan route:list | findstr update-jobs
+php artisan route:list | findstr sparepart-recommendations
 ```
 
-Command production/cPanel jika tersedia Terminal/SSH:
+Cek syntax PHP sebelum upload:
+
+```powershell
+php -l app\Http\Controllers\NamaController.php
+```
+
+---
+
+## 5. Command Production cPanel
+
+Masuk ke root project:
 
 ```bash
 cd /home/exprosal/drrsaktigenv
-php artisan optimize:clear
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
-php artisan storage:link
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+```
+
+Karena default CLI cPanel bisa memakai PHP 8.2, semua command artisan production wajib memakai PHP 8.3:
+
+```bash
+/opt/cpanel/ea-php83/root/usr/bin/php artisan optimize:clear
+/opt/cpanel/ea-php83/root/usr/bin/php artisan config:clear
+/opt/cpanel/ea-php83/root/usr/bin/php artisan route:clear
+/opt/cpanel/ea-php83/root/usr/bin/php artisan view:clear
+```
+
+Jika ada migration dan sudah dites lokal:
+
+```bash
+/opt/cpanel/ea-php83/root/usr/bin/php artisan migrate --force
+```
+
+Jangan menjalankan migration kalau perubahan hanya Blade, controller, route, atau JavaScript biasa.
+
+---
+
+## 6. Aturan Upload ke cPanel
+
+Upload patch kecil saja jika memungkinkan.
+
+Jangan upload:
+
+```text
+.env
+.git
+node_modules
+storage/logs
+database lokal
+file .sql lokal
+file .sqlite lokal
+vendor jika tidak ada perubahan composer
+```
+
+Jika perubahan hanya Blade:
+
+```text
+Upload file Blade terkait.
+Clear cache Laravel di cPanel.
+```
+
+Jika perubahan controller atau route:
+
+```text
+Upload controller/route terkait.
+Clear cache Laravel di cPanel.
+```
+
+Jika perubahan JS/CSS:
+
+```text
+1. Jalankan npm run build di lokal.
+2. Upload public/build.
+3. Clear cache Laravel di cPanel.
+4. Purge Cloudflare jika tampilan belum berubah.
+```
+
+Jika perubahan PWA:
+
+```text
+Jangan ubah PWA tanpa persetujuan eksplisit.
+Jika sudah disetujui, upload file PWA terkait dan lakukan cache clear + Cloudflare purge.
 ```
 
 ---
 
-## 2. Aturan Produksi
+## 7. Struktur Akses User
 
-1. Project ini **bukan project baru**.
-2. Jangan ubah arsitektur besar tanpa alasan kuat.
-3. Jangan hapus fitur, route, tombol, field, tampilan, atau alur yang sudah stabil tanpa instruksi eksplisit.
-4. Jangan ubah database kalau bisa diselesaikan di controller/view.
-5. Jika harus menyentuh database, perubahan wajib kecil, jelas, dan bisa di-rollback.
-6. Perubahan harus aman, bertahap, dan mudah dites.
-7. Baca `README.md`, route, controller, model, migration, dan view target sebelum memberi patch.
-8. Jangan pakai pendekatan tambal-menambal yang berisiko merusak fitur produksi awal.
-9. Jangan mengubah search asset yang sudah stabil tanpa instruksi eksplisit.
-10. Jangan melakukan rewrite besar hanya untuk masalah kecil.
-11. Jangan commit `.env`, password database, credential cPanel, atau secret lain.
-
-Kolom modern yang digunakan sebagai standar:
+Project memakai data user berikut:
 
 ```text
-customer
-location
-serial_number
-unit_type
-status
-year
-nomor_lambung
-department
+status_user
+branch
 position
+department
 ```
 
-Kolom lama tidak boleh dijadikan standar utama:
+Jangan menjadikan `role` sebagai standar utama jika data produksi memakai `status_user`.
+
+Status user utama:
 
 ```text
-nama_pelanggan
-lokasi
-```
-
-Fallback boleh hanya jika diperlukan untuk kompatibilitas data lama.
-
----
-
-## 3. Aturan AI / Canvas / File
-
-Jika project dilanjutkan dengan ChatGPT, Gemini, Claude, atau AI coding assistant lain, aturan wajib:
-
-1. Satu canvas hanya untuk satu file kode.
-2. Nama canvas harus sama persis dengan path file.
-3. Baris paling atas isi canvas wajib memuat path file.
-4. Jika file sudah pernah ada, update file lama. Jangan buat file duplikat.
-5. Jangan campur controller, model, route, blade, migration, dan JavaScript dalam satu canvas.
-6. Jika ubah tiga file, buat/update tiga file/canvas terpisah.
-7. Jangan memberi solusi sebelum membaca file target.
-8. Jangan pakai pendekatan tambal JS jika field bisa dipasang langsung di Blade.
-9. Jangan mengubah endpoint vital yang sudah stabil kecuali memang diminta.
-
-Format jawaban ideal:
-
-```text
-1. TUJUAN
-2. FILE YANG DIUBAH
-3. COMMAND POWERSHELL
-4. POTONGAN TARGET FILE
-5. KODE LENGKAP / PATCH
-6. CARA TESTING
-7. JIKA ERROR
-8. LANGKAH BERIKUTNYA
-```
-
----
-
-## 4. Role, Position, dan Department
-
-Role utama:
-
-```text
-super_admin
-admin
+mekanik
 koordinator
 sect_head
-mekanik / user biasa
-PLANNER
-```
-
-Kolom user terbaru:
-
-```text
-users.position   = FIELD / FMC
-users.department = RENTAL / SERVICE
-```
-
-Aturan department:
-
-```text
-koordinator RENTAL  -> hanya melihat/mengelola data RENTAL
-koordinator SERVICE -> hanya melihat/mengelola data SERVICE
-sect_head RENTAL    -> hanya melihat/mengelola data RENTAL
-sect_head SERVICE   -> hanya melihat/mengelola data SERVICE
-admin               -> semua department
-super_admin         -> semua department
-mekanik/user biasa  -> read-only sesuai department
-```
-
-Role yang boleh lintas department:
-
-```text
 admin
 super_admin
 ```
 
-Role yang tidak boleh lintas department:
+Department utama:
 
 ```text
-koordinator
-sect_head
-mekanik / user biasa
+RENTAL
+SERVICE
 ```
 
-Hak akses umum:
+Aturan akses umum:
 
-- `super_admin`: full access.
-- `admin`: full akses operasional lintas department.
-- `koordinator`: privileged access sesuai department.
-- `sect_head`: privileged access sesuai department.
-- `mekanik/user biasa`: akses terbatas/read-only sesuai department dan modul.
-- `PLANNER`: tidak boleh create Delivery Unit dan tidak boleh create Penarikan Unit.
+| User | Akses |
+|---|---|
+| `super_admin` | Semua fitur dan semua department |
+| `admin` | Semua fitur operasional dan semua department |
+| `koordinator RENTAL` | Modul RENTAL sesuai izin |
+| `sect_head RENTAL` | Modul RENTAL sesuai izin |
+| `koordinator SERVICE` | Modul SERVICE sesuai izin |
+| `sect_head SERVICE` | Modul SERVICE sesuai izin |
+| `mekanik` | Operasional terbatas sesuai kebutuhan |
+
+Akses Management Sparepart dan Recommendation Control:
+
+Boleh:
+
+```text
+admin
+super_admin
+koordinator RENTAL
+sect_head RENTAL
+```
+
+Tidak boleh:
+
+```text
+mekanik RENTAL
+mekanik SERVICE
+koordinator SERVICE
+sect_head SERVICE
+```
 
 ---
 
-## 5. Department Isolation Core
+## 8. Department Isolation
 
-Department isolation diterapkan ke tabel operasional utama.
+Department isolation sudah aktif. Data RENTAL dan SERVICE tidak boleh tercampur.
 
-Tabel yang memiliki kolom `department`:
+Aturan utama:
 
 ```text
-users
-unit_assets
-update_jobs
-batteries
-chargers
-deliveries
-penarikans
-work_plannings
-rental_sparepart_items
-rental_sparepart_locations
-rental_sparepart_stocks
-rental_sparepart_movements
-rental_sparepart_usage_reviews
-sparepart_recommendation_controls
+User RENTAL hanya melihat data RENTAL.
+User SERVICE hanya melihat data SERVICE.
+Admin dan super_admin bisa lintas department.
 ```
 
-Helper department:
+File penting:
 
 ```text
 app/Support/DepartmentScope.php
 app/Support/DepartmentPartnerOptions.php
 ```
 
-Fungsi penting `DepartmentScope`:
+Partner operational form sudah difilter berdasarkan branch dan department.
 
-```php
-DepartmentScope::apply($query, $tableName);
-DepartmentScope::currentDepartment();
-DepartmentScope::valueForCreate();
-DepartmentScope::userCanSeeAllDepartments();
-```
+---
 
-Partner operational form sudah difilter berdasarkan branch + department via:
+## 9. Modul Stabil
+
+### 9.1 Auth dan Subscription
+
+Stabil:
 
 ```text
-app/Support/DepartmentPartnerOptions.php
-app/Providers/AppServiceProvider.php
+Login NRPP + password
+Subscription package
+Payment flow
+Waiting verification
+Admin/super_admin verifikasi pembayaran
+Payment Settings
 ```
 
-Efek department isolation:
+Payment Settings route:
 
 ```text
-RENTAL tidak melihat SERVICE
-SERVICE tidak melihat RENTAL
-admin/super_admin melihat semua
+/payment-settings
 ```
 
-Data baru otomatis mengisi `department` dari user login, kecuali admin/super_admin memilih jalur khusus yang memang lintas department.
-
----
-
-## 6. Backfill Department Data Lama
-
-Backfill data lama tersedia melalui Artisan command di:
+File penting:
 
 ```text
-routes/console.php
+app/Models/PaymentSetting.php
+app/Http/Controllers/PaymentSettingController.php
+resources/views/payment-settings/edit.blade.php
+resources/views/subscription/payment.blade.php
+app/Http/Controllers/SubscriptionController.php
 ```
 
-Command audit:
-
-```powershell
-php artisan drr:department-audit
-php artisan drr:department-audit --details
-```
-
-Backfill dari `users.department`:
-
-```powershell
-php artisan drr:department-backfill-users
-php artisan drr:department-backfill-users --commit
-```
-
-Backfill dari `unit_assets.department`:
-
-```powershell
-php artisan drr:department-backfill-assets
-php artisan drr:department-backfill-assets --commit
-```
-
-Mapping manual:
-
-```powershell
-php artisan drr:department-map RENTAL --customer="NAMA CUSTOMER" --commit
-php artisan drr:department-map SERVICE --customer="NAMA CUSTOMER" --location="LOKASI" --commit
-php artisan drr:department-map RENTAL --serial="SERIAL_NUMBER" --commit
-php artisan drr:department-map SERVICE --customer="PT ABC" --table=unit_assets --commit
-```
-
-Semua command mapping/backfill default **dry-run** jika tidak memakai `--commit`.
-
-Jangan menebak department customer/lokasi tanpa dasar. Salah mapping department lebih berbahaya daripada data kosong.
-
----
-
-## 7. Modul Stabil
-
-### 7.1 Authentication
-
-Stabil:
-
-- Login menggunakan NRPP dan password.
-- Logout.
-- Dashboard.
-- Auth middleware.
-
----
-
-### 7.2 Subscription
-
-Stabil:
-
-- Subscription index.
-- Payment.
-- Waiting approval.
-- Middleware `CheckSubscription`.
-- Konfirmasi pembayaran redirect ke WhatsApp admin.
-- Waiting page punya tombol Chat Admin WhatsApp manual.
-
----
-
-### 7.3 Super Admin / Admin Users
-
-Stabil:
-
-- Verifikasi lisensi.
-- Manajemen pengguna.
-- Middleware `CheckSuperAdmin`.
-- Field user `position` dan `department`.
-
-Catatan: `department` harus diisi untuk user operasional agar isolasi data berjalan benar.
-
----
-
-### 7.4 Unit Asset / Manajemen Aset
-
-Stabil:
-
-- Grouping berdasarkan `customer/location`.
-- Searchbox dan filter.
-- User biasa read-only.
-- CRUD hanya privileged role sesuai department.
-- Histori pekerjaan memakai `serial_number`.
-- Status asset `DITARIK` dipakai untuk unit yang sudah ditarik.
-- Department scope aktif.
-
-Status asset penting:
+QRIS disimpan di:
 
 ```text
-DITARIK
+public/uploads/payment-settings
 ```
-
-Jika unit masuk Penarikan Unit, status asset berubah menjadi `DITARIK`.
 
 ---
 
-### 7.5 Update Job
+### 9.2 Layout dan Navigasi
 
 Stabil:
 
-- Index/create/edit/show/destroy.
-- Search asset by serial number stabil melalui `UpdateJobAssetSearchController`.
-- Create/update save flow distabilkan melalui `UpdateJobSaveController`.
-- Mobile compact seperti aplikasi Android.
-- Floating add button.
-- Histori rekomendasi part berdasarkan serial number.
-- Asset dengan status `DITARIK` tidak boleh dipakai untuk Update Job.
-- Field `year` dan `nomor_lambung` sudah didukung.
-- Department scope aktif.
-- Partner dropdown sudah terisolasi by branch + department.
-
-Route store/update Update Job:
-
-```php
-Route::post('/update-jobs', [UpdateJobSaveController::class, 'store'])->name('update-jobs.store');
-Route::put('/update-jobs/{id}', [UpdateJobSaveController::class, 'update'])->name('update-jobs.update');
-Route::patch('/update-jobs/{id}', [UpdateJobSaveController::class, 'update']);
-Route::resource('update-jobs', JobController::class)->except(['store', 'update']);
+```text
+Sidebar kiri
+Bottom navigation
+Popup Job
+Profile page
 ```
 
-Tipe pekerjaan resmi Update Job:
+Bottom navigation:
+
+```text
+Home | Kalender | Job | Ingat | Profile
+```
+
+Popup Job:
+
+```text
+Update Job
+Manajemen Battery
+Management Charger
+Delivery Unit
+Penarikan Unit
+```
+
+Jangan membuat menu double. Jangan menyuntik atau menghapus menu dengan JavaScript liar.
+
+File penting:
+
+```text
+resources/views/layouts/app.blade.php
+```
+
+---
+
+### 9.3 Update Job
+
+Stabil:
+
+```text
+Index/create/edit/show/destroy
+Search asset by serial number
+Multi select Tipe Pekerjaan
+Preventive Maintenance 1x per serial number per bulan
+PM existing dikunci saat edit
+Unit dengan status DITARIK tidak boleh dipakai update job
+Install Part terhubung ke Usage Review
+Recommendation Part terhubung ke Recommendation Control
+Histori rekomendasi part berdasarkan S/N tampil ringkas
+Share WhatsApp report
+Department scope aktif
+```
+
+Tipe pekerjaan resmi:
 
 ```text
 Preventive Maintenance
@@ -430,344 +372,170 @@ Monitoring
 Waiting Part
 ```
 
-Preventive Maintenance dibatasi:
-
-```text
-1 serial_number hanya boleh 1x Preventive Maintenance dalam 1 bulan.
-```
-
-Histori rekomendasi part di form Update Job hanya menampilkan kolom:
-
-```text
-Tanggal
-No Job
-Part Number
-Part Name
-Qty
-Status
-```
-
----
-
-### 7.6 Management Battery
-
-Stabil:
-
-- Index/create/edit/show.
-- Autocomplete asset.
-- Install parts.
-- Recommendation parts.
-- UI mengikuti Update Job dengan nuansa emerald/lime/cyan.
-- Grouping bertingkat.
-- Grafik pekerjaan populer Top 1-3.
-- Share WhatsApp floating button aktif di detail Battery.
-- Department scope aktif.
-- Partner dropdown terisolasi by branch + department.
-
----
-
-### 7.7 Management Charger
-
-Stabil:
-
-- Index/create/edit/show/update/destroy.
-- Autocomplete asset.
-- Install parts.
-- Recommendation parts.
-- UI mengikuti Update Job dengan nuansa amber/violet/indigo.
-- Grouping bertingkat.
-- Grafik pekerjaan populer Top 1-3.
-- Share WhatsApp floating button aktif di detail Charger.
-- Department scope aktif.
-- Partner dropdown terisolasi by branch + department.
-
----
-
-### 7.8 Delivery Unit
-
-Stabil:
-
-- Migration/model/controller/route/view sudah dibuat.
-- Index/create/show/edit/store/update/destroy.
-- Search asset serial number.
-- `job_type` fixed: `DELIVERY UNIT`.
-- `status_unit`: `RFU / BREAKDOWN`.
-- PLANNER tidak boleh create Delivery Unit.
-- Edit/delete hanya PIC atau privileged role.
-- UI mengikuti Update Job dengan nuansa purple/sky/cyan.
-- Grouping bertingkat.
-- Share WhatsApp floating button aktif di detail Delivery.
-- Department scope aktif.
-- Partner dropdown terisolasi by branch + department.
-
----
-
-### 7.9 Penarikan Unit
-
-Stabil:
-
-- Migration/controller/route/view sudah dibuat.
-- Controller memakai `DB::table('penarikans')`.
-- Index/create/show/edit/store/update/destroy.
-- PLANNER tidak boleh create.
-- Edit/delete hanya PIC atau privileged role.
-- `job_type` fixed: `TARIK UNIT`.
-- `status_unit`: `RFU / BREAKDOWN`.
-- Autocomplete S/N mulai 1 karakter.
-- Customer/location/unit_type/year/hour_meter otomatis dan readonly.
-- Autosave draft via localStorage.
-- Detail Penarikan menampilkan Battery 2 dan Trolly 2-3.
-- Setelah simpan/update Penarikan, status `unit_assets.status` sesuai serial number berubah menjadi `DITARIK`.
-- Share WhatsApp floating button aktif di detail Penarikan.
-- Department scope aktif melalui controller.
-- Partner dropdown terisolasi by branch + department.
-
-Mendukung:
-
-```text
-Battery Type 1
-Battery SN 1
-Battery Type 2
-Battery SN 2
-Trolly 1
-Trolly 2
-Trolly 3
-```
-
----
-
-## 8. Kalender / Calendar Planning
-
-Kalender sudah berubah dari view statis menjadi modul planning kerja.
-
 File penting:
 
 ```text
-app/Http/Controllers/CalendarController.php
-app/Models/WorkPlanning.php
-resources/views/calendar/index.blade.php
-database/migrations/2026_05_31_000002_create_work_plannings_table.php
+app/Http/Controllers/UpdateJobSaveController.php
+app/Http/Controllers/UpdateJobPreventiveMaintenanceCheckController.php
+app/Http/Controllers/UpdateJobAssetSearchController.php
+resources/views/update-jobs/create.blade.php
+resources/views/update-jobs/edit.blade.php
+resources/views/update-jobs/show.blade.php
+resources/js/update-job-field-options.js
+resources/js/update-job-preventive-maintenance-check.js
 ```
 
-Tabel:
+Catatan penting:
 
 ```text
-work_plannings
+Jangan mengubah logika PM 1x/bulan tanpa tes create dan edit.
+Jangan menghapus lock PM existing saat edit.
+Jika ubah JS Update Job, jalankan npm run build dan upload public/build.
 ```
-
-Form planning berisi:
-
-```text
-Tanggal
-Mekanik
-Partner
-Customer
-Lokasi
-Jenis Pekerjaan
-Catatan
-```
-
-Aturan kalender:
-
-```text
-Semua user RENTAL melihat semua planning department RENTAL.
-Semua user SERVICE melihat semua planning department SERVICE.
-admin dan super_admin melihat semua planning.
-```
-
-Aksi create/update/delete planning boleh untuk:
-
-```text
-koordinator
-sect_head
-admin
-super_admin
-```
-
-Read-only:
-
-```text
-mekanik / user biasa
-```
-
-Aturan department kalender:
-
-- Customer/lokasi kalender berasal dari `unit_assets.department`.
-- Planning tidak bisa memilih customer/lokasi department lain.
-- Partner harus satu department dengan mekanik.
-- Koordinator dan sect_head hanya mengelola planning department sendiri.
-- Admin dan super_admin boleh lintas department.
 
 ---
 
-## 9. Command Center
+### 9.4 Battery Management
 
-Command Center dibuat untuk role:
-
-```text
-koordinator
-sect_head
-admin
-super_admin
-```
-
-Fitur:
-
-- Statistik performa operasional.
-- Export CSV Excel-friendly.
-- Import CSV insert-only.
-- Filter dashboard berdasarkan department.
-- Export CSV berdasarkan department.
-- Import CSV untuk user non-admin/super_admin dipaksa memakai department user login.
-
-Analisa performa:
-
-- Produktivitas per bulan.
-- Beban kerja per customer/location.
-- Rasio RFU vs Breakdown.
-- Unit paling sering bermasalah.
-- Rekomendasi part terbanyak.
-- Status per PIC.
-
-File penting:
+Stabil:
 
 ```text
-app/Http/Controllers/CommandCenterController.php
-app/Http/Controllers/CommandCenterCsvController.php
-resources/views/command-center/index.blade.php
+Index/create/edit/show
+Autocomplete asset
+Install parts
+Recommendation parts
+Share WhatsApp report
+Department scope aktif
+Export Command Center termasuk install/recommendation parts
 ```
+
+---
+
+### 9.5 Charger Management
+
+Stabil:
+
+```text
+Index/create/edit/show
+Autocomplete asset
+Install parts
+Recommendation parts
+Share WhatsApp report
+Department scope aktif
+Export Command Center termasuk install/recommendation parts
+```
+
+---
+
+### 9.6 Delivery Unit
+
+Stabil:
+
+```text
+Index/create/edit/show
+Search asset
+Share WhatsApp report
+Department scope aktif
+PLANNER tidak boleh create
+```
+
+---
+
+### 9.7 Penarikan Unit
+
+Stabil:
+
+```text
+Index/create/edit/show
+Search asset
+Setelah penarikan disimpan, status unit_assets menjadi DITARIK
+Battery dan trolly dicatat
+Share WhatsApp report
+Department scope aktif
+PLANNER tidak boleh create
+```
+
+---
+
+### 9.8 Calendar / Planning
+
+Stabil:
+
+```text
+Calendar planning aktif
+Semua user dalam department sama bisa melihat planning department tersebut
+Mekanik hanya melihat
+Create/update/delete hanya untuk koordinator, sect_head, admin, super_admin
+Data RENTAL dan SERVICE tetap terpisah
+```
+
+---
+
+### 9.9 Command Center
+
+Stabil:
+
+```text
+Statistik operasional
+Export/import CSV
+Filter department
+Analisa pekerjaan, customer, lokasi, PIC, status, rekomendasi part
+Export Update Job, Battery, dan Charger sudah menyertakan install/recommendation parts
+```
+
+Jangan ubah Command Center tanpa persetujuan eksplisit.
 
 ---
 
 ## 10. Management Sparepart Rental
 
-Management Sparepart Rental adalah modul stok sparepart khusus department `RENTAL`.
-
-Route utama:
+Stabil:
 
 ```text
-/rental-spareparts
-/rental-spareparts/in/create
-/rental-spareparts/out/create
-/rental-spareparts/movements
-/rental-spareparts/reviews
-/rental-spareparts/import-batches
-/rental-spareparts/adjustments/create
-```
-
-Tabel utama:
-
-```text
-rental_sparepart_items
-rental_sparepart_locations
-rental_sparepart_stocks
-rental_sparepart_movements
-rental_sparepart_usage_reviews
-rental_sparepart_import_batches
+Dashboard stock
+Active Stock / Archived Stock
+Barang Masuk / Stock IN
+Barang Keluar / Stock OUT
+Movement IN/OUT/ADJUSTMENT
+Import CSV
+Export CSV Excel-friendly delimiter ;
+Import History
+Rollback import batch
+Correction stock
+Archive / Restore stock
+Usage Review
+Approval usage
+Stock ARCHIVED tidak boleh dipakai approve
 ```
 
 File penting:
 
 ```text
+app/Http/Middleware/EnsureRentalSparepartManager.php
+app/Support/RentalSparepartUsageReviewService.php
+app/Observers/JobInstallPartObserver.php
 app/Models/RentalSparepartItem.php
-app/Models/RentalSparepartLocation.php
 app/Models/RentalSparepartStock.php
 app/Models/RentalSparepartMovement.php
 app/Models/RentalSparepartUsageReview.php
-app/Models/RentalSparepartImportBatch.php
-app/Http/Controllers/RentalSparepartController.php
-app/Http/Controllers/RentalSparepartOutController.php
-app/Http/Controllers/RentalSparepartMovementController.php
-app/Http/Controllers/RentalSparepartUsageReviewController.php
-app/Http/Controllers/RentalSparepartUsageReviewApprovalController.php
-app/Http/Controllers/RentalSparepartStockController.php
-app/Http/Controllers/RentalSparepartStockExportController.php
-app/Http/Controllers/RentalSparepartImportController.php
-app/Http/Controllers/RentalSparepartImportBatchController.php
-app/Http/Controllers/RentalSparepartAdjustmentImportController.php
-```
-
-Fitur stabil:
-
-- Dashboard stok sparepart.
-- Filter stok.
-- Active Stock / Archived Stock.
-- Export Active/Archived Stock CSV Excel-friendly dengan delimiter `;`.
-- Barang Masuk / Part IN.
-- Barang Keluar / Part OUT.
-- Histori Movement IN/OUT/ADJUSTMENT.
-- Import Stok Awal / Barang Masuk Massal.
-- Preview import sebelum confirm.
-- Import batch history.
-- Rollback import batch.
-- Correction / Adjustment Stock.
-- Review Usage.
-- Archive / Restore Stock.
-
-Archive/restore behavior:
-
-```text
-Archive stock:
-- Tidak hard delete.
-- stock_lifecycle_status = ARCHIVED.
-- qty_on_hand menjadi 0.
-- qty lama disimpan di archived_qty_on_hand.
-- Movement ADJUSTMENT dibuat.
-
-Restore stock:
-- stock_lifecycle_status = ACTIVE.
-- qty_on_hand dikembalikan dari archived_qty_on_hand.
-- Movement ADJUSTMENT dibuat.
-```
-
-Import template sparepart memakai delimiter:
-
-```text
-;
-```
-
-Parser import tetap bisa membaca:
-
-```text
-;
-,
 ```
 
 ---
 
-## 11. Update Job Install Part → Usage Review → Movement OUT
+## 11. Usage Review
 
-Alur Tahap 9 sudah aktif:
-
-```text
-Mekanik input install part di Update Job
-→ sistem mencari stok rental
-→ membuat Usage Review
-→ jika cocok, qty_reserved bertambah
-→ koordinator approve
-→ qty_on_hand berkurang
-→ movement OUT dibuat
-```
-
-File penting:
+Alur:
 
 ```text
-app/Support/RentalSparepartUsageReviewService.php
-app/Observers/JobInstallPartObserver.php
-app/Http/Controllers/RentalSparepartUsageReviewApprovalController.php
-app/Support/SparepartRecommendationInstallationSyncService.php
+Mekanik input Install Part di Update Job
+Sistem cek stock sparepart rental
+Sistem membuat Usage Review
+Koordinator RENTAL approve/reject
+Jika approve, stock berkurang
+Movement OUT otomatis dibuat
 ```
 
-Pencocokan stok:
-
-```text
-1. Part Number + No Job cocok
-2. Part Number + SN Unit cocok
-3. Part Number saja
-4. Tidak ditemukan
-```
-
-Status review:
+Status:
 
 ```text
 PENDING_REVIEW
@@ -777,48 +545,22 @@ REJECTED
 CANCELLED_BY_JOB_EDIT
 ```
 
-Approval review hanya boleh memakai stock:
-
-```text
-department = RENTAL
-stock_lifecycle_status = ACTIVE
-```
-
-Stock `ARCHIVED` tidak boleh dipakai untuk approval.
-
 ---
 
 ## 12. Recommendation Control
 
-Recommendation Control mengubah rekomendasi sparepart dari Update Job menjadi pipeline kebutuhan part.
-
-Route utama:
+Alur:
 
 ```text
-/sparepart-recommendations
+Mekanik input Recommendation Part di Update Job
+Sistem membuat Recommendation Control
+Koordinator review/approve/need supply/mark supplied/close
+Jika Mark Supplied tanpa source stock existing, sistem membuat Stock IN
+Jika install part disetujui, qty_installed naik otomatis
+Status menjadi PARTIAL_INSTALLED atau CLOSED sesuai kondisi
 ```
 
-Tabel utama:
-
-```text
-sparepart_recommendation_controls
-```
-
-File penting:
-
-```text
-app/Models/SparepartRecommendationControl.php
-app/Http/Controllers/SparepartRecommendationControlController.php
-app/Http/Controllers/UpdateJobRecommendationHistoryController.php
-app/Support/SparepartRecommendationControlService.php
-app/Support/SparepartRecommendationSupplyStockService.php
-app/Support/SparepartRecommendationInstallationSyncService.php
-resources/views/sparepart-recommendations/index.blade.php
-resources/js/update-job-recommendation-history.js
-resources/js/rental-sparepart-sidebar-link.js
-```
-
-Status recommendation:
+Status:
 
 ```text
 RECOMMENDED
@@ -843,565 +585,319 @@ SUPPLIED
 NOT_REQUIRED
 ```
 
-Source type:
-
-```text
-STOCK
-PURCHASE
-MANUAL
-BORROWED
-```
-
-Alur aktif:
-
-```text
-Mekanik input Recommendation Part di Update Job
-→ sistem membuat record sparepart_recommendation_controls
-→ koordinator review/approve/need supply/mark supplied/close
-→ jika Mark Supplied tanpa Source Stock Existing, sistem membuat Stock IN baru
-→ jika install part disetujui di Usage Review, qty_installed naik otomatis
-→ status menjadi PARTIAL_INSTALLED atau CLOSED
-```
-
-Mark Supplied behavior:
-
-```text
-Jika Source Stock Existing kosong:
-- Membuat / update item sparepart.
-- Membuat / update lokasi penyimpanan.
-- Membuat stock ACTIVE.
-- Menambah qty_on_hand.
-- Membuat movement IN.
-- Mengisi customer, location, type unit, dan SN unit otomatis dari rekomendasi Update Job.
-- Menyimpan no job jika diisi.
-
-Jika Source Stock Existing dipilih:
-- Tidak membuat stok IN baru.
-- Menandai supply dari stok existing.
-- Deteksi cross allocation jika SN source stock berbeda dari SN rekomendasi.
-```
-
-Histori rekomendasi part di Update Job hanya menampilkan ringkasan:
-
-```text
-Tanggal
-No Job
-Part Number
-Part Name
-Qty
-Status
-```
-
-Detail lengkap kontrol rekomendasi tetap ada di:
+Route utama:
 
 ```text
 /sparepart-recommendations
+/sparepart-recommendations/units
+/sparepart-recommendations/units/export
+/sparepart-recommendations/units/{serialNumber}
+/sparepart-recommendations/parts
+```
+
+Fungsi halaman:
+
+| Halaman | Fungsi |
+|---|---|
+| `/sparepart-recommendations` | Landing page 2 mode: Mode Unit dan Mode Sparepart |
+| `/sparepart-recommendations/units` | Group rekomendasi berdasarkan serial number unit |
+| `/sparepart-recommendations/units/{serialNumber}` | Detail rekomendasi per serial number |
+| `/sparepart-recommendations/parts` | List sparepart recommendation dan action approval |
+| `/sparepart-recommendations/units/export` | Export CSV Excel Indonesia berdasarkan filter atau semua data |
+
+File penting:
+
+```text
+app/Models/SparepartRecommendationControl.php
+app/Support/SparepartRecommendationControlService.php
+app/Support/SparepartRecommendationSupplyStockService.php
+app/Support/SparepartRecommendationInstallationSyncService.php
+app/Http/Controllers/SparepartRecommendationControlController.php
+resources/views/sparepart-recommendations/index.blade.php
+resources/views/sparepart-recommendations/units.blade.php
+resources/views/sparepart-recommendations/unit-show.blade.php
+resources/views/sparepart-recommendations/parts.blade.php
+```
+
+Catatan penting:
+
+```text
+Jangan menduplikasi action form Recommendation Control di banyak halaman tanpa alasan kuat.
+Action approval utama tetap di Mode Sparepart.
+Detail Unit boleh punya shortcut ke List Sparepart terfilter.
 ```
 
 ---
 
-## 13. WhatsApp Share Report
+## 13. PWA
 
-Share WhatsApp aktif untuk detail:
+PWA sudah aktif dan stabil.
+
+Fitur:
 
 ```text
-/update-jobs/{id}
-/batteries/{id}
-/chargers/{id}
-/deliveries/{id}
-/penarikans/{id}
+Install ke home screen
+Manifest aktif
+Service worker aktif
+Offline fallback aktif
+Icon aplikasi aktif
+Shortcut Update Job
+Shortcut Calendar
 ```
 
-Pola:
+File PWA:
 
 ```text
-Halaman detail/view
-→ tombol floating WhatsApp
-→ route share-message
-→ controller susun report
-→ redirect langsung ke WhatsApp
+public/manifest.webmanifest
+public/offline.html
+public/sw.js
+resources/js/pwa-register.js
+resources/js/app.js
 ```
 
-Controller share:
+Aturan PWA:
 
 ```text
-app/Http/Controllers/UpdateJobShareController.php
-app/Http/Controllers/OperationalShareController.php
+Jangan cache dashboard.
+Jangan cache update job.
+Jangan cache sparepart.
+Jangan cache form kerja.
+Jangan cache data user/login.
+Cache hanya asset static dan offline fallback.
+Jangan ubah PWA tanpa persetujuan eksplisit.
 ```
 
-JS floating button:
+Jika tampilan production tidak berubah setelah upload:
 
 ```text
-resources/js/update-job-copy-report.js
-resources/js/operational-share-report.js
+1. Pastikan public/build sudah upload jika ada perubahan JS/CSS.
+2. Clear Laravel cache.
+3. Purge Cloudflare.
+4. Tutup PWA total lalu buka ulang.
+5. Jika masih bandel, uninstall dan install ulang PWA.
 ```
 
 ---
 
-## 14. Menu / Navigation
-
-Main Menu/sidebar sudah memakai nama bahasa Inggris dan diurutkan A-Z.
-
-Menu utama:
+## 14. File Sensitif yang Jangan Dirubah Sembarangan
 
 ```text
-Asset Management
-Command Center
-Dashboard
-Management Sparepart
-My Profile
-Recommendation Control
-```
-
-Bottom nav:
-
-```text
-Home | Kalender | Job | Ingat | Profile
-```
-
-Popup Job:
-
-```text
-Update Job
-Management Battery
-Management Charger
-Delivery Unit
-Penarikan Unit
-```
-
-JS menu helper:
-
-```text
-resources/js/rental-sparepart-sidebar-link.js
-resources/js/penarikan-menu-link.js
-```
-
----
-
-## 15. Production Deployment cPanel
-
-Recommended structure:
-
-```text
-/home/exprosal/drrsaktigenv/.env
-/home/exprosal/drrsaktigenv/app
-/home/exprosal/drrsaktigenv/bootstrap
-/home/exprosal/drrsaktigenv/config
-/home/exprosal/drrsaktigenv/database
-/home/exprosal/drrsaktigenv/public
-/home/exprosal/drrsaktigenv/resources
-/home/exprosal/drrsaktigenv/routes
-/home/exprosal/drrsaktigenv/storage
-/home/exprosal/drrsaktigenv/vendor
-/home/exprosal/drrsaktigenv/artisan
-```
-
-Document root subdomain:
-
-```text
-/home/exprosal/drrsaktigenv/public
-```
-
-Jangan arahkan subdomain ke root Laravel. Domain harus masuk ke folder `public`.
-
-File `.env` production berada di:
-
-```text
-/home/exprosal/drrsaktigenv/.env
-```
-
-Jangan letakkan `.env` di:
-
-```text
-/home/exprosal/drrsaktigenv/public/.env
-```
-
-Database production:
-
-```text
-DB_CONNECTION=mysql
-DB_HOST=localhost
-DB_PORT=3306
-DB_DATABASE=exprosal_exprosa_drrsakti
-DB_USERNAME=exprosal_exprosa_drruser
-DB_PASSWORD=ISI_DI_SERVER_JANGAN_COMMIT
-```
-
-Recommended `.env` production settings:
-
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://drrsakti.exprosalab.com
-LOG_LEVEL=error
-SESSION_DRIVER=file
-SESSION_DOMAIN=.exprosalab.com
-CACHE_STORE=file
-QUEUE_CONNECTION=sync
-```
-
-File/folder yang tidak boleh masuk ZIP upload:
-
-```text
-.env
-.git
-node_modules
-storage/logs/*.log
-database/*.sqlite
-```
-
-File/folder yang wajib ada di ZIP upload:
-
-```text
-app
-bootstrap
-config
-database
-public
-resources
-routes
-storage
-vendor
-artisan
-composer.json
-composer.lock
-package.json
-vite.config.js
-public/build
-```
-
-PowerShell ZIP clean:
-
-```powershell
-$src = "C:\laragon\www\drrsakti"
-$stage = "C:\laragon\www\drrsakti_upload_clean"
-$zip = "C:\laragon\www\drrsakti_upload_clean.zip"
-
-if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
-if (Test-Path $zip) { Remove-Item $zip -Force }
-
-New-Item -ItemType Directory -Path $stage | Out-Null
-
-robocopy $src $stage /E `
-/XD ".git" "node_modules" ".idea" ".vscode" `
-/XF ".env" "*.log" "*.sqlite" "Thumbs.db" "desktop.ini"
-
-Compress-Archive -Path "$stage\*" -DestinationPath $zip -Force
-Write-Host "ZIP SELESAI:" $zip
-```
-
-Check ZIP result:
-
-```powershell
-Test-Path "C:\laragon\www\drrsakti_upload_clean\.env"
-Test-Path "C:\laragon\www\drrsakti_upload_clean\node_modules"
-Test-Path "C:\laragon\www\drrsakti_upload_clean\.git"
-Test-Path "C:\laragon\www\drrsakti_upload_clean\public\build"
-Test-Path "C:\laragon\www\drrsakti_upload_clean\vendor"
-```
-
-Expected:
-
-```text
-False  .env
-False  node_modules
-False  .git
-True   public/build
-True   vendor
-```
-
----
-
-## 16. Production Database Import
-
-Export dari lokal memakai HeidiSQL sebagai full SQL, bukan CSV per tabel.
-
-Database lokal:
-
-```text
-drrsakti_db
-```
-
-Database cPanel:
-
-```text
-exprosal_exprosa_drrsakti
-```
-
-Sebelum export lokal, boleh kosongkan tabel sementara:
-
-```sql
-SET FOREIGN_KEY_CHECKS=0;
-TRUNCATE TABLE sessions;
-TRUNCATE TABLE cache;
-TRUNCATE TABLE cache_locks;
-TRUNCATE TABLE jobs;
-TRUNCATE TABLE job_batches;
-TRUNCATE TABLE failed_jobs;
-SET FOREIGN_KEY_CHECKS=1;
-```
-
-Jika tabel tidak ada, hapus baris tersebut.
-
-HeidiSQL export setting:
-
-```text
-Export database as SQL
-Pilih semua table
-Structure: CREATE
-Data: INSERT
-Centang DROP TABLE jika tersedia
-Encoding: UTF-8
-Output: Single .sql file
-```
-
-Jika phpMyAdmin error pada baris seperti ini:
-
-```sql
-/*!40014 SET FOREIGN_KEY_CHECKS=IFNULL(@OLD_FOREIGN_KEY_CHECKS, 1) */;
-```
-
-Biasanya aman jika semua tabel sudah masuk, karena itu hanya restore setting foreign key di akhir import. Setelah import, jalankan:
-
-```sql
-SET FOREIGN_KEY_CHECKS=1;
-SHOW TABLES;
-SELECT COUNT(*) AS total_users FROM users;
-SELECT COUNT(*) AS total_migrations FROM migrations;
-SELECT COUNT(*) AS total_stocks FROM rental_sparepart_stocks;
-SELECT COUNT(*) AS total_recommendations FROM sparepart_recommendation_controls;
-```
-
----
-
-## 17. robots.txt dan .htaccess Production
-
-File robots harus berada di:
-
-```text
-/home/exprosal/drrsaktigenv/public/robots.txt
-```
-
-Recommended robots.txt agar tidak diindex:
-
-```txt
-User-agent: *
-Disallow: /
-
-User-agent: Googlebot
-Disallow: /
-
-User-agent: Bingbot
-Disallow: /
-
-User-agent: GPTBot
-Disallow: /
-
-User-agent: ChatGPT-User
-Disallow: /
-
-User-agent: CCBot
-Disallow: /
-
-User-agent: Google-Extended
-Disallow: /
-
-User-agent: anthropic-ai
-Disallow: /
-
-User-agent: ClaudeBot
-Disallow: /
-
-User-agent: PerplexityBot
-Disallow: /
-
-User-agent: Applebot-Extended
-Disallow: /
-
-User-agent: Bytespider
-Disallow: /
-```
-
-File `.htaccess` aktif berada di:
-
-```text
-/home/exprosal/drrsaktigenv/public/.htaccess
-```
-
-Bagian cPanel PHP handler jangan dihapus:
-
-```apache
-# php -- BEGIN cPanel-generated handler, do not edit
-<IfModule mime_module>
-  AddHandler application/x-httpd-ea-php83 .php .php8 .phtml
-</IfModule>
-# php -- END cPanel-generated handler, do not edit
-```
-
-Jika memakai Cloudflare:
-
-```text
-SSL/TLS encryption mode: Full atau Full (strict)
-Always Use HTTPS: ON
-Automatic HTTPS Rewrites: ON
-Jangan pakai Flexible
-```
-
-Untuk aplikasi login, Cloudflare cache sebaiknya bypass:
-
-```text
-URL: drrsakti.exprosalab.com/*
-Cache: Bypass
-```
-
----
-
-## 18. File Penting Jangan Dihapus
-
-```text
+resources/views/layouts/app.blade.php
+routes/web.php
 app/Support/DepartmentScope.php
 app/Support/DepartmentPartnerOptions.php
+app/Http/Middleware/EnsureRentalSparepartManager.php
 app/Support/RentalSparepartUsageReviewService.php
 app/Support/SparepartRecommendationControlService.php
 app/Support/SparepartRecommendationSupplyStockService.php
 app/Support/SparepartRecommendationInstallationSyncService.php
 app/Observers/JobInstallPartObserver.php
-app/Models/SparepartRecommendationControl.php
-app/Models/RentalSparepartStock.php
-app/Http/Controllers/CalendarController.php
-app/Http/Controllers/CommandCenterController.php
-app/Http/Controllers/CommandCenterCsvController.php
-app/Http/Controllers/UpdateJobAssetSearchController.php
-app/Http/Controllers/UpdateJobSaveController.php
-app/Http/Controllers/UpdateJobRecommendationHistoryController.php
-app/Http/Controllers/RentalSparepartUsageReviewApprovalController.php
-app/Http/Controllers/SparepartRecommendationControlController.php
-app/Http/Controllers/PenarikanController.php
-resources/js/update-job-recommendation-history.js
-resources/js/rental-sparepart-sidebar-link.js
-resources/js/rental-sparepart-archive-ui.js
-resources/js/update-job-copy-report.js
-resources/js/operational-share-report.js
+resources/js/app.js
+resources/js/pwa-register.js
+public/sw.js
+public/manifest.webmanifest
+public/offline.html
 ```
 
-File yang sudah dihapus dan jangan dibuat/import lagi:
+Jika harus mengubah file di atas, perubahan wajib kecil, jelas, dites lokal, dan punya rollback.
+
+---
+
+## 15. Cara Kerja Aman untuk Perubahan Baru
+
+Sebelum edit:
 
 ```text
-resources/js/update-job-extra-fields.js
-resources/js/update-job-extra-fields-stable.js
+1. Pull repo terbaru.
+2. Baca README.md.
+3. Baca file target.
+4. Cek route/controller/model/view yang terhubung.
+5. Pastikan fitur yang disentuh bukan fitur stabil yang dilarang diubah.
+```
+
+Saat edit:
+
+```text
+1. Ubah file sesedikit mungkin.
+2. Jangan menyentuh database kalau tidak perlu.
+3. Jangan mengubah navigasi utama tanpa ACC.
+4. Jangan mengubah PWA tanpa ACC.
+5. Jangan membuat patch liar.
+```
+
+Setelah edit:
+
+```text
+1. Jalankan php -l untuk file PHP yang diubah.
+2. Clear cache lokal.
+3. Test alur utama.
+4. Jika ada JS/CSS, jalankan npm run build.
+5. Commit ke GitHub.
+6. Upload patch kecil ke cPanel.
+7. Clear cache production.
+8. Test production.
 ```
 
 ---
 
-## 19. Testing Minimum Setelah Pull / Upload
+## 16. Format Jawaban AI yang Diinginkan
 
-Jalankan lokal:
+Setiap solusi coding sebaiknya memakai format:
+
+```text
+1. Tujuan perubahan
+2. File yang dicek
+3. File yang diubah
+4. Kode/patch
+5. Command lokal
+6. Cara test lokal
+7. File yang harus upload ke cPanel
+8. Command cPanel
+9. Risiko
+10. Rollback jika error
+```
+
+---
+
+## 17. Checklist Deploy Patch Kecil
+
+### Jika hanya Blade
+
+```text
+Upload file Blade terkait.
+Jalankan clear cache di cPanel.
+Test halaman terkait.
+```
+
+### Jika controller/route
+
+```text
+Upload controller/route terkait.
+Jalankan clear cache di cPanel.
+Cek route jika perlu.
+Test fitur terkait.
+```
+
+### Jika JS/CSS
+
+```text
+npm run build
+Upload public/build
+Upload file JS/CSS sumber jika ingin repo production lengkap
+Clear cache cPanel
+Purge Cloudflare
+Test browser/PWA
+```
+
+### Jika migration
+
+```text
+Backup database production.
+Upload migration.
+Jalankan migrate --force memakai PHP 8.3.
+Test fitur.
+Siapkan rollback manual.
+```
+
+---
+
+## 18. ZIP Patch via PowerShell
+
+Contoh membuat ZIP patch kecil:
 
 ```powershell
 cd C:\laragon\www\drrsakti
-git pull origin main
-php artisan optimize:clear
-php artisan view:clear
-php artisan route:clear
-composer dump-autoload
-npm run dev
+
+$Project = "C:\laragon\www\drrsakti"
+$Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$PatchName = "drrsakti-patch-$Stamp"
+$DeployDir = Join-Path $Project "_deploy"
+$PatchRoot = Join-Path $DeployDir $PatchName
+$ZipPath = Join-Path $DeployDir "$PatchName.zip"
+
+$Files = @(
+    "routes\web.php",
+    "app\Http\Controllers\ContohController.php",
+    "resources\views\contoh\index.blade.php"
+)
+
+if (Test-Path $PatchRoot) {
+    Remove-Item $PatchRoot -Recurse -Force
+}
+
+New-Item -ItemType Directory -Path $PatchRoot -Force | Out-Null
+
+foreach ($File in $Files) {
+    $Source = Join-Path $Project $File
+    $Destination = Join-Path $PatchRoot $File
+    $DestinationDir = Split-Path $Destination -Parent
+
+    if (!(Test-Path $Source)) {
+        throw "File tidak ditemukan: $Source"
+    }
+
+    New-Item -ItemType Directory -Path $DestinationDir -Force | Out-Null
+    Copy-Item $Source $Destination -Force
+}
+
+if (Test-Path $ZipPath) {
+    Remove-Item $ZipPath -Force
+}
+
+Compress-Archive -Path "$PatchRoot\*" -DestinationPath $ZipPath -Force
+Write-Host "ZIP berhasil dibuat: $ZipPath"
 ```
 
-Jika ada migration:
-
-```powershell
-php artisan migrate
-```
-
-Test umum:
-
-1. Login sebagai mekanik.
-2. Buka `/update-jobs/create`.
-3. Ketik serial number minimal 2 karakter.
-4. Pastikan dropdown asset muncul.
-5. Pilih asset.
-6. Pastikan customer/location/unit_type terisi.
-7. Simpan Update Job.
-8. Pastikan redirect ke detail job.
-9. Edit job, ubah `action` saja.
-10. Simpan.
-11. Pastikan tidak diminta isi ulang partner/job type/status/part.
-12. Test Preventive Maintenance: satu S/N hanya boleh 1x dalam 1 bulan.
-
-Test department isolation:
-
-1. Login sebagai `koordinator RENTAL`.
-2. Pastikan data SERVICE tidak muncul di Asset, Update Job, Battery, Charger, Delivery, Penarikan, Command Center, Calendar, Sparepart, dan Recommendation Control.
-3. Login sebagai `sect_head SERVICE`.
-4. Pastikan data RENTAL tidak muncul.
-5. Login sebagai `admin` atau `super_admin`.
-6. Pastikan semua department terlihat.
-
-Test Calendar:
-
-1. Buat planning RENTAL sebagai koordinator/sect_head RENTAL.
-2. Login sebagai mekanik RENTAL.
-3. Pastikan semua planning RENTAL terlihat walau mekanik tersebut bukan PIC/partner yang ditunjuk.
-4. Pastikan mekanik tidak melihat form create/update/delete.
-5. Login sebagai mekanik SERVICE.
-6. Pastikan planning RENTAL tidak muncul.
-
-Test Sparepart Rental:
-
-1. Buka `/rental-spareparts`.
-2. Cek Active Stock / Archived Stock.
-3. Archive satu stok.
-4. Cek stok pindah ke Archived Stock.
-5. Restore stok.
-6. Export Active Stock.
-7. Export Archived Stock.
-8. Import CSV Barang Masuk.
-9. Confirm import.
-10. Cek Import History.
-11. Rollback batch.
-12. Correction Stock.
-13. Cek Histori Movement.
-
-Test Usage Review:
-
-1. Buat Update Job department RENTAL dengan Install Part.
-2. Buka `/rental-spareparts/reviews`.
-3. Pastikan review muncul.
-4. Approve review.
-5. Pastikan movement OUT dibuat.
-6. Pastikan stock ARCHIVED tidak bisa dipakai approve.
-
-Test Recommendation Control:
-
-1. Buat Update Job dengan Recommendation Part.
-2. Buka `/sparepart-recommendations`.
-3. Pastikan record control muncul.
-4. Mark Reviewed / Approve / Need Supply.
-5. Mark Supplied tanpa Source Stock Existing.
-6. Pastikan Stock IN tercipta di `/rental-spareparts`.
-7. Pastikan movement IN tercipta di `/rental-spareparts/movements`.
-8. Buat Install Part dengan SN + Part Number yang sama.
-9. Approve Usage Review.
-10. Pastikan qty_installed naik dan status recommendation menjadi PARTIAL_INSTALLED atau CLOSED.
+Sesuaikan daftar `$Files` dengan file yang benar-benar berubah.
 
 ---
 
-## 20. Status Terakhir
-
-Status terakhir sebelum production upload:
+## 19. Yang Tidak Boleh Dilakukan di Production
 
 ```text
-- Department isolation aktif.
-- Partner operational form difilter department.
-- Calendar planning aktif dan isolated.
-- Management Sparepart Rental aktif.
-- Import/export sparepart aktif dan Excel-friendly.
-- Archive/Restore stock aktif.
-- Usage Review dari Update Job Install Part aktif.
-- Approval Usage Review membuat movement OUT.
-- Recommendation Control aktif.
-- Mark Supplied dari Recommendation Control bisa membuat Stock IN.
-- Histori rekomendasi di Update Job sudah diringkas menjadi 6 kolom.
-- robots.txt disiapkan agar tidak diindex.
-- cPanel deployment diarahkan ke /public.
+Jangan hapus folder production tanpa backup.
+Jangan upload database lokal ke production.
+Jangan replace .env production.
+Jangan hapus public/uploads.
+Jangan hapus storage production.
+Jangan hapus vendor jika composer tidak tersedia di cPanel.
+Jangan menjalankan migrate --force tanpa kebutuhan jelas.
+Jangan mengubah fitur stabil tanpa ACC.
 ```
+
+---
+
+## 20. Ringkasan Operasional
+
+Jika ada bug kecil:
+
+```text
+Cari file target.
+Patch kecil.
+Test lokal.
+Upload file terkait saja.
+Clear cache.
+Test production.
+```
+
+Jika ada fitur baru:
+
+```text
+Rancang kecil.
+Pisah fase.
+Jangan sentuh modul stabil.
+Test lokal.
+Deploy bertahap.
+```
+
+Jika production error:
+
+```text
+Jangan panik.
+Rollback file terakhir.
+Clear cache.
+Cek log.
+Jangan langsung ubah banyak file sekaligus.
+```
+
+DRR SAKTI GEN V sudah production. Prioritas utama adalah stabilitas operasional mekanik, koordinator, admin, dan super_admin.
