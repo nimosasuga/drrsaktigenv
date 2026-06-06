@@ -9,6 +9,7 @@ import "./penarikan-form-enhancer";
 import "./update-job-withdrawn-asset-blocker";
 import "./update-job-field-options";
 import "./update-job-preventive-maintenance-check";
+import "./update-job-form-stabilizer";
 import "./command-center-import-trigger";
 import "./update-job-copy-report";
 import "./operational-share-report";
