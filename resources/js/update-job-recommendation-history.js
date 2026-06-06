@@ -43,8 +43,13 @@ function createRecommendationHistorySection() {
         </div>
     `;
 
+    const recommendationContainer = document.getElementById('rec-container');
+    const recommendationSection = recommendationContainer?.closest('.bg-white.rounded-3xl');
     const submitBlock = form.querySelector('#btn-submit')?.closest('.flex.justify-end');
-    if (submitBlock) {
+
+    if (recommendationSection) {
+        recommendationSection.insertAdjacentElement('afterend', section);
+    } else if (submitBlock) {
         form.insertBefore(section, submitBlock);
     } else {
         form.appendChild(section);
