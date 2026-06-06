@@ -97,7 +97,7 @@ HTML;
         return response($html);
     }
 
-    private function formatDate($value): string
+    private function formatDate(mixed $value): string
     {
         if (blank($value)) {
             return '-';
@@ -110,7 +110,7 @@ HTML;
         }
     }
 
-    private function formatTime($value): string
+    private function formatTime(mixed $value): string
     {
         if (blank($value)) {
             return '-';
@@ -123,14 +123,14 @@ HTML;
         }
     }
 
-    private function value($value, string $fallback = '-'): string
+    private function value(mixed $value, string $fallback = '-'): string
     {
         $value = trim((string) ($value ?? ''));
 
         return $value !== '' ? $value : $fallback;
     }
 
-    private function upper($value, string $fallback = '-'): string
+    private function upper(mixed $value, string $fallback = '-'): string
     {
         return strtoupper($this->value($value, $fallback));
     }
