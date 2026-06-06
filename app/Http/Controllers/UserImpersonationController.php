@@ -90,7 +90,7 @@ class UserImpersonationController extends Controller
             'impersonator_status_user' => $request->session()->get('impersonator_status_user'),
             'impersonated_user_name' => Auth::user()?->name,
             'started_at' => $request->session()->get('impersonated_at'),
-            'stop_url' => route('impersonation.stop'),
+            'stop_url' => route('login-as.stop'),
         ]);
     }
 
