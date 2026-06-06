@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\AdminLicenseControlController;
 use App\Http\Controllers\UnitAssetController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
@@ -32,9 +33,9 @@ use App\Http\Controllers\RentalSparepartAdjustmentImportController;
 use App\Http\Controllers\RentalSparepartImportController;
 use App\Http\Controllers\RentalSparepartOutController;
 use App\Http\Controllers\RentalSparepartMovementController;
-use App\Http\Controllers\RentalSparepartMovementExportController;
 use App\Http\Controllers\RentalSparepartStockController;
 use App\Http\Controllers\RentalSparepartStockExportController;
+use App\Http\Controllers\RentalSparepartMovementExportController;
 use App\Http\Controllers\RentalSparepartUsageReviewApprovalController;
 use App\Http\Controllers\RentalSparepartUsageReviewController;
 use App\Http\Controllers\RentalSparepartUsageReviewExportController;
@@ -58,6 +59,14 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/subscription/waiting', [SubscriptionController::class, 'waiting'])->name('subscription.waiting');
     Route::get('/payment-settings', [\App\Http\Controllers\PaymentSettingController::class, 'edit'])->name('payment-settings.edit');
     Route::put('/payment-settings', [\App\Http\Controllers\PaymentSettingController::class, 'update'])->name('payment-settings.update');
+
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/kontrol-lisensi', [AdminLicenseControlController::class, 'index'])->name('licenses.index');
+        Route::post('/kontrol-lisensi', [AdminLicenseControlController::class, 'store'])->name('licenses.store');
+        Route::patch('/kontrol-lisensi/{license}', [AdminLicenseControlController::class, 'update'])->name('licenses.update');
+        Route::delete('/kontrol-lisensi/{license}', [AdminLicenseControlController::class, 'destroy'])->name('licenses.destroy');
+        Route::post('/kontrol-lisensi/bulk', [AdminLicenseControlController::class, 'bulk'])->name('licenses.bulk');
+    });
 
     Route::middleware([CheckSuperAdmin::class])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/verifikasi-lisensi', [AdminController::class, 'pendingSubscriptions'])->name('subscriptions');
