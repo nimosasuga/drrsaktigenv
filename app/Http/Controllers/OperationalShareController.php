@@ -122,19 +122,19 @@ HTML;
         return response($html);
     }
 
-    private function value($value, string $fallback = '-'): string
+    private function value(mixed $value, string $fallback = '-'): string
     {
         $value = trim((string) ($value ?? ''));
 
         return $value !== '' ? $value : $fallback;
     }
 
-    private function upper($value, string $fallback = '-'): string
+    private function upper(mixed $value, string $fallback = '-'): string
     {
         return strtoupper($this->value($value, $fallback));
     }
 
-    private function dateValue($value): string
+    private function dateValue(mixed $value): string
     {
         if (blank($value)) {
             return '-';
@@ -147,7 +147,7 @@ HTML;
         }
     }
 
-    private function timeValue($value): string
+    private function timeValue(mixed $value): string
     {
         if (blank($value)) {
             return '-';
@@ -160,13 +160,13 @@ HTML;
         }
     }
 
-    private function recommendationsText($item): string
+    private function recommendationsText(mixed $item): string
     {
         if (!$item->relationLoaded('recommendations') || $item->recommendations->isEmpty()) {
             return "*PART NUMBER :* -\n*PART NAME :* -\n*QTY :* -\n*REMARKS :* -";
         }
 
-        return $item->recommendations->map(function ($part) {
+        return $item->recommendations->map(function (mixed $part) {
             return implode("\n", [
                 '*PART NUMBER :* ' . $this->value($part->part_number),
                 '*PART NAME :* ' . $this->value($part->part_name),
@@ -176,13 +176,13 @@ HTML;
         })->implode("\n\n");
     }
 
-    private function installPartsText($item): string
+    private function installPartsText(mixed $item): string
     {
         if (!$item->relationLoaded('installParts') || $item->installParts->isEmpty()) {
             return "*PART NUMBER :* -\n*PART NAME :* -\n*QTY :* -\n*NO JOB :* -\n*NO PR :* -\n*REMARKS :* -";
         }
 
-        return $item->installParts->map(function ($part) {
+        return $item->installParts->map(function (mixed $part) {
             return implode("\n", [
                 '*PART NUMBER :* ' . $this->value($part->part_number),
                 '*PART NAME :* ' . $this->value($part->part_name),
@@ -240,7 +240,7 @@ HTML;
         ];
     }
 
-    private function noteLines($note): array
+    private function noteLines(mixed $note): array
     {
         return [
             '',
