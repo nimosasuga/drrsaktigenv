@@ -16,6 +16,13 @@ function normalizeJobType(value) {
     return String(value || "").trim();
 }
 
+function splitJobTypeValue(value) {
+    return String(value || "")
+        .split(",")
+        .map((item) => normalizeJobType(item))
+        .filter(Boolean);
+}
+
 function getSelectedJobTypes(input) {
     if (!input) {
         return [];
@@ -27,9 +34,22 @@ function getSelectedJobTypes(input) {
             .filter(Boolean);
     }
 
-    const value = normalizeJobType(input.value);
+    return splitJobTypeValue(input.value);
+}
 
-    return value ? [value] : [];
+function resolveEditJobId(form) {
+    if (!form) {
+        return "";
+    }
+
+    if (form.dataset.jobId) {
+        return String(form.dataset.jobId).trim();
+    }
+
+    const action = String(form.getAttribute("action") || form.action || "");
+    const match = action.match(/\/update-jobs\/(\d+)(?:\b|\/|\?|#)/);
+
+    return match ? match[1] : "";
 }
 
 function buildPreventiveMaintenancePopup() {
@@ -163,7 +183,7 @@ document.addEventListener("DOMContentLoaded", function () {
         )
             ? "Preventive Maintenance"
             : "";
-        const exceptJobId = form.dataset.jobId || "";
+        const exceptJobId = resolveEditJobId(form);
         const checkKey = `${serialNumber}|${workDate}|${jobType}|${exceptJobId}`;
 
         if (checkKey === lastCheckKey && blockedMessage) {
@@ -213,7 +233,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(function (data) {
                     if (data.blocked) {
                         setBlockedState(data.message);
-                        showPreventiveMaintenancePopup(data.message);
+
+                        if (showPopup) {
+                            showPreventiveMaintenancePopup(data.message);
+                        }
+
                         return;
                     }
 
