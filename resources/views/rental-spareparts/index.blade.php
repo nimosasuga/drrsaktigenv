@@ -3,53 +3,85 @@
 @section('content')
 <div class="mx-auto max-w-7xl space-y-6">
     <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div class="flex flex-col gap-5">
-            <div class="max-w-5xl">
-                <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Rental Sparepart</p>
-                <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Dashboard Stok Sparepart Rental</h1>
-                <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
-                    Monitoring stok aktif sparepart RENTAL berdasarkan part, lokasi penyimpanan, no job, customer, dan alokasi unit.
-                    Barang Masuk, Barang Keluar, Histori Movement, Review Usage, Audit Stok Bermasalah, Export Stok, Import CSV, dan Import History sudah aktif.
-                </p>
-            </div>
+        <div class="space-y-5" data-sparepart-header-tidied="true">
+            <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                <div class="max-w-4xl">
+                    <p class="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Rental Sparepart</p>
+                    <h1 class="mt-2 text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">Dashboard Stok Sparepart Rental</h1>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">
+                        Monitoring stok aktif sparepart RENTAL berdasarkan part, lokasi penyimpanan, no job, customer, dan alokasi unit.
+                        Aksi harian dipisahkan dari tools data agar halaman lebih mudah dibaca.
+                    </p>
+                </div>
 
-            <div class="flex flex-wrap items-center gap-2">
-                <div class="inline-flex min-w-[150px] items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <div class="inline-flex w-fit items-center justify-between gap-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
                     <div>
                         <p class="text-[11px] font-bold uppercase tracking-wide text-blue-500">Department</p>
                         <p class="mt-1 text-xl font-black text-blue-700">RENTAL</p>
                     </div>
                 </div>
+            </div>
 
-                <a href="{{ route('rental-spareparts.export', request()->query()) }}" class="inline-flex min-w-[145px] items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700">
-                    Export Stok CSV
-                </a>
+            @if($canManageSparepart)
+                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Quick Action</p>
+                            <p class="mt-1 text-sm text-slate-500">Aksi operasional yang paling sering dipakai.</p>
+                        </div>
+                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:min-w-[560px]">
+                            <a href="{{ route('rental-spareparts.in.create') }}" class="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700">
+                                + Barang Masuk
+                            </a>
+                            <a href="{{ route('rental-spareparts.out.create') }}" class="inline-flex items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-red-700">
+                                - Barang Keluar
+                            </a>
+                            <a href="{{ route('rental-spareparts.reviews.index') }}" class="inline-flex items-center justify-center rounded-2xl bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-purple-700">
+                                Review Usage
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @else
+                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Quick Action</p>
+                            <p class="mt-1 text-sm text-slate-500">Akses Anda fokus pada monitoring dan review usage.</p>
+                        </div>
+                        <a href="{{ route('rental-spareparts.reviews.index') }}" class="inline-flex items-center justify-center rounded-2xl bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-purple-700">
+                            Review Usage
+                        </a>
+                    </div>
+                </div>
+            @endif
 
-                @if($canManageSparepart)
-                    <a href="{{ route('rental-spareparts.import.template') }}" class="inline-flex min-w-[145px] items-center justify-center rounded-2xl bg-cyan-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-cyan-700">
-                        Template Import
-                    </a>
-                    <a href="{{ route('rental-spareparts.import-batches.index') }}" class="inline-flex min-w-[145px] items-center justify-center rounded-2xl bg-teal-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-teal-700">
-                        Import History
-                    </a>
-                @endif
+            <div class="rounded-3xl border border-slate-200 bg-white p-4 ring-1 ring-slate-900/5">
+                <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Tools Data</p>
+                        <p class="mt-1 text-sm text-slate-500">Export, template, histori, dan kontrol data. Tetap lengkap, tapi tidak lagi memenuhi header.</p>
+                    </div>
 
-                <a href="{{ route('rental-spareparts.reviews.index') }}" class="inline-flex min-w-[145px] items-center justify-center rounded-2xl bg-purple-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-purple-700">
-                    Review Usage
-                </a>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="{{ route('rental-spareparts.export', request()->query()) }}" class="inline-flex min-w-[132px] items-center justify-center rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700">
+                            Export Stok CSV
+                        </a>
 
-                <a href="{{ route('rental-spareparts.movements.index') }}" class="inline-flex min-w-[145px] items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-slate-800">
-                    Histori Movement
-                </a>
+                        @if($canManageSparepart)
+                            <a href="{{ route('rental-spareparts.import.template') }}" class="inline-flex min-w-[132px] items-center justify-center rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-2.5 text-sm font-black text-cyan-800 transition hover:bg-cyan-100">
+                                Template Import
+                            </a>
+                            <a href="{{ route('rental-spareparts.import-batches.index') }}" class="inline-flex min-w-[132px] items-center justify-center rounded-2xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-black text-teal-800 transition hover:bg-teal-100">
+                                Import History
+                            </a>
+                        @endif
 
-                @if($canManageSparepart)
-                    <a href="{{ route('rental-spareparts.in.create') }}" class="inline-flex min-w-[145px] items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700">
-                        + Barang Masuk
-                    </a>
-                    <a href="{{ route('rental-spareparts.out.create') }}" class="inline-flex min-w-[145px] items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-red-700">
-                        - Barang Keluar
-                    </a>
-                @endif
+                        <a href="{{ route('rental-spareparts.movements.index') }}" class="inline-flex min-w-[132px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-900 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-slate-800">
+                            Histori Movement
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -77,11 +109,11 @@
                     </p>
                 </div>
 
-                <div class="flex flex-col gap-2 sm:flex-row">
-                    <a href="{{ route('rental-spareparts.import.template') }}" class="inline-flex items-center justify-center rounded-2xl border border-cyan-300 bg-white px-5 py-3 text-sm font-black text-cyan-800 hover:bg-cyan-100">
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('rental-spareparts.import.template') }}" class="inline-flex items-center justify-center rounded-2xl border border-cyan-300 bg-white px-4 py-2.5 text-sm font-black text-cyan-800 hover:bg-cyan-100">
                         Download Template CSV
                     </a>
-                    <a href="{{ route('rental-spareparts.import-batches.index') }}" class="inline-flex items-center justify-center rounded-2xl bg-teal-600 px-5 py-3 text-sm font-black text-white hover:bg-teal-700">
+                    <a href="{{ route('rental-spareparts.import-batches.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-teal-200 bg-white px-4 py-2.5 text-sm font-black text-teal-800 hover:bg-teal-50">
                         Import History
                     </a>
                 </div>
@@ -247,7 +279,6 @@
 
             <div class="flex flex-wrap gap-2 lg:col-span-4 lg:justify-end">
                 <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-blue-700 sm:flex-none">Filter</button>
-                <a href="{{ route('rental-spareparts.export', request()->query()) }}" class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700">Export CSV</a>
                 <a href="{{ route('rental-spareparts.index') }}" class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Reset</a>
             </div>
         </form>
