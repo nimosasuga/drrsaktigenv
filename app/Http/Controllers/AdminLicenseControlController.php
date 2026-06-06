@@ -11,6 +11,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AdminLicenseControlController extends Controller
 {
@@ -178,7 +179,7 @@ class AdminLicenseControlController extends Controller
                     $license->update([
                         'status' => 'active',
                         'started_at' => $startedAt,
-                        'expired_at' => $license->expired_at ?? $startedAt->copy()->addMonths($durationMonths),
+                        'expired_at' => $license->expired_at ?? $startedAt->copy()->addMonths($durationMonths)->endOfDay(),
                     ]);
 
                     continue;
@@ -218,13 +219,24 @@ class AdminLicenseControlController extends Controller
 
     private function validateLicensePayload(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'subscription_package_id' => ['required', 'integer', 'exists:subscription_packages,id'],
             'status' => ['required', Rule::in(self::STATUSES)],
             'started_at' => ['nullable', 'date'],
             'expired_at' => ['nullable', 'date', 'after_or_equal:started_at'],
         ]);
+
+        $user = User::findOrFail($validated['user_id']);
+        $package = SubscriptionPackage::findOrFail($validated['subscription_package_id']);
+
+        if (!$this->isPackageAllowedForUser($package, $user)) {
+            throw ValidationException::withMessages([
+                'subscription_package_id' => 'Paket lisensi tidak sesuai dengan role/status user ' . strtoupper((string) $user->status_user) . '.',
+            ]);
+        }
+
+        return $validated;
     }
 
     private function prepareLicensePayload(array $validated, ?UserSubscription $license = null): array
@@ -257,5 +269,23 @@ class AdminLicenseControlController extends Controller
             'started_at' => $startedAt,
             'expired_at' => $expiredAt,
         ];
+    }
+
+    private function isPackageAllowedForUser(SubscriptionPackage $package, User $user): bool
+    {
+        return $this->normalizeLicenseRole($package->role_name) === $this->normalizeLicenseRole($user->status_user);
+    }
+
+    private function normalizeLicenseRole(?string $role): string
+    {
+        $role = strtolower(trim((string) $role));
+        $role = str_replace(['-', '_'], ' ', $role);
+        $role = preg_replace('/\s+/', ' ', $role) ?: '';
+
+        return match ($role) {
+            'sect head', 'secthead' => 'sect_head',
+            'super admin', 'superadmin' => 'super_admin',
+            default => str_replace(' ', '_', $role),
+        };
     }
 }
