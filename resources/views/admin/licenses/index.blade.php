@@ -7,11 +7,29 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $normalizeLicenseRole = function (?string $role): string {
+        $role = strtolower(trim((string) $role));
+        $role = str_replace(['-', '_'], ' ', $role);
+        $role = preg_replace('/\s+/', ' ', $role) ?: '';
+
+        return match ($role) {
+            'sect head', 'secthead' => 'sect_head',
+            'super admin', 'superadmin' => 'super_admin',
+            default => str_replace(' ', '_', $role),
+        };
+    };
+
+    $licenseRoleLabel = function (?string $role) use ($normalizeLicenseRole): string {
+        return strtoupper(str_replace('_', ' ', $normalizeLicenseRole($role)));
+    };
+@endphp
+
 <div class="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
     <div>
         <h1 class="text-2xl font-bold tracking-tight text-slate-900">Kontrol Lisensi</h1>
         <p class="mt-1 text-sm text-slate-500">
-            Pantau pengguna berlisensi, status aktif/kedaluwarsa, CRUD lisensi, dan bulk action. Tombolnya banyak, jadi jangan asal pencet seperti lift mall.
+            Kelola lisensi berdasarkan role pengguna. Paket yang bisa dipilih akan mengikuti status user seperti mekanik, koordinator, sect head, admin, atau super admin.
         </p>
     </div>
 
@@ -64,33 +82,35 @@
 <div class="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
     <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm ring-1 ring-slate-900/5 xl:col-span-1">
         <h2 class="text-base font-extrabold text-slate-900">Tambah Lisensi Manual</h2>
-        <p class="mt-1 text-sm text-slate-500">Gunakan untuk aktivasi manual tanpa mengubah alur payment existing.</p>
+        <p class="mt-1 text-sm text-slate-500">Pilih pengguna terlebih dahulu. Paket akan mengikuti role/status user.</p>
 
         <form method="POST" action="{{ route('admin.licenses.store') }}" class="mt-5 space-y-4">
             @csrf
 
             <div>
                 <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Pengguna</label>
-                <select name="user_id" required class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
-                    <option value="">Pilih pengguna</option>
+                <select id="licenseUserSelect" name="user_id" required class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="" data-license-role="">Pilih pengguna</option>
                     @foreach($users as $user)
-                        <option value="{{ $user->id }}" @selected(old('user_id') == $user->id)>
-                            {{ $user->name }} · NRPP {{ $user->nrpp ?? '-' }} · {{ strtoupper($user->status_user ?? '-') }}
+                        <option value="{{ $user->id }}" data-license-role="{{ $normalizeLicenseRole($user->status_user) }}" @selected(old('user_id') == $user->id)>
+                            {{ $user->name }} · {{ $licenseRoleLabel($user->status_user) }} · NRPP {{ $user->nrpp ?? '-' }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
             <div>
-                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Paket</label>
-                <select name="subscription_package_id" required class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
-                    <option value="">Pilih paket</option>
+                <label class="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-500">Paket sesuai role</label>
+                <select id="licensePackageSelect" name="subscription_package_id" required class="w-full rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500">
+                    <option value="" data-package-role="">Pilih user dulu</option>
                     @foreach($packages as $package)
-                        <option value="{{ $package->id }}" @selected(old('subscription_package_id') == $package->id)>
-                            {{ $package->package_name }} · {{ strtoupper($package->role_name) }} · Rp{{ number_format($package->price, 0, ',', '.') }}
+                        @php($packageRole = $normalizeLicenseRole($package->role_name))
+                        <option value="{{ $package->id }}" data-package-role="{{ $packageRole }}" @selected(old('subscription_package_id') == $package->id)>
+                            Lisensi {{ $licenseRoleLabel($package->role_name) }} · {{ (int) $package->duration_months }} bulan · Rp{{ number_format($package->price, 0, ',', '.') }}
                         </option>
                     @endforeach
                 </select>
+                <p id="licensePackageHelp" class="mt-1 text-xs text-slate-500">Paket otomatis dibatasi sesuai role pengguna yang dipilih.</p>
             </div>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -124,7 +144,7 @@
     </div>
 
     <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm ring-1 ring-slate-900/5 xl:col-span-2">
-        <h2 class="text-base font-extrabold text-slate-900">Filter Lisensi</h2>
+        <h2 class="text-base font-extrabold text-slate-900">Filter & Bulk Action</h2>
         <form method="GET" action="{{ route('admin.licenses.index') }}" class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-4">
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari nama, NRPP, branch, paket..."
                 class="rounded-xl border-slate-300 bg-slate-50 text-sm focus:border-blue-500 focus:ring-blue-500 lg:col-span-2">
@@ -140,7 +160,7 @@
                 <option value="">Semua paket</option>
                 @foreach($packages as $package)
                     <option value="{{ $package->id }}" @selected((string) request('package_id') === (string) $package->id)>
-                        {{ $package->package_name }}
+                        Lisensi {{ $licenseRoleLabel($package->role_name) }} · {{ (int) $package->duration_months }} bulan
                     </option>
                 @endforeach
             </select>
@@ -188,7 +208,7 @@
                     <th class="px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Status</th>
                     <th class="px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Periode</th>
                     <th class="px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Payment</th>
-                    <th class="px-4 py-4 text-right text-xs font-bold uppercase tracking-wider text-slate-500">Aksi</th>
+                    <th class="px-4 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-500">Aksi</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-200 bg-white">
@@ -197,6 +217,8 @@
                         $user = $license->user;
                         $package = $license->package;
                         $payment = $license->payment;
+                        $userRole = $normalizeLicenseRole($user->status_user ?? null);
+                        $matchingPackages = $packages->filter(fn ($packageOption) => $normalizeLicenseRole($packageOption->role_name) === $userRole);
                         $isExpiredByDate = $license->status === 'active' && $license->expired_at && $license->expired_at->isPast();
                         $displayStatus = $isExpiredByDate ? 'expired' : $license->status;
                         $badgeClass = match ($displayStatus) {
@@ -221,9 +243,9 @@
                             </div>
                         </td>
                         <td class="px-4 py-4">
-                            <div class="font-bold text-slate-900">{{ $package->package_name ?? '-' }}</div>
+                            <div class="font-bold text-slate-900">Lisensi {{ $licenseRoleLabel($package->role_name ?? null) }}</div>
                             <div class="mt-1 text-xs text-slate-500">
-                                {{ strtoupper($package->role_name ?? '-') }} · {{ (int) ($package->duration_months ?? 0) }} bulan
+                                {{ $package->package_name ?? '-' }} · {{ (int) ($package->duration_months ?? 0) }} bulan
                             </div>
                             <div class="mt-1 text-xs font-bold text-slate-700">Rp{{ number_format((int) ($package->price ?? 0), 0, ',', '.') }}</div>
                         </td>
@@ -245,38 +267,60 @@
                                 <span class="text-xs text-slate-400">Tidak ada payment terkait</span>
                             @endif
                         </td>
-                        <td class="px-4 py-4 text-right">
-                            <div class="flex min-w-[360px] flex-col gap-2">
-                                <form method="POST" action="{{ route('admin.licenses.update', $license) }}" class="grid grid-cols-2 gap-2 text-left lg:grid-cols-5">
-                                    @csrf
-                                    @method('PATCH')
-                                    <input type="hidden" name="user_id" value="{{ $license->user_id }}">
+                        <td class="px-4 py-4">
+                            <div class="min-w-[300px] rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left">
+                                <p class="text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi Lisensi</p>
+                                <p class="mt-1 text-xs text-slate-500">Paket dibatasi untuk role: <strong>{{ $licenseRoleLabel($user->status_user ?? null) }}</strong></p>
 
-                                    <select name="subscription_package_id" class="rounded-lg border-slate-300 bg-slate-50 text-xs focus:border-blue-500 focus:ring-blue-500 lg:col-span-2">
-                                        @foreach($packages as $packageOption)
-                                            <option value="{{ $packageOption->id }}" @selected($license->subscription_package_id === $packageOption->id)>
-                                                {{ $packageOption->package_name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
+                                @if($matchingPackages->isEmpty())
+                                    <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                                        Belum ada paket lisensi untuk role {{ $licenseRoleLabel($user->status_user ?? null) }}.
+                                    </div>
+                                @else
+                                    <form method="POST" action="{{ route('admin.licenses.update', $license) }}" class="mt-3 space-y-2">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="user_id" value="{{ $license->user_id }}">
 
-                                    <select name="status" class="rounded-lg border-slate-300 bg-slate-50 text-xs focus:border-blue-500 focus:ring-blue-500">
-                                        @foreach(['pending', 'active', 'expired', 'cancelled'] as $statusOption)
-                                            <option value="{{ $statusOption }}" @selected($license->status === $statusOption)>{{ strtoupper($statusOption) }}</option>
-                                        @endforeach
-                                    </select>
+                                        <div>
+                                            <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Paket Role</label>
+                                            <select name="subscription_package_id" class="w-full rounded-lg border-slate-300 bg-white text-xs focus:border-blue-500 focus:ring-blue-500">
+                                                @foreach($matchingPackages as $packageOption)
+                                                    <option value="{{ $packageOption->id }}" @selected($license->subscription_package_id === $packageOption->id)>
+                                                        Lisensi {{ $licenseRoleLabel($packageOption->role_name) }} · {{ (int) $packageOption->duration_months }} bulan · Rp{{ number_format((int) $packageOption->price, 0, ',', '.') }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </div>
 
-                                    <input type="date" name="started_at" value="{{ $license->started_at?->format('Y-m-d') }}"
-                                        class="rounded-lg border-slate-300 bg-slate-50 text-xs focus:border-blue-500 focus:ring-blue-500">
-                                    <input type="date" name="expired_at" value="{{ $license->expired_at?->format('Y-m-d') }}"
-                                        class="rounded-lg border-slate-300 bg-slate-50 text-xs focus:border-blue-500 focus:ring-blue-500">
+                                        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                            <div>
+                                                <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Status</label>
+                                                <select name="status" class="w-full rounded-lg border-slate-300 bg-white text-xs focus:border-blue-500 focus:ring-blue-500">
+                                                    @foreach(['pending', 'active', 'expired', 'cancelled'] as $statusOption)
+                                                        <option value="{{ $statusOption }}" @selected($license->status === $statusOption)>{{ strtoupper($statusOption) }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Start</label>
+                                                <input type="date" name="started_at" value="{{ $license->started_at?->format('Y-m-d') }}"
+                                                    class="w-full rounded-lg border-slate-300 bg-white text-xs focus:border-blue-500 focus:ring-blue-500">
+                                            </div>
+                                            <div>
+                                                <label class="mb-1 block text-[11px] font-bold uppercase tracking-wide text-slate-500">Expired</label>
+                                                <input type="date" name="expired_at" value="{{ $license->expired_at?->format('Y-m-d') }}"
+                                                    class="w-full rounded-lg border-slate-300 bg-white text-xs focus:border-blue-500 focus:ring-blue-500">
+                                            </div>
+                                        </div>
 
-                                    <button type="submit" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700 lg:col-span-4">
-                                        Update
-                                    </button>
-                                </form>
+                                        <button type="submit" class="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-blue-700">
+                                            Update Lisensi
+                                        </button>
+                                    </form>
+                                @endif
 
-                                <form method="POST" action="{{ route('admin.licenses.destroy', $license) }}"
+                                <form method="POST" action="{{ route('admin.licenses.destroy', $license) }}" class="mt-2"
                                     onsubmit="return confirm('Hapus lisensi ini? Data payment tidak dihapus, hanya record lisensi.');">
                                     @csrf
                                     @method('DELETE')
@@ -310,6 +354,79 @@
         const checkAll = document.getElementById('checkAllLicenses');
         const bulkForm = document.getElementById('bulkLicenseForm');
         const hiddenTarget = document.getElementById('bulkHiddenInputs');
+        const userSelect = document.getElementById('licenseUserSelect');
+        const packageSelect = document.getElementById('licensePackageSelect');
+        const packageHelp = document.getElementById('licensePackageHelp');
+
+        function normalizeLicenseRole(role) {
+            role = String(role || '').trim().toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+
+            if (role === 'sect head' || role === 'secthead') {
+                return 'sect_head';
+            }
+
+            if (role === 'super admin' || role === 'superadmin') {
+                return 'super_admin';
+            }
+
+            return role.replace(/\s+/g, '_');
+        }
+
+        function syncPackageOptionsByUserRole() {
+            if (!userSelect || !packageSelect) {
+                return;
+            }
+
+            const selectedUser = userSelect.options[userSelect.selectedIndex];
+            const selectedRole = normalizeLicenseRole(selectedUser?.dataset.licenseRole || '');
+            let visibleCount = 0;
+            let firstVisibleValue = '';
+
+            Array.from(packageSelect.options).forEach(function (option) {
+                const packageRole = normalizeLicenseRole(option.dataset.packageRole || '');
+                const shouldShow = option.value === '' || (selectedRole !== '' && packageRole === selectedRole);
+
+                option.hidden = !shouldShow;
+                option.disabled = !shouldShow;
+
+                if (option.value !== '' && shouldShow) {
+                    visibleCount += 1;
+                    if (!firstVisibleValue) {
+                        firstVisibleValue = option.value;
+                    }
+                }
+            });
+
+            if (selectedRole === '') {
+                packageSelect.value = '';
+                if (packageHelp) {
+                    packageHelp.textContent = 'Pilih pengguna dulu agar paket lisensi sesuai role muncul.';
+                    packageHelp.className = 'mt-1 text-xs text-slate-500';
+                }
+                return;
+            }
+
+            const selectedOption = packageSelect.options[packageSelect.selectedIndex];
+            if (!selectedOption || selectedOption.disabled) {
+                packageSelect.value = firstVisibleValue;
+            }
+
+            if (packageHelp) {
+                if (visibleCount === 0) {
+                    packageHelp.textContent = 'Belum ada paket lisensi untuk role user ini. Buat paket role terkait di data subscription packages.';
+                    packageHelp.className = 'mt-1 text-xs font-semibold text-amber-700';
+                    return;
+                }
+
+                packageHelp.textContent = 'Paket sudah difilter sesuai role pengguna.';
+                packageHelp.className = 'mt-1 text-xs text-emerald-700';
+            }
+        }
+
+        if (userSelect && packageSelect) {
+            userSelect.addEventListener('change', syncPackageOptionsByUserRole);
+            syncPackageOptionsByUserRole();
+        }
 
         if (checkAll) {
             checkAll.addEventListener('change', function () {
