@@ -18,3 +18,4 @@ import "./rental-sparepart-dashboard-layout";
 import "./rental-sparepart-adjustment-link";
 import "./rental-sparepart-archive-ui";
 import "./reminder-badge";
+import "./session-switch-banner";
