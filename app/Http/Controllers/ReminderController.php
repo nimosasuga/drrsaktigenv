@@ -19,4 +19,11 @@ class ReminderController extends Controller
 
         return view('reminders.index', compact('summary', 'reminders', 'filter'));
     }
+
+    public function count()
+    {
+        return response()->json([
+            'count' => ReminderSummaryService::countForUser(Auth::user()),
+        ]);
+    }
 }
