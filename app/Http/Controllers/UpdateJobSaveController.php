@@ -354,23 +354,35 @@ class UpdateJobSaveController extends Controller
             return;
         }
 
+        $rows = [];
+
+        foreach ((array) $request->input('inst_part_name', []) as $key => $partName) {
+            $partName = trim((string) $partName);
+
+            if ($partName === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'part_number' => $request->input("inst_part_number.{$key}"),
+                'part_name' => $partName,
+                'qty' => max(1, (int) $request->input("inst_qty.{$key}", 1)),
+                'remarks' => $request->input("inst_remarks.{$key}"),
+                'no_job' => $request->input("inst_no_job.{$key}"),
+                'no_pr' => $request->input("inst_no_pr.{$key}"),
+            ];
+        }
+
+        if (empty($rows)) {
+            return;
+        }
+
         if ($replaceExisting) {
             $job->installParts()->delete();
         }
 
-        foreach ((array) $request->input('inst_part_name', []) as $key => $partName) {
-            if (trim((string) $partName) === '') {
-                continue;
-            }
-
-            $job->installParts()->create([
-                'part_number' => $request->input("inst_part_number.{$key}"),
-                'part_name' => $partName,
-                'qty' => $request->input("inst_qty.{$key}", 1),
-                'remarks' => $request->input("inst_remarks.{$key}"),
-                'no_job' => $request->input("inst_no_job.{$key}"),
-                'no_pr' => $request->input("inst_no_pr.{$key}"),
-            ]);
+        foreach ($rows as $row) {
+            $job->installParts()->create($row);
         }
     }
 
@@ -386,16 +398,11 @@ class UpdateJobSaveController extends Controller
     private function syncRecommendations(Request $request, Job $job, bool $replaceExisting): void
     {
         if (!$request->has('rec_part_name')) {
-            if ($replaceExisting) {
-                $job->recommendations()->get()->each(function ($recommendation) {
-                    $recommendation->delete();
-                });
-            }
-
             return;
         }
 
         $submittedRecommendationIds = [];
+        $rows = [];
 
         foreach ((array) $request->input('rec_part_name', []) as $key => $partName) {
             $partName = trim((string) $partName);
@@ -404,14 +411,24 @@ class UpdateJobSaveController extends Controller
                 continue;
             }
 
-            $payload = [
-                'part_number' => $request->input("rec_part_number.{$key}"),
-                'part_name' => $partName,
-                'qty' => max(1, (int) $request->input("rec_qty.{$key}", 1)),
-                'remarks' => $request->input("rec_remarks.{$key}"),
+            $rows[] = [
+                'id' => (int) $request->input("rec_id.{$key}", 0),
+                'payload' => [
+                    'part_number' => $request->input("rec_part_number.{$key}"),
+                    'part_name' => $partName,
+                    'qty' => max(1, (int) $request->input("rec_qty.{$key}", 1)),
+                    'remarks' => $request->input("rec_remarks.{$key}"),
+                ],
             ];
+        }
 
-            $recommendationId = (int) $request->input("rec_id.{$key}", 0);
+        if (empty($rows)) {
+            return;
+        }
+
+        foreach ($rows as $row) {
+            $recommendationId = $row['id'];
+            $payload = $row['payload'];
 
             if ($replaceExisting && $recommendationId > 0) {
                 $recommendation = $job->recommendations()
@@ -435,6 +452,10 @@ class UpdateJobSaveController extends Controller
         }
 
         if (!$replaceExisting) {
+            return;
+        }
+
+        if (empty($submittedRecommendationIds)) {
             return;
         }
 
