@@ -21,8 +21,7 @@
     </style>
 </head>
 
-<body
-    data-user-status="{{ strtolower(trim((string) (Auth::user()->status_user ?? ''))) }}"
+<body data-user-status="{{ strtolower(trim((string) (Auth::user()->status_user ?? ''))) }}"
     data-user-department="{{ strtoupper(trim((string) (Auth::user()->department ?? ''))) }}"
     class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden selection:bg-blue-200 selection:text-blue-900">
 
@@ -71,19 +70,21 @@
             </a>
 
             @php
-                $sidebarStatusUser = strtolower(trim((string) (Auth::user()->status_user ?? '')));
-                $sidebarStatusUser = str_replace(['-', '_'], ' ', $sidebarStatusUser);
-                $sidebarDepartment = strtoupper(trim((string) (Auth::user()->department ?? '')));
+            $sidebarStatusUser = strtolower(trim((string) (Auth::user()->status_user ?? '')));
+            $sidebarStatusUser = str_replace(['-', '_'], ' ', $sidebarStatusUser);
+            $sidebarDepartment = strtoupper(trim((string) (Auth::user()->department ?? '')));
 
-                $canOpenCommandCenter =
-                    in_array($sidebarStatusUser, ['koordinator', 'sect head', 'secthead', 'admin', 'super admin', 'superadmin'], true);
+            $canOpenCommandCenter =
+            in_array($sidebarStatusUser, ['koordinator', 'sect head', 'secthead', 'admin', 'super admin', 'superadmin'],
+            true);
 
-                $canOpenRentalSparepart =
-                    in_array($sidebarStatusUser, ['admin', 'super admin', 'superadmin'], true) ||
-                    (in_array($sidebarStatusUser, ['koordinator', 'sect head', 'secthead'], true) && $sidebarDepartment === 'RENTAL');
+            $canOpenRentalSparepart =
+            in_array($sidebarStatusUser, ['admin', 'super admin', 'superadmin'], true) ||
+            (in_array($sidebarStatusUser, ['koordinator', 'sect head', 'secthead'], true) && $sidebarDepartment ===
+            'RENTAL');
 
-                $canOpenPaymentSettings =
-                    in_array($sidebarStatusUser, ['admin', 'super admin', 'superadmin'], true);
+            $canOpenPaymentSettings =
+            in_array($sidebarStatusUser, ['admin', 'super admin', 'superadmin'], true);
             @endphp
 
             @if($canOpenCommandCenter)
@@ -115,7 +116,8 @@
                 <svg class="w-5 h-5 mr-3 {{ request()->routeIs('sparepart-recommendations.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }}"
                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
                 </svg>
                 Recommendation Control
             </a>
@@ -127,7 +129,8 @@
                 <svg class="w-5 h-5 mr-3 {{ request()->routeIs('payment-settings.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }}"
                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z">
+                    </path>
                 </svg>
                 Payment Settings
             </a>
@@ -169,7 +172,18 @@
                 </svg>
                 Manajemen Pengguna
             </a>
-            @endif
+
+            <!-- Menu Baru: Kontrol Lisensi -->
+            <a href="{{ route('admin.licenses.index') }}"
+                class="group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors {{ request()->routeIs('admin.licenses.*') ? 'bg-blue-50 text-blue-700' : '' }}">
+                <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.licenses.*') ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600' }} transition-colors"
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M14.83 9.17a4 4 0 1 0 0 5.66"></path>
+                </svg>
+                Kontrol Lisensi
+            </a> @endif
         </nav>
 
         <!-- Sidebar Footer (User Info Singkat) -->
@@ -192,7 +206,8 @@
                         </svg>
                         @endif
                     </p>
-                    <p class="text-xs text-slate-500 truncate">{{ str_replace('_', ' ', Auth::user()->status_user) }}</p>
+                    <p class="text-xs text-slate-500 truncate">{{ str_replace('_', ' ', Auth::user()->status_user) }}
+                    </p>
                 </div>
             </div>
         </div>

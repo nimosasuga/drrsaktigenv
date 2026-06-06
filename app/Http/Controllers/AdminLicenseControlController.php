@@ -7,6 +7,7 @@ use App\Models\SubscriptionPackage;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -230,16 +231,23 @@ class AdminLicenseControlController extends Controller
     {
         $package = SubscriptionPackage::findOrFail($validated['subscription_package_id']);
         $status = $validated['status'];
-        $startedAt = filled($validated['started_at'] ?? null) ? $validated['started_at'] : null;
-        $expiredAt = filled($validated['expired_at'] ?? null) ? $validated['expired_at'] : null;
+        $startedAt = filled($validated['started_at'] ?? null)
+            ? Carbon::parse($validated['started_at'])->startOfDay()
+            : null;
+
+        $expiredAt = filled($validated['expired_at'] ?? null)
+            ? Carbon::parse($validated['expired_at'])->endOfDay()
+            : null;
 
         if ($status === 'active' && blank($startedAt)) {
             $startedAt = $license?->started_at ?? now();
         }
 
         if ($status === 'active' && blank($expiredAt)) {
-            $baseDate = $license?->started_at ?? now();
-            $expiredAt = $baseDate->copy()->addMonths(max(1, (int) $package->duration_months));
+            $baseDate = $startedAt ?? $license?->started_at ?? now();
+            $expiredAt = $baseDate->copy()
+                ->addMonths(max(1, (int) $package->duration_months))
+                ->endOfDay();
         }
 
         return [
