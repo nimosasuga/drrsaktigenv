@@ -377,12 +377,33 @@ class UpdateJobSaveController extends Controller
             return;
         }
 
-        if ($replaceExisting) {
-            $job->installParts()->delete();
-        }
+        /*
+    |--------------------------------------------------------------------------
+    | SAFETY RULE:
+    | Jangan hapus Install Part existing saat update.
+    | Data lama hanya di-update berdasarkan urutan row.
+    | Row baru hanya ditambahkan jika jumlah input lebih banyak dari data existing.
+    |--------------------------------------------------------------------------
+    */
+        $existingParts = $job->installParts()
+            ->orderBy('id')
+            ->get()
+            ->values();
 
-        foreach ($rows as $row) {
-            $job->installParts()->create($row);
+        foreach ($rows as $index => $payload) {
+            $existing = $existingParts->get($index);
+
+            if ($existing) {
+                $existing->fill($payload);
+
+                if ($existing->isDirty()) {
+                    $existing->save();
+                }
+
+                continue;
+            }
+
+            $job->installParts()->create($payload);
         }
     }
 
@@ -401,7 +422,6 @@ class UpdateJobSaveController extends Controller
             return;
         }
 
-        $submittedRecommendationIds = [];
         $rows = [];
 
         foreach ((array) $request->input('rec_part_name', []) as $key => $partName) {
@@ -426,11 +446,20 @@ class UpdateJobSaveController extends Controller
             return;
         }
 
+        /*
+    |--------------------------------------------------------------------------
+    | SAFETY RULE:
+    | Jangan hapus Recommendation existing saat update.
+    | Update berdasarkan rec_id jika ada.
+    | Jika rec_id tidak ada, cari berdasarkan part_name + part_number.
+    | Kalau tidak ketemu, baru create.
+    |--------------------------------------------------------------------------
+    */
         foreach ($rows as $row) {
             $recommendationId = $row['id'];
             $payload = $row['payload'];
 
-            if ($replaceExisting && $recommendationId > 0) {
+            if ($recommendationId > 0) {
                 $recommendation = $job->recommendations()
                     ->whereKey($recommendationId)
                     ->first();
@@ -442,31 +471,37 @@ class UpdateJobSaveController extends Controller
                         $recommendation->save();
                     }
 
-                    $submittedRecommendationIds[] = $recommendation->id;
                     continue;
                 }
             }
 
-            $recommendation = $job->recommendations()->create($payload);
-            $submittedRecommendationIds[] = $recommendation->id;
+            $existingQuery = $job->recommendations()
+                ->where('part_name', $payload['part_name']);
+
+            if ($payload['part_number'] === null || $payload['part_number'] === '') {
+                $existingQuery->where(function ($query) {
+                    $query->whereNull('part_number')
+                        ->orWhere('part_number', '');
+                });
+            } else {
+                $existingQuery->where('part_number', $payload['part_number']);
+            }
+
+            $existing = $existingQuery->first();
+
+            if ($existing) {
+                $existing->fill($payload);
+
+                if ($existing->isDirty()) {
+                    $existing->save();
+                }
+
+                continue;
+            }
+
+            $job->recommendations()->create($payload);
         }
-
-        if (!$replaceExisting) {
-            return;
-        }
-
-        if (empty($submittedRecommendationIds)) {
-            return;
-        }
-
-        $deleteQuery = $job->recommendations();
-
-        if (!empty($submittedRecommendationIds)) {
-            $deleteQuery->whereNotIn('id', $submittedRecommendationIds);
-        }
-
-        $deleteQuery->get()->each(function ($recommendation) {
-            $recommendation->delete();
-        });
     }
 }
+
+
