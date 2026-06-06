@@ -52,7 +52,7 @@ class OperationalShareController extends Controller
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Membuka WhatsApp...</title>
+    <title>Buka WhatsApp</title>
     <style>
         body {
             margin: 0;
@@ -96,6 +96,20 @@ class OperationalShareController extends Controller
             font-weight: 700;
             font-size: 14px;
         }
+        .fallback {
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            min-height: 40px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            color: #334155;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 13px;
+        }
         .muted {
             margin-top: 12px;
             font-size: 12px;
@@ -105,22 +119,12 @@ class OperationalShareController extends Controller
 </head>
 <body>
     <div class="box">
-        <p class="title">Membuka WhatsApp...</p>
-        <p class="text">Jika WhatsApp tidak terbuka otomatis, tekan tombol di bawah.</p>
-        <a class="button" href="{$appUrl}">Buka WhatsApp</a>
-        <p class="muted">Fallback browser akan aktif otomatis jika aplikasi WhatsApp tidak tersedia.</p>
+        <p class="title">Buka WhatsApp</p>
+        <p class="text">Tekan tombol di bawah untuk membuka WhatsApp. Halaman ini tidak akan mengalihkan otomatis.</p>
+        <a class="button" href="{$appUrl}" rel="noopener">Buka WhatsApp</a>
+        <a class="fallback" href="{$webUrl}" target="_blank" rel="noopener">Buka WhatsApp Web</a>
+        <p class="muted">Jika aplikasi WhatsApp tidak terbuka, gunakan tombol WhatsApp Web.</p>
     </div>
-
-    <script>
-        const appUrl = "{$appUrl}";
-        const webUrl = "{$webUrl}";
-
-        window.location.href = appUrl;
-
-        setTimeout(function () {
-            window.location.href = webUrl;
-        }, 1200);
-    </script>
 </body>
 </html>
 HTML;
