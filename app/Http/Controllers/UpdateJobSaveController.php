@@ -274,6 +274,18 @@ class UpdateJobSaveController extends Controller
     {
         $this->normalizeRequest($request);
         $validated = $this->validateRequest($request);
+        logger()->warning('UPDATE_JOB_STORE_PAYLOAD_DEBUG', [
+            'user_id' => Auth::id(),
+            'has_inst_part_name' => $request->has('inst_part_name'),
+            'inst_part_name' => $request->input('inst_part_name'),
+            'inst_part_number' => $request->input('inst_part_number'),
+            'inst_qty' => $request->input('inst_qty'),
+            'has_rec_part_name' => $request->has('rec_part_name'),
+            'rec_part_name' => $request->input('rec_part_name'),
+            'rec_part_number' => $request->input('rec_part_number'),
+            'rec_qty' => $request->input('rec_qty'),
+            'all_keys' => array_keys($request->all()),
+        ]);
 
         if ($this->isWithdrawnAsset($validated['serial_number'])) {
             return back()->withInput()->withErrors(['error' => 'Serial Number ' . $validated['serial_number'] . ' tidak bisa digunakan karena status unit asset sudah DITARIK.']);
@@ -395,6 +407,7 @@ class UpdateJobSaveController extends Controller
                     continue;
                 }
             }
+            logger()->warning('UPDATE_JOB_CREATE_INSTALL_PART_DEBUG', $payload);
 
             JobInstallPart::create($payload);
         }
@@ -449,6 +462,7 @@ class UpdateJobSaveController extends Controller
                     continue;
                 }
             }
+            logger()->warning('UPDATE_JOB_CREATE_RECOMMENDATION_DEBUG', $payload);
 
             JobRecommendation::create($payload);
         }
