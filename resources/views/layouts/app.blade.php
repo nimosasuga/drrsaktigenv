@@ -214,14 +214,14 @@
     </aside>
 
     <!-- KONTEN UTAMA (Kanan) -->
-    <div class="flex-1 flex flex-col min-w-0 bg-slate-50">
+    <div id="main-panel" class="flex-1 flex flex-col min-w-0 bg-slate-50">
 
         <!-- TOPBAR (Header Atas) -->
         <header
             class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 shadow-sm">
-            <!-- Hamburger Button untuk Mobile -->
-            <button onclick="toggleSidebar()"
-                class="lg:hidden p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+            <!-- Hamburger Button untuk Sidebar Mobile, Tablet, dan Desktop -->
+            <button id="sidebar-toggle-button" onclick="toggleSidebar()" aria-label="Toggle sidebar" aria-expanded="false"
+                class="p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
                 <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
@@ -437,17 +437,78 @@
     </nav>
     @endif
 
-    <!-- Script Vanilla JS untuk Toggle Sidebar Mobile -->
+    <!-- Script Vanilla JS untuk Toggle Sidebar Mobile, Tablet, dan Desktop -->
     <script>
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
+        const sidebarToggleButton = document.getElementById('sidebar-toggle-button');
+        const desktopSidebarStorageKey = 'drr_sakti_sidebar_hidden';
+        const desktopSidebarQuery = window.matchMedia('(min-width: 1024px)');
+
+        function isDesktopSidebarMode() {
+            return desktopSidebarQuery.matches;
+        }
+
+        function setSidebarExpanded(isExpanded) {
+            if (sidebarToggleButton) {
+                sidebarToggleButton.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            }
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+            setSidebarExpanded(false);
+        }
+
+        function openMobileSidebar() {
+            sidebar.style.display = 'flex';
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+            setSidebarExpanded(true);
+        }
+
+        function applyDesktopSidebarState() {
+            const isHidden = localStorage.getItem(desktopSidebarStorageKey) === 'true';
+
+            sidebar.style.display = isHidden ? 'none' : 'flex';
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.add('hidden');
+            setSidebarExpanded(!isHidden);
+        }
+
+        function applyResponsiveSidebarState() {
+            if (isDesktopSidebarMode()) {
+                applyDesktopSidebarState();
+                return;
+            }
+
+            sidebar.style.display = 'flex';
+            closeMobileSidebar();
+        }
 
         function toggleSidebar() {
-            // Toggle class transform untuk memunculkan/menyembunyikan sidebar
-            sidebar.classList.toggle('-translate-x-full');
+            if (isDesktopSidebarMode()) {
+                const isHidden = sidebar.style.display === 'none';
+                localStorage.setItem(desktopSidebarStorageKey, isHidden ? 'false' : 'true');
+                applyDesktopSidebarState();
+                return;
+            }
 
-            // Toggle class hidden pada background hitam transparan
-            overlay.classList.toggle('hidden');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                openMobileSidebar();
+                return;
+            }
+
+            closeMobileSidebar();
+        }
+
+        applyResponsiveSidebarState();
+
+        if (desktopSidebarQuery.addEventListener) {
+            desktopSidebarQuery.addEventListener('change', applyResponsiveSidebarState);
+        } else if (desktopSidebarQuery.addListener) {
+            desktopSidebarQuery.addListener(applyResponsiveSidebarState);
         }
     </script>
 </body>
