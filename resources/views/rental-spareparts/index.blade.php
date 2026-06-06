@@ -60,7 +60,7 @@
                 <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p class="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Tools Data</p>
-                        <p class="mt-1 text-sm text-slate-500">Export, template, histori, dan kontrol data. Tetap lengkap, tapi tidak lagi memenuhi header.</p>
+                        <p class="mt-1 text-sm text-slate-500">Gunakan area ini untuk export data stok, download template CSV, melihat riwayat import, dan menelusuri histori pergerakan barang.</p>
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
