@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Payment;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
 use App\Models\UserSubscription;
@@ -30,64 +31,87 @@ class AdminLicenseControlController extends Controller
         $status = (string) $request->query('status', '');
         $packageId = (string) $request->query('package_id', '');
 
-        $licensesQuery = UserSubscription::with(['user', 'package', 'payment'])
-            ->when($search !== '', function ($query) use ($search) {
-                $query->where(function ($nested) use ($search) {
-                    $nested->whereHas('user', function ($userQuery) use ($search) {
-                        $userQuery->where('name', 'like', '%' . $search . '%')
-                            ->orWhere('nrpp', 'like', '%' . $search . '%')
-                            ->orWhere('branch', 'like', '%' . $search . '%')
-                            ->orWhere('position', 'like', '%' . $search . '%')
-                            ->orWhere('department', 'like', '%' . $search . '%')
-                            ->orWhere('status_user', 'like', '%' . $search . '%');
-                    })->orWhereHas('package', function ($packageQuery) use ($search) {
-                        $packageQuery->where('package_name', 'like', '%' . $search . '%')
-                            ->orWhere('role_name', 'like', '%' . $search . '%');
-                    });
-                });
-            })
-            ->when(in_array($status, self::STATUSES, true), function ($query) use ($status) {
-                if ($status === 'active') {
-                    $query->where('status', 'active')
-                        ->where(function ($dateQuery) {
-                            $dateQuery->whereNull('expired_at')
-                                ->orWhere('expired_at', '>', now());
-                        });
-
-                    return;
-                }
-
-                if ($status === 'expired') {
-                    $query->where(function ($expiredQuery) {
-                        $expiredQuery->where('status', 'expired')
-                            ->orWhere(function ($autoExpiredQuery) {
-                                $autoExpiredQuery->where('status', 'active')
-                                    ->whereNotNull('expired_at')
-                                    ->where('expired_at', '<=', now());
-                            });
-                    });
-
-                    return;
-                }
-
-                $query->where('status', $status);
-            })
-            ->when($packageId !== '', function ($query) use ($packageId) {
-                $query->where('subscription_package_id', $packageId);
-            })
-            ->latest('updated_at');
-
-        $licenses = $licensesQuery->paginate(15)->withQueryString();
-
         $packages = SubscriptionPackage::orderBy('role_name')
             ->orderBy('price')
             ->get();
 
-        $users = User::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'nrpp', 'status_user', 'branch', 'position', 'department']);
+        $usersQuery = User::query()
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($userQuery) use ($search) {
+                    $userQuery->where('name', 'like', '%' . $search . '%')
+                        ->orWhere('nrpp', 'like', '%' . $search . '%')
+                        ->orWhere('branch', 'like', '%' . $search . '%')
+                        ->orWhere('position', 'like', '%' . $search . '%')
+                        ->orWhere('department', 'like', '%' . $search . '%')
+                        ->orWhere('status_user', 'like', '%' . $search . '%');
+                });
+            })
+            ->when($status !== '', function ($query) use ($status) {
+                if ($status === 'none') {
+                    $query->whereNotExists(function ($licenseQuery) {
+                        $licenseQuery->selectRaw('1')
+                            ->from('user_subscriptions')
+                            ->whereColumn('user_subscriptions.user_id', 'users.id');
+                    });
+
+                    return;
+                }
+
+                if (!in_array($status, self::STATUSES, true)) {
+                    return;
+                }
+
+                $query->whereExists(function ($licenseQuery) use ($status) {
+                    $licenseQuery->selectRaw('1')
+                        ->from('user_subscriptions')
+                        ->whereColumn('user_subscriptions.user_id', 'users.id')
+                        ->when($status === 'active', function ($activeQuery) {
+                            $activeQuery->where('user_subscriptions.status', 'active')
+                                ->where(function ($dateQuery) {
+                                    $dateQuery->whereNull('user_subscriptions.expired_at')
+                                        ->orWhere('user_subscriptions.expired_at', '>', now());
+                                });
+                        })
+                        ->when($status === 'expired', function ($expiredQuery) {
+                            $expiredQuery->where(function ($nested) {
+                                $nested->where('user_subscriptions.status', 'expired')
+                                    ->orWhere(function ($autoExpiredQuery) {
+                                        $autoExpiredQuery->where('user_subscriptions.status', 'active')
+                                            ->whereNotNull('user_subscriptions.expired_at')
+                                            ->where('user_subscriptions.expired_at', '<=', now());
+                                    });
+                            });
+                        })
+                        ->when(!in_array($status, ['active', 'expired'], true), function ($statusQuery) use ($status) {
+                            $statusQuery->where('user_subscriptions.status', $status);
+                        });
+                });
+            })
+            ->when($packageId !== '', function ($query) use ($packageId) {
+                $query->whereExists(function ($licenseQuery) use ($packageId) {
+                    $licenseQuery->selectRaw('1')
+                        ->from('user_subscriptions')
+                        ->whereColumn('user_subscriptions.user_id', 'users.id')
+                        ->where('user_subscriptions.subscription_package_id', $packageId);
+                });
+            })
+            ->orderBy('name');
+
+        $users = $usersQuery->paginate(15)->withQueryString();
+        $allUsers = User::orderBy('name')->get(['id', 'name', 'nrpp', 'status_user', 'branch', 'position', 'department']);
+
+        $userIds = $users->getCollection()->pluck('id')->all();
+        $licenseByUser = UserSubscription::with(['user', 'package', 'payment'])
+            ->whereIn('user_id', $userIds)
+            ->orderByDesc('updated_at')
+            ->get()
+            ->groupBy('user_id')
+            ->map(function ($licenses) {
+                return $licenses->first();
+            });
 
         $summary = [
+            'users_total' => User::count(),
             'total' => UserSubscription::count(),
             'active' => UserSubscription::where('status', 'active')
                 ->where(function ($query) {
@@ -105,9 +129,14 @@ class AdminLicenseControlController extends Controller
                     });
             })->count(),
             'cancelled' => UserSubscription::where('status', 'cancelled')->count(),
+            'none' => User::whereNotExists(function ($licenseQuery) {
+                $licenseQuery->selectRaw('1')
+                    ->from('user_subscriptions')
+                    ->whereColumn('user_subscriptions.user_id', 'users.id');
+            })->count(),
         ];
 
-        return view('admin.licenses.index', compact('licenses', 'packages', 'users', 'summary'));
+        return view('admin.licenses.index', compact('users', 'allUsers', 'licenseByUser', 'packages', 'summary'));
     }
 
     public function store(Request $request)
@@ -152,36 +181,80 @@ class AdminLicenseControlController extends Controller
         $this->authorizeLicenseControl();
 
         $validated = $request->validate([
-            'license_ids' => ['required', 'array', 'min:1'],
-            'license_ids.*' => ['integer', 'exists:user_subscriptions,id'],
-            'bulk_action' => ['required', Rule::in(['activate', 'expire', 'cancel', 'delete'])],
+            'user_ids' => ['required', 'array', 'min:1'],
+            'user_ids.*' => ['integer', 'exists:users,id'],
+            'bulk_action' => ['required', Rule::in(['activate_paid', 'activate', 'expire', 'cancel', 'delete'])],
         ]);
 
-        $licenseIds = array_values(array_unique(array_map('intval', $validated['license_ids'])));
+        $userIds = array_values(array_unique(array_map('intval', $validated['user_ids'])));
         $action = $validated['bulk_action'];
+        $processed = 0;
+        $skipped = 0;
 
-        DB::transaction(function () use ($licenseIds, $action) {
-            $licenses = UserSubscription::with('package')
-                ->whereIn('id', $licenseIds)
-                ->lockForUpdate()
-                ->get();
+        DB::transaction(function () use ($userIds, $action, &$processed, &$skipped) {
+            $users = User::whereIn('id', $userIds)->lockForUpdate()->get();
 
-            foreach ($licenses as $license) {
+            foreach ($users as $user) {
+                $package = $this->findPackageForUser($user);
+                $license = UserSubscription::where('user_id', $user->id)->latest('updated_at')->lockForUpdate()->first();
+
                 if ($action === 'delete') {
-                    $license->delete();
+                    if ($license) {
+                        $license->delete();
+                        $processed++;
+                        continue;
+                    }
+
+                    $skipped++;
                     continue;
                 }
 
-                if ($action === 'activate') {
-                    $durationMonths = max(1, (int) ($license->package->duration_months ?? 1));
-                    $startedAt = $license->started_at ?? now();
+                if (in_array($action, ['activate_paid', 'activate'], true)) {
+                    if (!$package) {
+                        $skipped++;
+                        continue;
+                    }
 
-                    $license->update([
-                        'status' => 'active',
-                        'started_at' => $startedAt,
-                        'expired_at' => $license->expired_at ?? $startedAt->copy()->addMonths($durationMonths)->endOfDay(),
-                    ]);
+                    $startedAt = now()->startOfDay();
+                    $expiredAt = $startedAt->copy()->addMonths(max(1, (int) $package->duration_months))->endOfDay();
 
+                    if (!$license) {
+                        $license = UserSubscription::create([
+                            'user_id' => $user->id,
+                            'subscription_package_id' => $package->id,
+                            'status' => 'active',
+                            'started_at' => $startedAt,
+                            'expired_at' => $expiredAt,
+                        ]);
+                    } else {
+                        $license->update([
+                            'subscription_package_id' => $package->id,
+                            'status' => 'active',
+                            'started_at' => $startedAt,
+                            'expired_at' => $expiredAt,
+                        ]);
+                    }
+
+                    if ($action === 'activate_paid') {
+                        Payment::create([
+                            'user_id' => $user->id,
+                            'subscription_package_id' => $package->id,
+                            'user_subscription_id' => $license->id,
+                            'amount' => (int) $package->price,
+                            'payment_status' => 'paid',
+                            'paid_at' => now(),
+                            'verified_by' => Auth::id(),
+                            'verified_at' => now(),
+                            'note' => 'Bulk paid activation from admin license control.',
+                        ]);
+                    }
+
+                    $processed++;
+                    continue;
+                }
+
+                if (!$license) {
+                    $skipped++;
                     continue;
                 }
 
@@ -190,7 +263,7 @@ class AdminLicenseControlController extends Controller
                         'status' => 'expired',
                         'expired_at' => now(),
                     ]);
-
+                    $processed++;
                     continue;
                 }
 
@@ -198,13 +271,14 @@ class AdminLicenseControlController extends Controller
                     $license->update([
                         'status' => 'cancelled',
                     ]);
+                    $processed++;
                 }
             }
         });
 
         return redirect()
             ->route('admin.licenses.index')
-            ->with('success', 'Bulk action lisensi berhasil diproses.');
+            ->with('success', 'Bulk action selesai. Diproses: ' . $processed . '. Dilewati: ' . $skipped . '.');
     }
 
     private function authorizeLicenseControl(): void
@@ -269,6 +343,16 @@ class AdminLicenseControlController extends Controller
             'started_at' => $startedAt,
             'expired_at' => $expiredAt,
         ];
+    }
+
+    private function findPackageForUser(User $user): ?SubscriptionPackage
+    {
+        $userRole = $this->normalizeLicenseRole($user->status_user);
+
+        return SubscriptionPackage::get()
+            ->first(function (SubscriptionPackage $package) use ($userRole) {
+                return $this->normalizeLicenseRole($package->role_name) === $userRole;
+            });
     }
 
     private function isPackageAllowedForUser(SubscriptionPackage $package, User $user): bool
