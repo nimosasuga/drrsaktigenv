@@ -60,6 +60,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/subscription/waiting', [SubscriptionController::class, 'waiting'])->name('subscription.waiting');
     Route::get('/payment-settings', [\App\Http\Controllers\PaymentSettingController::class, 'edit'])->name('payment-settings.edit');
     Route::put('/payment-settings', [\App\Http\Controllers\PaymentSettingController::class, 'update'])->name('payment-settings.update');
+    Route::post('/login-as/users/{user}/start', [\App\Http\Controllers\UserImpersonationController::class, 'start'])->name('login-as.start');
+    Route::get('/login-as/stop', [\App\Http\Controllers\UserImpersonationController::class, 'stop'])->name('login-as.stop');
+    Route::get('/login-as/status', [\App\Http\Controllers\UserImpersonationController::class, 'status'])->name('login-as.status');
 
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/kontrol-lisensi', [AdminLicenseControlController::class, 'index'])->name('licenses.index');
@@ -108,7 +111,6 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/sparepart-recommendations/units/{serialNumber}', [SparepartRecommendationControlController::class, 'unitShow'])->name('sparepart-recommendations.units.show');
             Route::get('/sparepart-recommendations/parts', [SparepartRecommendationControlController::class, 'parts'])->name('sparepart-recommendations.parts');
             Route::patch('/sparepart-recommendations/{control}/status', [SparepartRecommendationControlController::class, 'updateStatus'])->name('sparepart-recommendations.status');
-
 
             Route::get('/rental-spareparts', [RentalSparepartController::class, 'index'])->name('rental-spareparts.index');
             Route::get('/rental-spareparts/export', RentalSparepartStockExportController::class)->name('rental-spareparts.export');
