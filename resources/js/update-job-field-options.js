@@ -140,14 +140,20 @@ function initializeMultiJobTypeDropdown() {
 
             const optionLabel = preventiveMaintenanceOption.closest("label");
             if (optionLabel) {
-                optionLabel.classList.add("cursor-not-allowed", "bg-blue-50", "text-blue-800");
+                optionLabel.classList.add("cursor-not-allowed", "bg-blue-50", "text-blue-800", "pr-2");
                 optionLabel.title = "Preventive Maintenance terkunci karena job ini sudah memiliki PM. Tambahkan tipe pekerjaan lain tanpa menghapus PM.";
 
                 if (!optionLabel.querySelector("[data-pm-locked-badge]")) {
                     const badge = document.createElement("span");
                     badge.dataset.pmLockedBadge = "true";
-                    badge.className = "ml-auto rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-700";
-                    badge.textContent = "Locked";
+                    badge.className = "ml-auto inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700";
+                    badge.setAttribute("aria-label", "Preventive Maintenance terkunci");
+                    badge.setAttribute("title", "Terkunci");
+                    badge.innerHTML = `
+                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4" />
+                        </svg>
+                    `;
                     optionLabel.appendChild(badge);
                 }
             }
