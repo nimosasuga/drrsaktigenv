@@ -45,6 +45,56 @@ function replaceSelectOptions(select, placeholder, options) {
 }
 
 function initializeMultiJobTypeDropdown() {
+    let activeMenu = null;
+    let activeButton = null;
+
+    function positionMenu(menu, button) {
+        if (!menu || !button || menu.classList.contains("hidden")) {
+            return;
+        }
+
+        const rect = button.getBoundingClientRect();
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        const horizontalPadding = 12;
+        const menuWidth = Math.min(rect.width, viewportWidth - (horizontalPadding * 2));
+        const left = Math.min(
+            Math.max(horizontalPadding, rect.left),
+            Math.max(horizontalPadding, viewportWidth - menuWidth - horizontalPadding),
+        );
+        const bottomSpace = viewportHeight - rect.bottom;
+        const topSpace = rect.top;
+        const shouldOpenUp = bottomSpace < 220 && topSpace > bottomSpace;
+        const maxHeight = Math.max(
+            180,
+            Math.min(320, (shouldOpenUp ? topSpace : bottomSpace) - 16),
+        );
+
+        menu.style.position = "fixed";
+        menu.style.left = `${left}px`;
+        menu.style.width = `${menuWidth}px`;
+        menu.style.maxHeight = `${maxHeight}px`;
+        menu.style.overflowY = "auto";
+        menu.style.zIndex = "999999";
+
+        if (shouldOpenUp) {
+            menu.style.top = "auto";
+            menu.style.bottom = `${viewportHeight - rect.top + 8}px`;
+        } else {
+            menu.style.top = `${rect.bottom + 8}px`;
+            menu.style.bottom = "auto";
+        }
+    }
+
+    function closeActiveMenu() {
+        if (activeMenu) {
+            activeMenu.classList.add("hidden");
+        }
+
+        activeMenu = null;
+        activeButton = null;
+    }
+
     document.querySelectorAll("[data-multi-job-type]").forEach((root) => {
         const hiddenInput = root.querySelector("[data-multi-job-type-value]");
         const button = root.querySelector("[data-multi-job-type-button]");
@@ -62,6 +112,10 @@ function initializeMultiJobTypeDropdown() {
             options.length === 0
         ) {
             return;
+        }
+
+        if (menu.parentElement !== document.body) {
+            document.body.appendChild(menu);
         }
 
         function selectedValues() {
@@ -83,13 +137,36 @@ function initializeMultiJobTypeDropdown() {
             hiddenInput.dispatchEvent(new Event("change", { bubbles: true }));
         }
 
+        function openMenu() {
+            if (activeMenu && activeMenu !== menu) {
+                closeActiveMenu();
+            }
+
+            menu.classList.remove("hidden");
+            activeMenu = menu;
+            activeButton = button;
+            positionMenu(menu, button);
+        }
+
         function closeMenu() {
+            if (activeMenu === menu) {
+                activeMenu = null;
+                activeButton = null;
+            }
+
             menu.classList.add("hidden");
         }
 
         button.addEventListener("click", (event) => {
             event.preventDefault();
-            menu.classList.toggle("hidden");
+            event.stopPropagation();
+
+            if (menu.classList.contains("hidden")) {
+                openMenu();
+                return;
+            }
+
+            closeMenu();
         });
 
         options.forEach((option) => {
@@ -97,7 +174,7 @@ function initializeMultiJobTypeDropdown() {
         });
 
         document.addEventListener("click", (event) => {
-            if (!root.contains(event.target)) {
+            if (!root.contains(event.target) && !menu.contains(event.target)) {
                 closeMenu();
             }
         });
@@ -107,6 +184,9 @@ function initializeMultiJobTypeDropdown() {
                 closeMenu();
             }
         });
+
+        window.addEventListener("resize", () => positionMenu(menu, button));
+        window.addEventListener("scroll", () => positionMenu(menu, button), true);
 
         syncValue();
     });
