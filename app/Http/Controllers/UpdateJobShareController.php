@@ -27,7 +27,7 @@ class UpdateJobShareController extends Controller
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Membuka WhatsApp...</title>
+    <title>Bagikan ke WhatsApp</title>
     <style>
         body {
             margin: 0;
@@ -71,6 +71,10 @@ class UpdateJobShareController extends Controller
             font-weight: 700;
             font-size: 14px;
         }
+        .button-secondary {
+            margin-top: 10px;
+            background: #0f172a;
+        }
         .muted {
             margin-top: 12px;
             font-size: 12px;
@@ -80,22 +84,12 @@ class UpdateJobShareController extends Controller
 </head>
 <body>
     <div class="box">
-        <p class="title">Membuka WhatsApp...</p>
-        <p class="text">Jika WhatsApp tidak terbuka otomatis, tekan tombol di bawah.</p>
+        <p class="title">Bagikan ke WhatsApp</p>
+        <p class="text">Tekan tombol di bawah untuk membuka aplikasi WhatsApp.</p>
         <a class="button" href="{$appUrl}">Buka WhatsApp</a>
-        <p class="muted">Fallback browser akan aktif otomatis jika aplikasi WhatsApp tidak tersedia.</p>
+        <a class="button button-secondary" href="{$webUrl}" target="_blank" rel="noopener noreferrer">Buka WhatsApp Web</a>
+        <p class="muted">Halaman ini tidak akan membuka WhatsApp otomatis sebelum tombol ditekan.</p>
     </div>
-
-    <script>
-        const appUrl = "{$appUrl}";
-        const webUrl = "{$webUrl}";
-
-        window.location.href = appUrl;
-
-        setTimeout(function () {
-            window.location.href = webUrl;
-        }, 1200);
-    </script>
 </body>
 </html>
 HTML;
