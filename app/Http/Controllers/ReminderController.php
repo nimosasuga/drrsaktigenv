@@ -7,7 +7,9 @@ use App\Models\Job;
 use App\Models\SparepartRecommendationControl;
 use App\Models\User;
 use App\Support\DepartmentScope;
+use App\Support\ReminderCounter;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +90,13 @@ class ReminderController extends Controller
             'scopeLabel' => $this->scopeLabel($user, $selectedUserId, $users, $selectedDepartment),
             'totalUniqueJobs' => $totalUniqueJobs,
             'oldProblemDays' => self::OLD_PROBLEM_DAYS,
+        ]);
+    }
+
+    public function count(Request $request): JsonResponse
+    {
+        return response()->json([
+            'count' => ReminderCounter::countForUser($request->user()),
         ]);
     }
 
