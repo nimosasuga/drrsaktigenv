@@ -9,13 +9,32 @@
         return String(count);
     }
 
+    function isMainReminderNavLink(link) {
+        const href = link.getAttribute('href') || '';
+
+        if (href === '/reminders') {
+            return true;
+        }
+
+        try {
+            const url = new URL(href, window.location.origin);
+
+            return url.pathname === '/reminders' && url.search === '';
+        } catch (error) {
+            return false;
+        }
+    }
+
     function findReminderLinks() {
-        return Array.from(document.querySelectorAll('a[href]')).filter((link) => {
-            try {
-                const url = new URL(link.getAttribute('href'), window.location.origin);
-                return url.pathname === '/reminders';
-            } catch (error) {
-                return false;
+        return Array.from(document.querySelectorAll('nav a[href]')).filter(isMainReminderNavLink);
+    }
+
+    function removeWrongBadges() {
+        document.querySelectorAll('[data-reminder-badge]').forEach((badge) => {
+            const link = badge.closest('a[href]');
+
+            if (!link || !link.closest('nav') || !isMainReminderNavLink(link)) {
+                badge.remove();
             }
         });
     }
@@ -46,6 +65,7 @@
     }
 
     function renderReminderBadge(count) {
+        removeWrongBadges();
         findReminderLinks().forEach((link) => ensureBadge(link, count));
     }
 
