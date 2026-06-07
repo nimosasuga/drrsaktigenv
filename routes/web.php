@@ -143,6 +143,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/calendar/piket', [CalendarController::class, 'storePiket'])->name('calendar.piket.store');
         Route::patch('/calendar/piket/{piket}/defer', [CalendarController::class, 'deferPiket'])->name('calendar.piket.defer');
         Route::delete('/calendar/piket/{piket}', [CalendarController::class, 'destroyPiket'])->name('calendar.piket.destroy');
+        Route::get('/reminders/count', [ReminderController::class, 'count'])->name('reminders.count');
         Route::get('/reminders', [ReminderController::class, 'index'])->name('reminders.index');
         Route::get('/profile', [ProfileController::class, 'index'])->name('profile.index');
         Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password.update');
