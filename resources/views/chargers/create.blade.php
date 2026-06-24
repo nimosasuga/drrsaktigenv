@@ -450,7 +450,7 @@
 <!-- ========================================== -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        
+
         // --- 1. NETWORK INDICATOR ---
         const networkStatus = document.getElementById('network-status');
         function updateNetworkStatus() {
@@ -472,7 +472,7 @@
         // --- 2. PERINGATAN KELUAR HALAMAN ---
         let formChanged = false;
         const formCharger = document.getElementById('form-charger');
-        
+
         formCharger.addEventListener('input', () => { formChanged = true; });
 
         const beforeUnloadHandler = function (e) {
@@ -491,7 +491,7 @@
 
         formCharger.addEventListener('submit', function(e) {
             // Validasi Job Types (Minimal 1 dicentang)
-            const checkedJobs = document.querySelectorAll('.job-type-checkbox:checked');
+            const checkedJobs = document.querySelectorAll('input[name="job_types[]"]:checked');
             const jobTypeError = document.getElementById('job-type-error');
 
             if(checkedJobs.length === 0) {
@@ -504,12 +504,12 @@
             }
 
             if (isSubmitting) { e.preventDefault(); return; }
-            
+
             isSubmitting = true;
             btnSubmit.classList.add('opacity-75', 'cursor-not-allowed');
             btnIcon.innerHTML = `<svg class="animate-spin h-5 w-5 mr-2 text-amber-50" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
             btnText.innerText = 'Menyimpan...';
-            
+
             window.removeEventListener('beforeunload', beforeUnloadHandler);
         });
 
@@ -563,7 +563,7 @@
         });
 
         // --- HILANGKAN ERROR SAAT CEKBOX DIKLIK ---
-        document.querySelectorAll('.job-type-checkbox').forEach(cb => {
+        document.querySelectorAll('input[name="job_types[]"]').forEach(cb => {
             cb.addEventListener('change', function() {
                 document.getElementById('job-type-error').classList.add('hidden');
             });

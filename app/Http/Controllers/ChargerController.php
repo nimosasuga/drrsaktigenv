@@ -238,6 +238,8 @@ class ChargerController extends Controller
             'problem' => 'nullable|string',
             'action' => 'nullable|string',
             'partner' => 'nullable|string|max:150',
+            'job_types' => 'nullable|array',
+            'job_types.*' => 'nullable|string|max:100',
         ]);
 
         if ($blockedResponse = $this->rejectIfAssetWithdrawn($validated['serial_number'])) {
