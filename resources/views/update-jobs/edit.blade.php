@@ -686,6 +686,13 @@
                                     customerInput.value = item.customer;
                                     locationInput.value = item.location;
                                     snDropdown.classList.add('hidden');
+                                    snInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+                                    if (window.drrsaktiRunPmCheck) {
+                                        setTimeout(function () {
+                                            window.drrsaktiRunPmCheck(true);
+                                        }, 100);
+                                    }
                                 });
                                 snDropdown.appendChild(div);
                             });

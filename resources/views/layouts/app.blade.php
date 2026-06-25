@@ -18,25 +18,67 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+
+        @media (min-width: 1024px) {
+            #sidebar {
+                flex: 0 0 18rem;
+                overflow: hidden;
+                transition:
+                    flex-basis 260ms cubic-bezier(.4, 0, .2, 1),
+                    width 260ms cubic-bezier(.4, 0, .2, 1),
+                    margin 260ms cubic-bezier(.4, 0, .2, 1),
+                    border-width 260ms cubic-bezier(.4, 0, .2, 1),
+                    box-shadow 260ms cubic-bezier(.4, 0, .2, 1);
+            }
+
+            #sidebar>* {
+                transition:
+                    opacity 160ms ease 120ms,
+                    transform 200ms ease 120ms;
+            }
+
+            body.sidebar-collapsed #sidebar {
+                width: 0 !important;
+                min-width: 0 !important;
+                flex-basis: 0 !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                border-right-width: 0 !important;
+                overflow: hidden !important;
+                box-shadow: none !important;
+            }
+
+            body.sidebar-collapsed #sidebar>* {
+                opacity: 0;
+                transform: translateX(-10px);
+                transition-delay: 0ms;
+                pointer-events: none;
+            }
+        }
     </style>
 </head>
 
 <body
     data-user-status="{{ strtolower(trim((string) (Auth::user()->status_user ?? ''))) }}"
     data-user-department="{{ strtoupper(trim((string) (Auth::user()->department ?? ''))) }}"
-    class="bg-slate-50 text-slate-800 antialiased flex h-screen overflow-hidden selection:bg-blue-200 selection:text-blue-900">
+    class="bg-slate-100 text-slate-800 antialiased flex h-screen overflow-hidden selection:bg-blue-200 selection:text-blue-900">
+    <script>
+        if (window.innerWidth >= 1024 && localStorage.getItem('drrSidebarCollapsed') === '1') {
+            document.body.classList.add('sidebar-collapsed');
+        }
+    </script>
 
     <!-- Latar Belakang Gelap untuk Mobile Sidebar -->
     <div id="sidebar-overlay"
         class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden backdrop-blur-sm transition-opacity"
-        onclick="toggleSidebar()"></div>
+        onclick="closeMobileSidebar()"></div>
 
     <!-- SIDEBAR (Menu Kiri) -->
     <aside id="sidebar"
-        class="fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-slate-200 transform -translate-x-full lg:translate-x-0 lg:static lg:inset-auto flex flex-col transition-transform duration-300 ease-in-out shadow-2xl lg:shadow-none">
+        class="fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-slate-200 transform -translate-x-full rounded-r-2xl lg:translate-x-0 lg:static lg:inset-auto lg:m-3 lg:mr-0 lg:h-[calc(100vh-1.5rem)] lg:rounded-2xl lg:border flex flex-col transition-all duration-300 ease-in-out shadow-2xl lg:shadow-sm">
 
         <!-- Logo Sidebar -->
-        <div class="h-16 flex items-center px-6 border-b border-slate-100 shrink-0">
+        <div class="h-16 flex items-center px-6 border-b border-slate-100 shrink-0 rounded-tr-2xl lg:rounded-t-2xl">
             <img src="{{ asset('images/icon.png') }}" alt="Logo" class="h-8 w-auto mr-3"
                 onerror="this.style.display='none'">
             <span class="text-xl font-bold text-slate-900 tracking-tight">DRR <span
@@ -199,16 +241,20 @@
     </aside>
 
     <!-- KONTEN UTAMA (Kanan) -->
-    <div class="flex-1 flex flex-col min-w-0 bg-slate-50">
+    <div class="flex-1 flex flex-col min-w-0 bg-slate-100 p-0 lg:p-3">
 
         <!-- TOPBAR (Header Atas) -->
         <header
-            class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 shadow-sm">
-            <!-- Hamburger Button untuk Mobile -->
-            <button onclick="toggleSidebar()"
-                class="lg:hidden p-2 rounded-md text-slate-400 hover:text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            class="h-16 bg-white border border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10 shadow-sm rounded-none lg:rounded-2xl">
+            <!-- Sidebar Toggle -->
+            <button type="button" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Tampilkan atau sembunyikan menu"
+                aria-expanded="true"
+                class="p-2 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                <svg id="sidebar-toggle-open-icon" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+                <svg id="sidebar-toggle-closed-icon" class="hidden h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                 </svg>
             </button>
 
@@ -248,7 +294,7 @@
         </header>
 
         <!-- AREA KONTEN DINAMIS -->
-        <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-28">
+        <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 pb-28 sm:p-6 sm:pb-28 lg:mt-3 lg:rounded-2xl lg:bg-slate-50 lg:p-8 lg:pb-28">
             @yield('content')
         </main>
 
@@ -422,18 +468,79 @@
     </nav>
     @endif
 
-    <!-- Script Vanilla JS untuk Toggle Sidebar Mobile -->
+    <!-- Script Vanilla JS untuk Toggle Sidebar Responsive -->
     <script>
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebar-overlay');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarToggleOpenIcon = document.getElementById('sidebar-toggle-open-icon');
+        const sidebarToggleClosedIcon = document.getElementById('sidebar-toggle-closed-icon');
+        const desktopMediaQuery = window.matchMedia('(min-width: 1024px)');
+
+        function isDesktopLayout() {
+            return desktopMediaQuery.matches;
+        }
+
+        function setToggleState() {
+            const collapsed = document.body.classList.contains('sidebar-collapsed');
+
+            if (sidebarToggle) {
+                sidebarToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                sidebarToggle.setAttribute('title', collapsed ? 'Tampilkan menu' : 'Sembunyikan menu');
+            }
+
+            if (sidebarToggleOpenIcon && sidebarToggleClosedIcon) {
+                sidebarToggleOpenIcon.classList.toggle('hidden', collapsed && isDesktopLayout());
+                sidebarToggleClosedIcon.classList.toggle('hidden', !collapsed || !isDesktopLayout());
+            }
+        }
+
+        function openMobileSidebar() {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        function toggleDesktopSidebar() {
+            document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem(
+                'drrSidebarCollapsed',
+                document.body.classList.contains('sidebar-collapsed') ? '1' : '0'
+            );
+            setToggleState();
+        }
 
         function toggleSidebar() {
-            // Toggle class transform untuk memunculkan/menyembunyikan sidebar
-            sidebar.classList.toggle('-translate-x-full');
+            if (isDesktopLayout()) {
+                toggleDesktopSidebar();
+                return;
+            }
 
-            // Toggle class hidden pada background hitam transparan
-            overlay.classList.toggle('hidden');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                openMobileSidebar();
+                return;
+            }
+
+            closeMobileSidebar();
         }
+
+        desktopMediaQuery.addEventListener('change', function () {
+            closeMobileSidebar();
+
+            if (!isDesktopLayout()) {
+                document.body.classList.remove('sidebar-collapsed');
+            } else if (localStorage.getItem('drrSidebarCollapsed') === '1') {
+                document.body.classList.add('sidebar-collapsed');
+            }
+
+            setToggleState();
+        });
+
+        setToggleState();
     </script>
 </body>
 

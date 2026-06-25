@@ -122,6 +122,78 @@ function showPreventiveMaintenancePopup(message) {
     popup.classList.add("flex");
 }
 
+function lockPmCheckbox() {
+    const pmOption = document.querySelector(
+        'input[data-multi-job-type-option][value="Preventive Maintenance"]',
+    );
+
+    if (!pmOption || pmOption.dataset.pmCheckLocked === "true") return;
+
+    pmOption.checked = false;
+    pmOption.dispatchEvent(new Event("change", { bubbles: true }));
+    pmOption.disabled = true;
+    pmOption.dataset.pmCheckLocked = "true";
+    pmOption.setAttribute("aria-disabled", "true");
+
+    const label = pmOption.closest("label");
+
+    if (label) {
+        label.classList.add(
+            "cursor-not-allowed",
+            "bg-blue-50",
+            "text-blue-800",
+            "pr-2",
+        );
+        label.title =
+            "Preventive Maintenance sudah ada di bulan ini.";
+
+        if (!label.querySelector("[data-pm-locked-badge]")) {
+            const badge = document.createElement("span");
+            badge.dataset.pmLockedBadge = "true";
+            badge.className =
+                "ml-auto inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700";
+            badge.setAttribute("aria-label", "Preventive Maintenance terkunci");
+            badge.setAttribute("title", "Terkunci");
+            badge.innerHTML = `
+                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4" />
+                </svg>
+            `;
+            label.appendChild(badge);
+        }
+    }
+}
+
+function unlockPmCheckbox() {
+    const pmOption = document.querySelector(
+        'input[data-multi-job-type-option][value="Preventive Maintenance"]',
+    );
+
+    if (!pmOption || pmOption.dataset.pmCheckLocked !== "true") return;
+
+    pmOption.disabled = false;
+    pmOption.removeAttribute("aria-disabled");
+    delete pmOption.dataset.pmCheckLocked;
+
+    const label = pmOption.closest("label");
+
+    if (label) {
+        label.classList.remove(
+            "cursor-not-allowed",
+            "bg-blue-50",
+            "text-blue-800",
+            "pr-2",
+        );
+        label.title = "";
+
+        const badge = label.querySelector("[data-pm-locked-badge]");
+
+        if (badge) {
+            badge.remove();
+        }
+    }
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("form-job");
     const serialNumberInput = document.getElementById("serial_number");
@@ -135,61 +207,32 @@ document.addEventListener("DOMContentLoaded", function () {
 
     let checkTimeout = null;
     let lastCheckKey = "";
-    let blockedMessage = "";
+    let pmLocked = false;
     let activeController = null;
 
-    function setBlockedState(message) {
-        blockedMessage = message || "";
-        serialNumberInput.setCustomValidity(blockedMessage);
-
-        if (submitButton) {
-            submitButton.disabled = Boolean(blockedMessage);
-            submitButton.classList.toggle(
-                "opacity-60",
-                Boolean(blockedMessage),
-            );
-            submitButton.classList.toggle(
-                "cursor-not-allowed",
-                Boolean(blockedMessage),
-            );
-        }
-    }
-
-    function clearBlockedState() {
-        setBlockedState("");
-    }
-
-    function shouldCheck() {
+    function canCheckPm() {
         return (
             serialNumberInput.value.trim() !== "" &&
-            workDateInput.value.trim() !== "" &&
-            getSelectedJobTypes(jobTypeInput).includes("Preventive Maintenance")
+            workDateInput.value.trim() !== ""
         );
     }
 
     function runCheck(showPopup = false) {
         clearTimeout(checkTimeout);
 
-        if (!shouldCheck()) {
-            clearBlockedState();
+        if (!canCheckPm()) {
+            unlockPmCheckbox();
+            pmLocked = false;
             lastCheckKey = "";
             return;
         }
 
         const serialNumber = serialNumberInput.value.trim();
         const workDate = workDateInput.value.trim();
-        const jobType = getSelectedJobTypes(jobTypeInput).includes(
-            "Preventive Maintenance",
-        )
-            ? "Preventive Maintenance"
-            : "";
         const exceptJobId = resolveEditJobId(form);
-        const checkKey = `${serialNumber}|${workDate}|${jobType}|${exceptJobId}`;
+        const checkKey = `${serialNumber}|${workDate}|${exceptJobId}`;
 
-        if (checkKey === lastCheckKey && blockedMessage) {
-            if (showPopup) {
-                showPreventiveMaintenancePopup(blockedMessage);
-            }
+        if (checkKey === lastCheckKey && !showPopup) {
             return;
         }
 
@@ -205,7 +248,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const params = new URLSearchParams({
                 serial_number: serialNumber,
                 work_date: workDate,
-                job_type: jobType,
+                job_type: "Preventive Maintenance",
             });
 
             if (exceptJobId) {
@@ -232,7 +275,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 })
                 .then(function (data) {
                     if (data.blocked) {
-                        setBlockedState(data.message);
+                        pmLocked = true;
+                        lockPmCheckbox();
 
                         if (showPopup) {
                             showPreventiveMaintenancePopup(data.message);
@@ -241,20 +285,26 @@ document.addEventListener("DOMContentLoaded", function () {
                         return;
                     }
 
-                    clearBlockedState();
+                    pmLocked = false;
+                    unlockPmCheckbox();
                 })
                 .catch(function (error) {
                     if (error.name === "AbortError") {
                         return;
                     }
 
-                    clearBlockedState();
+                    pmLocked = false;
+                    unlockPmCheckbox();
                 });
         }, 250);
     }
 
     serialNumberInput.addEventListener("change", function () {
         runCheck(true);
+    });
+
+    serialNumberInput.addEventListener("input", function () {
+        runCheck(false);
     });
 
     serialNumberInput.addEventListener("blur", function () {
@@ -269,27 +319,9 @@ document.addEventListener("DOMContentLoaded", function () {
         runCheck(true);
     });
 
-    document.addEventListener("click", function (event) {
-        const option = event.target.closest("#sn-dropdown > div");
-
-        if (option) {
-            setTimeout(function () {
-                runCheck(true);
-            }, 80);
-        }
-    });
-
-    form.addEventListener(
-        "submit",
-        function (event) {
-            if (blockedMessage) {
-                event.preventDefault();
-                showPreventiveMaintenancePopup(blockedMessage);
-                serialNumberInput.reportValidity();
-            }
-        },
-        true,
-    );
+    window.drrsaktiRunPmCheck = function (showPopup) {
+        runCheck(showPopup);
+    };
 
     runCheck(false);
 });

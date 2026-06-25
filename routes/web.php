@@ -18,6 +18,7 @@ use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\PenarikanController;
 use App\Http\Controllers\CommandCenterController;
 use App\Http\Controllers\CommandCenterCsvController;
+use App\Http\Controllers\DashboardPmStatusController;
 use App\Http\Controllers\UpdateJobShareController;
 use App\Http\Controllers\OperationalShareController;
 use App\Http\Controllers\UpdateJobExtraFieldController;
@@ -68,6 +69,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware([CheckSubscription::class])->group(function () {
         Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard/pm-status/{status}', DashboardPmStatusController::class)->name('dashboard.pm-status');
         Route::resource('assets', UnitAssetController::class);
         Route::get('/update-jobs/search-assets', UpdateJobAssetSearchController::class)->name('update-jobs.search-assets');
         Route::get('/update-jobs/check-preventive-maintenance', UpdateJobPreventiveMaintenanceCheckController::class)->name('update-jobs.check-preventive-maintenance');
