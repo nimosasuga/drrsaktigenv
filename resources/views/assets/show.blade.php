@@ -34,6 +34,16 @@ $assetFields = [
     'created_at' => $asset->created_at ? $asset->created_at->format('Y-m-d H:i:s') : null,
     'updated_at' => $asset->updated_at ? $asset->updated_at->format('Y-m-d H:i:s') : null,
 ];
+
+$moduleBadgeClass = function ($module) {
+    return match ($module) {
+        'Update Job' => 'bg-blue-50 text-blue-700 border-blue-100',
+        'Battery' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        'Charger' => 'bg-amber-50 text-amber-700 border-amber-100',
+        'Delivery' => 'bg-purple-50 text-purple-700 border-purple-100',
+        default => 'bg-slate-50 text-slate-700 border-slate-100',
+    };
+};
 @endphp
 
 <div class="mx-auto max-w-6xl space-y-8 px-1 pb-28 sm:px-2 lg:px-0">
@@ -83,13 +93,48 @@ $assetFields = [
                 </span>
             </div>
 
-            <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                @foreach($assetFields as $field => $value)
-                    <div class="rounded-2xl bg-slate-50 p-4 {{ in_array($field, ['note', 'qr_token'], true) ? 'sm:col-span-2' : '' }}">
-                        <p class="text-xs font-black uppercase tracking-wide text-slate-500">{{ $field }}</p>
-                        <p class="mt-1 break-words text-sm font-semibold text-slate-900 whitespace-pre-line">{{ filled($value) ? $value : '-' }}</p>
+            <div class="mt-5 overflow-hidden rounded-2xl border border-slate-200">
+                <div class="hidden md:block">
+                    <table class="min-w-full table-fixed divide-y divide-slate-100">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="w-[220px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Field</th>
+                                <th class="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Nilai</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white">
+                            @foreach($assetFields as $field => $value)
+                            <tr class="align-top transition hover:bg-blue-50/40">
+                                <td class="px-4 py-3 text-sm font-black text-slate-600">{{ str_replace('_', ' ', $field) }}</td>
+                                <td class="px-4 py-3">
+                                    @if($field === 'status')
+                                    <span class="inline-flex rounded-full border px-3 py-1 text-xs font-black {{ $statusClass }}">
+                                        {{ filled($value) ? $value : '-' }}
+                                    </span>
+                                    @else
+                                    <p class="break-words whitespace-pre-line text-sm font-semibold text-slate-900">{{ filled($value) ? $value : '-' }}</p>
+                                    @endif
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="divide-y divide-slate-100 md:hidden">
+                    @foreach($assetFields as $field => $value)
+                    <div class="bg-white px-4 py-3">
+                        <p class="text-[11px] font-black uppercase tracking-wide text-slate-400">{{ str_replace('_', ' ', $field) }}</p>
+                        @if($field === 'status')
+                        <span class="mt-1 inline-flex rounded-full border px-3 py-1 text-xs font-black {{ $statusClass }}">
+                            {{ filled($value) ? $value : '-' }}
+                        </span>
+                        @else
+                        <p class="mt-1 break-words whitespace-pre-line text-sm font-bold text-slate-900">{{ filled($value) ? $value : '-' }}</p>
+                        @endif
                     </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
         </div>
 
@@ -123,114 +168,121 @@ $assetFields = [
 
     </div>
 
-    {{-- Histori Pekerjaan Mekanik --}}
-    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3">
+    {{-- Histori Unit --}}
+    <div class="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
+        <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
-                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider">
-                    Histori Pekerjaan Mekanik
+                <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800">
+                    Tabel Histori Unit
                 </h2>
-                <p class="text-xs text-slate-500 mt-1">
-                    Riwayat pekerjaan berdasarkan Serial Number: {{ $asset->serial_number ?? '-' }}
+                <p class="mt-1 text-xs text-slate-500">
+                    Riwayat gabungan berdasarkan Serial Number: {{ $asset->serial_number ?? '-' }}
                 </p>
             </div>
 
-            <span class="inline-flex items-center rounded-xl bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700 border border-blue-100">
-                {{ $asset->jobHistories->count() }} Job
+            <span class="inline-flex w-max items-center rounded-xl border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
+                {{ $timeline->count() }} Histori
             </span>
         </div>
 
-        <div class="p-6">
-            @if($asset->jobHistories->count() > 0)
-            <div class="space-y-4">
-                @foreach($asset->jobHistories as $job)
-                <div class="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
-                    <div class="absolute left-0 top-4 bottom-4 w-1.5 rounded-r-full {{ ($job->status_unit ?? '') === 'RFU' ? 'bg-emerald-500' : 'bg-red-500' }}"></div>
-
-                    <div class="pl-4">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase text-slate-600">
-                                        {{ $job->job_type ?? 'JOB' }}
-                                    </span>
-
-                                    @if(($job->status_unit ?? '') === 'RFU')
-                                    <span class="inline-flex rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold uppercase text-emerald-700">
-                                        RFU
-                                    </span>
-                                    @elseif(($job->status_unit ?? '') === 'BREAKDOWN')
-                                    <span class="inline-flex rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase text-red-700">
-                                        BREAKDOWN
-                                    </span>
-                                    @else
-                                    <span class="inline-flex rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-bold uppercase text-amber-700">
-                                        {{ $job->status_unit ?? 'MONITORING' }}
-                                    </span>
-                                    @endif
-                                </div>
-
-                                <h3 class="mt-3 text-sm font-black text-slate-900">
-                                    {{ $job->problem ?: 'Problem belum diisi' }}
-                                </h3>
-
-                                <p class="mt-1 text-sm text-slate-600 whitespace-pre-line">
-                                    {{ $job->action ?: 'Action belum diisi' }}
-                                </p>
-                            </div>
-
-                            <div class="shrink-0 text-left sm:text-right">
-                                <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">
-                                    Tanggal Kerja
-                                </p>
-                                <p class="mt-1 text-sm font-bold text-slate-800">
-                                    {{ $job->work_date ? \Carbon\Carbon::parse($job->work_date)->translatedFormat('d M Y') : '-' }}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-4">
-                            <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">PIC</p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->pic ?? '-' }}</p>
-                            </div>
-
-                            <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">HM</p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->hour_meter ?? '-' }}</p>
-                            </div>
-
-                            <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Customer</p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->customer ?? '-' }}</p>
-                            </div>
-
-                            <div>
-                                <p class="text-[11px] font-bold uppercase tracking-wide text-slate-400">Location</p>
-                                <p class="mt-1 truncate text-sm font-bold text-slate-800">{{ $job->location ?? '-' }}</p>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 flex justify-end">
-                            <a href="{{ route('update-jobs.show', $job->id) }}"
-                                class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition-colors">
-                                Lihat Detail Job
+        <div class="hidden xl:block">
+            <table class="min-w-full table-fixed divide-y divide-slate-100">
+                <thead class="bg-white">
+                    <tr>
+                        <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Tanggal</th>
+                        <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Module</th>
+                        <th class="w-[18%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Pekerjaan</th>
+                        <th class="w-[14%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">PIC</th>
+                        <th class="w-[32%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Deskripsi</th>
+                        <th class="w-[12%] px-4 py-3 text-right text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 bg-white">
+                    @forelse($timeline as $item)
+                    @php
+                    $historyDate = filled($item['date'] ?? null)
+                        ? \Carbon\Carbon::parse($item['date'])->translatedFormat('d M Y')
+                        : '-';
+                    @endphp
+                    <tr class="align-top transition hover:bg-blue-50/40">
+                        <td class="px-4 py-4 text-sm font-black text-slate-900">{{ $historyDate }}</td>
+                        <td class="px-4 py-4">
+                            <span class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black {{ $moduleBadgeClass($item['module'] ?? '') }}">
+                                {{ $item['module'] ?? '-' }}
+                            </span>
+                        </td>
+                        <td class="break-words px-4 py-4 text-sm font-bold text-slate-800">{{ $item['title'] ?? '-' }}</td>
+                        <td class="break-words px-4 py-4 text-sm font-semibold text-slate-700">{{ $item['pic'] ?? '-' }}</td>
+                        <td class="px-4 py-4">
+                            <p class="break-words whitespace-pre-line text-sm font-semibold text-slate-700">{{ $item['desc'] ?? '-' }}</p>
+                        </td>
+                        <td class="px-4 py-4 text-right">
+                            @if(!empty($item['route']))
+                            <a href="{{ $item['route'] }}"
+                                class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white transition-colors hover:bg-blue-700">
+                                Lihat Detail
                             </a>
-                        </div>
+                            @else
+                            <span class="text-xs font-semibold text-slate-400">-</span>
+                            @endif
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="px-4 py-10 text-center">
+                            <p class="text-sm font-bold text-slate-700">Histori unit belum tersedia.</p>
+                            <p class="mt-1 text-xs text-slate-500">Belum ada aktivitas yang tercatat untuk serial number ini.</p>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <div class="divide-y divide-slate-100 xl:hidden">
+            @forelse($timeline as $item)
+            @php
+            $historyDate = filled($item['date'] ?? null)
+                ? \Carbon\Carbon::parse($item['date'])->translatedFormat('d M Y')
+                : '-';
+            @endphp
+            <div class="p-4">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div class="min-w-0">
+                        <p class="text-xs font-black uppercase tracking-wide text-slate-400">{{ $historyDate }}</p>
+                        <h3 class="mt-1 break-words text-sm font-black text-slate-950">{{ $item['title'] ?? '-' }}</h3>
                     </div>
+                    <span class="w-max rounded-full border px-2.5 py-1 text-[11px] font-black {{ $moduleBadgeClass($item['module'] ?? '') }}">
+                        {{ $item['module'] ?? '-' }}
+                    </span>
                 </div>
-                @endforeach
+
+                <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-2xl bg-slate-50 p-3">
+                        <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">PIC</dt>
+                        <dd class="mt-1 break-words text-sm font-bold text-slate-800">{{ $item['pic'] ?? '-' }}</dd>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 p-3 sm:col-span-2">
+                        <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Deskripsi</dt>
+                        <dd class="mt-1 break-words whitespace-pre-line text-sm font-bold text-slate-800">{{ $item['desc'] ?? '-' }}</dd>
+                    </div>
+                </dl>
+
+                @if(!empty($item['route']))
+                <div class="mt-4 flex justify-end">
+                    <a href="{{ $item['route'] }}"
+                        class="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-2.5 text-sm font-black text-white transition-colors hover:bg-blue-700">
+                        Lihat Detail
+                    </a>
+                </div>
+                @endif
             </div>
-            @else
-            <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                <p class="text-sm font-bold text-slate-700">
-                    Histori pekerjaan belum tersedia.
-                </p>
-                <p class="mt-1 text-xs text-slate-500">
-                    Belum ada data update job dengan serial number ini.
-                </p>
+            @empty
+            <div class="p-8 text-center">
+                <p class="text-sm font-bold text-slate-700">Histori unit belum tersedia.</p>
+                <p class="mt-1 text-xs text-slate-500">Belum ada aktivitas yang tercatat untuk serial number ini.</p>
             </div>
-            @endif
+            @endforelse
         </div>
     </div>
 
