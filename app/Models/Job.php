@@ -34,6 +34,8 @@ class Job extends Model
         'unit_type',
         'year',
         'hour_meter',
+        'battery_type',
+        'battery_brand',
         'nomor_lambung',
         'customer',
         'location',

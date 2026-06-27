@@ -46,7 +46,7 @@
     @endif
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div class="relative overflow-hidden rounded-3xl border border-red-100 bg-gradient-to-br from-red-500 to-rose-600 p-4 text-white shadow-2xl shadow-red-900/20">
+        <div class="relative overflow-hidden rounded-3xl border border-red-100 bg-linear-to-br from-red-500 to-rose-600 p-4 text-white shadow-2xl shadow-red-900/20">
             <div class="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10"></div>
             <p class="text-[10px] font-black uppercase tracking-[0.18em] text-red-100">Total Unit BD</p>
             <div class="mt-3 flex items-end justify-between gap-3">
@@ -90,7 +90,7 @@
             $trendClass = $delta > 0 ? 'from-amber-500 to-orange-600 text-white' : ($delta < 0 ? 'from-emerald-500 to-green-600 text-white' : 'from-slate-700 to-slate-900 text-white');
             $trendNote = $delta > 0 ? 'Naik, perlu perhatian.' : ($delta < 0 ? 'Turun, performa membaik.' : 'Stabil dari bulan sebelumnya.');
         @endphp
-        <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br {{ $trendClass }} p-4 shadow-2xl shadow-slate-900/15">
+        <div class="relative overflow-hidden rounded-3xl bg-linear-to-br {{ $trendClass }} p-4 shadow-2xl shadow-slate-900/15">
             <div class="absolute -bottom-8 -right-8 h-28 w-28 rounded-full bg-white/10"></div>
             <p class="text-[10px] font-black uppercase tracking-[0.18em] opacity-80">Trend TS</p>
             <div class="mt-3 flex items-end justify-between gap-3">

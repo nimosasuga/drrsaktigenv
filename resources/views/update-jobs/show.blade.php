@@ -123,6 +123,14 @@ $sparepartReviewsByInstallPart = $sparepartReviewsByInstallPart ?? collect();
                             <p class="text-sm font-medium text-slate-800">{{ number_format($job->hour_meter, 0, ',', '.') }}</p>
                         </div>
                         <div>
+                            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Battery Type</p>
+                            <p class="text-sm font-medium text-slate-800">{{ $job->battery_type ?? '-' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Battery Brand</p>
+                            <p class="text-sm font-medium text-slate-800">{{ $job->battery_brand ?? '-' }}</p>
+                        </div>
+                        <div>
                             <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Tanggal Pekerjaan</p>
                             <p class="text-sm font-medium text-slate-800">{{ \Carbon\Carbon::parse($job->work_date)->translatedFormat('d M Y') }}</p>
                         </div>

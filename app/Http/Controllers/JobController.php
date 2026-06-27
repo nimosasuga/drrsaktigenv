@@ -19,7 +19,7 @@ class JobController extends Controller
     /**
      * Helper untuk mengecek Hak Akses (Otorisasi)
      */
-    private function canEditJob($job)
+    private function canEditJob(Job $job)
     {
         $user = Auth::user();
         $role = $user->role ?? $user->status_user;
@@ -52,6 +52,16 @@ class JobController extends Controller
         ];
     }
 
+    private function batteryTypeOptions(): array
+    {
+        return ['LEAD ACID', 'LITHIUM'];
+    }
+
+    private function batteryBrandOptions(): array
+    {
+        return ['EIKTO', 'ENEROC', 'JUNGHEINRICH', 'YUASA', 'GS', 'MIDAC'];
+    }
+
     private function normalizeJobType(?string $value): ?string
     {
         $value = trim((string) $value);
@@ -75,12 +85,12 @@ class JobController extends Controller
         };
     }
 
-    private function isRfuStatus($status): bool
+    private function isRfuStatus(string $status): bool
     {
         return strtoupper(trim((string) $status)) === 'RFU';
     }
 
-    private function isBreakdownStatus($status): bool
+    private function isBreakdownStatus(string $status): bool
     {
         $normalized = strtoupper(trim((string) $status));
 
@@ -88,7 +98,7 @@ class JobController extends Controller
             || str_contains($normalized, 'BREAKDOWN');
     }
 
-    private function isWithdrawnAssetStatus($status): bool
+    private function isWithdrawnAssetStatus(string $status): bool
     {
         return strtoupper(trim((string) $status)) === 'DITARIK';
     }
@@ -140,7 +150,7 @@ class JobController extends Controller
             ]);
     }
 
-    private function isTroubleshootingJob($job): bool
+    private function isTroubleshootingJob(Job $job): bool
     {
         $haystack = strtoupper(trim(implode(' ', [
             (string) ($job->job_type ?? ''),
@@ -151,19 +161,19 @@ class JobController extends Controller
         return str_contains($haystack, 'TROUBLE');
     }
 
-    private function countRfu($jobs): int
+    private function countRfu(mixed $jobs): int
     {
-        return $jobs->filter(fn ($job) => $this->isRfuStatus($job->status_unit))->count();
+        return $jobs->filter(fn($job) => $this->isRfuStatus($job->status_unit))->count();
     }
 
-    private function countBreakdown($jobs): int
+    private function countBreakdown(mixed $jobs): int
     {
-        return $jobs->filter(fn ($job) => $this->isBreakdownStatus($job->status_unit))->count();
+        return $jobs->filter(fn($job) => $this->isBreakdownStatus($job->status_unit))->count();
     }
 
-    private function countTroubleshooting($jobs): int
+    private function countTroubleshooting(mixed $jobs): int
     {
-        return $jobs->filter(fn ($job) => $this->isTroubleshootingJob($job))->count();
+        return $jobs->filter(fn($job) => $this->isTroubleshootingJob($job))->count();
     }
 
     /**
@@ -245,7 +255,7 @@ class JobController extends Controller
 
         $summary = [
             'total_bd_units' => $jobs
-                ->filter(fn ($job) => $this->isBreakdownStatus($job->status_unit))
+                ->filter(fn($job) => $this->isBreakdownStatus($job->status_unit))
                 ->pluck('serial_number')
                 ->filter()
                 ->unique()
@@ -275,7 +285,7 @@ class JobController extends Controller
                     'rfu_total' => $this->countRfu($monthJobs),
                     'breakdown_total' => $this->countBreakdown($monthJobs),
                     'pics' => $monthJobs
-                        ->groupBy(fn ($job) => $job->pic ?: 'Tanpa PIC')
+                        ->groupBy(fn($job) => $job->pic ?: 'Tanpa PIC')
                         ->map(function ($picJobs, $picName) {
                             return [
                                 'name' => $picName,
@@ -360,8 +370,10 @@ class JobController extends Controller
 
         $jobTypeOptions = $this->jobTypeOptions();
         $statusUnitOptions = $this->statusUnitOptions();
+        $batteryTypeOptions = $this->batteryTypeOptions();
+        $batteryBrandOptions = $this->batteryBrandOptions();
 
-        return view('update-jobs.create', compact('user', 'branch', 'partners', 'jobTypeOptions', 'statusUnitOptions'));
+        return view('update-jobs.create', compact('user', 'branch', 'partners', 'jobTypeOptions', 'statusUnitOptions', 'batteryTypeOptions', 'batteryBrandOptions'));
     }
 
     public function searchAssets(Request $request)
@@ -374,13 +386,13 @@ class JobController extends Controller
         }
 
         $assets = UnitAsset::where(function ($query) use ($search) {
-                $query->where('serial_number', 'LIKE', "%{$search}%")
-                    ->orWhere('unit_type', 'LIKE', "%{$search}%")
-                    ->orWhere('nomor_lambung', 'LIKE', "%{$search}%")
-                    ->orWhere('year', 'LIKE', "%{$search}%")
-                    ->orWhere('customer', 'LIKE', "%{$search}%")
-                    ->orWhere('location', 'LIKE', "%{$search}%");
-            })
+            $query->where('serial_number', 'LIKE', "%{$search}%")
+                ->orWhere('unit_type', 'LIKE', "%{$search}%")
+                ->orWhere('nomor_lambung', 'LIKE', "%{$search}%")
+                ->orWhere('year', 'LIKE', "%{$search}%")
+                ->orWhere('customer', 'LIKE', "%{$search}%")
+                ->orWhere('location', 'LIKE', "%{$search}%");
+        })
             ->when(!$includeWithdrawn, function ($query) {
                 $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'");
             })
@@ -455,6 +467,8 @@ class JobController extends Controller
             'nomor_lambung' => 'nullable|string|max:100',
             'year'          => 'nullable|string|max:20',
             'hour_meter'    => 'required|numeric|min:0',
+            'battery_type'   => ['required', 'string', Rule::in($this->batteryTypeOptions())],
+            'battery_brand'  => ['required', 'string', Rule::in($this->batteryBrandOptions())],
             'customer'      => 'required|string|max:150',
             'location'      => 'required|string|max:150',
             'problem'       => 'required|string',
@@ -524,7 +538,7 @@ class JobController extends Controller
         }
     }
 
-    public function show($id)
+    public function show(mixed $id)
     {
         $job = Job::with(['user', 'installParts', 'recommendations'])->findOrFail($id);
 
@@ -542,7 +556,7 @@ class JobController extends Controller
         return view('update-jobs.show', compact('job', 'sparepartReviews', 'sparepartReviewsByInstallPart'));
     }
 
-    public function edit($id)
+    public function edit(mixed $id)
     {
         $job = Job::with(['installParts', 'recommendations'])->findOrFail($id);
 
@@ -559,11 +573,13 @@ class JobController extends Controller
         $job->status_unit = $this->normalizeStatusUnit($job->status_unit);
         $jobTypeOptions = $this->jobTypeOptions();
         $statusUnitOptions = $this->statusUnitOptions();
+        $batteryTypeOptions = $this->batteryTypeOptions();
+        $batteryBrandOptions = $this->batteryBrandOptions();
 
-        return view('update-jobs.edit', compact('job', 'user', 'branch', 'partners', 'jobTypeOptions', 'statusUnitOptions'));
+        return view('update-jobs.edit', compact('job', 'user', 'branch', 'partners', 'jobTypeOptions', 'statusUnitOptions', 'batteryTypeOptions', 'batteryBrandOptions'));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, mixed $id)
     {
         $job = Job::findOrFail($id);
 
@@ -586,6 +602,8 @@ class JobController extends Controller
             'nomor_lambung' => 'nullable|string|max:100',
             'year'          => 'nullable|string|max:20',
             'hour_meter'    => 'required|numeric|min:0',
+            'battery_type'   => ['required', 'string', Rule::in($this->batteryTypeOptions())],
+            'battery_brand'  => ['required', 'string', Rule::in($this->batteryBrandOptions())],
             'customer'      => 'required|string|max:150',
             'location'      => 'required|string|max:150',
             'problem'       => 'required|string',
@@ -654,7 +672,7 @@ class JobController extends Controller
         }
     }
 
-    public function destroy($id)
+    public function destroy(mixed $id)
     {
         $job = Job::findOrFail($id);
 

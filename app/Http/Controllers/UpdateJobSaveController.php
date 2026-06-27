@@ -35,6 +35,16 @@ class UpdateJobSaveController extends Controller
         ];
     }
 
+    private function batteryTypeOptions(): array
+    {
+        return ['LEAD ACID', 'LITHIUM'];
+    }
+
+    private function batteryBrandOptions(): array
+    {
+        return ['EIKTO', 'ENEROC', 'JUNGHEINRICH', 'YUASA', 'GS', 'MIDAC'];
+    }
+
     private function normalizeJobType(?string $value): ?string
     {
         $value = trim((string) $value);
@@ -47,7 +57,7 @@ class UpdateJobSaveController extends Controller
         };
     }
 
-    private function normalizeJobTypesForStorage($value): ?string
+    private function normalizeJobTypesForStorage(mixed $value): ?string
     {
         $items = is_array($value) ? $value : preg_split('/\s*,\s*/', (string) $value);
 
@@ -61,7 +71,7 @@ class UpdateJobSaveController extends Controller
         return count($normalized) > 0 ? implode(', ', $normalized) : null;
     }
 
-    private function selectedJobTypes($value): array
+    private function selectedJobTypes(mixed $value): array
     {
         $normalized = $this->normalizeJobTypesForStorage($value);
 
@@ -75,12 +85,12 @@ class UpdateJobSaveController extends Controller
             ->all();
     }
 
-    private function hasPreventiveMaintenance($value): bool
+    private function hasPreventiveMaintenance(mixed $value): bool
     {
         return in_array('Preventive Maintenance', $this->selectedJobTypes($value), true);
     }
 
-    private function applyPreventiveMaintenanceQuery($query): void
+    private function applyPreventiveMaintenanceQuery(mixed $query): void
     {
         $query->where(function ($q) {
             $q->where('job_type', 'Preventive Maintenance')
@@ -157,6 +167,8 @@ class UpdateJobSaveController extends Controller
             'nomor_lambung',
             'year',
             'hour_meter',
+            'battery_type',
+            'battery_brand',
             'customer',
             'location',
             'problem',
@@ -203,6 +215,8 @@ class UpdateJobSaveController extends Controller
             'nomor_lambung' => ['nullable', 'string', 'max:100'],
             'year' => ['nullable', 'string', 'max:20'],
             'hour_meter' => ['required', 'numeric', 'min:0'],
+            'battery_type' => ['required', 'string', Rule::in($this->batteryTypeOptions())],
+            'battery_brand' => ['required', 'string', Rule::in($this->batteryBrandOptions())],
             'customer' => ['required', 'string', 'max:150'],
             'location' => ['required', 'string', 'max:150'],
             'problem' => ['required', 'string'],

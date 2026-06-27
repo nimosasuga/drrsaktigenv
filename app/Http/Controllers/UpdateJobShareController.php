@@ -219,6 +219,16 @@ HTML;
         ];
     }
 
+    private function infoBatteryLines(Job $job): array
+    {
+        return [
+            '',
+            '> _*INFO BATTERY*_',
+            '*BATTERY TYPE :* ' . $this->value($job->battery_type),
+            '*BATTERY BRAND :* ' . $this->value($job->battery_brand),
+        ];
+    }
+
     private function jobDescriptionLines(Job $job): array
     {
         return [
@@ -238,6 +248,7 @@ HTML;
         return trim(implode("\n", array_merge(
             $this->headerLines($job),
             $this->detailUnitLines($job),
+            $this->infoBatteryLines($job),
             $this->jobDescriptionLines($job),
             [
                 '',

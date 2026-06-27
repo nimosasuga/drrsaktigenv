@@ -184,7 +184,7 @@
                             class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label for="in_time" class="block text-xs font-medium text-slate-700 mb-1">Jam Mulai
                                 Job</label>
@@ -207,6 +207,47 @@
                         <input type="number" name="hour_meter" id="hour_meter"
                             value="{{ old('hour_meter', $job->hour_meter) }}" required
                             class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="battery_type" class="block text-xs font-medium text-slate-700 mb-1">
+                                Battery Type <span class="text-red-500">*</span>
+                            </label>
+                            <select name="battery_type" id="battery_type" required
+                                class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+                                <option value="">Pilih Battery Type</option>
+                                @foreach(($batteryTypeOptions ?? ['LEAD ACID', 'LITHIUM']) as $option)
+                                <option value="{{ $option }}" {{ old('battery_type', $job->battery_type) === $option ?
+                                    'selected' : '' }}>
+                                    {{ $option }}
+                                </option>
+                                @endforeach
+                            </select>
+                            @error('battery_type')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div>
+                            <label for="battery_brand" class="block text-xs font-medium text-slate-700 mb-1">
+                                Battery Brand <span class="text-red-500">*</span>
+                            </label>
+                            <select name="battery_brand" id="battery_brand" required
+                                class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
+                                <option value="">Pilih Battery Brand</option>
+                                @foreach(($batteryBrandOptions ?? ['EIKTO', 'ENEROC', 'JUNGHEINRICH', 'YUASA', 'GS',
+                                'MIDAC']) as $option)
+                                <option value="{{ $option }}" {{ old('battery_brand', $job->battery_brand) === $option ?
+                                    'selected' : '' }}>
+                                    {{ $option }}
+                                </option>
+                                @endforeach
+                            </select>
+                            @error('battery_brand')
+                            <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">

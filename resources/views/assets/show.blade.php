@@ -11,38 +11,38 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
 || in_array(strtolower((string) ($user->status_user ?? '')), $assetManageRoles, true);
 
 $statusClass = match ($asset->status) {
-    'RENTAL' => 'bg-blue-50 text-blue-700 border-blue-100',
-    'BACKUP' => 'bg-amber-50 text-amber-700 border-amber-100',
-    'DITARIK' => 'bg-rose-50 text-rose-700 border-rose-100',
-    default => 'bg-slate-50 text-slate-700 border-slate-100',
+'RENTAL' => 'bg-blue-50 text-blue-700 border-blue-100',
+'BACKUP' => 'bg-amber-50 text-amber-700 border-amber-100',
+'DITARIK' => 'bg-rose-50 text-rose-700 border-rose-100',
+default => 'bg-slate-50 text-slate-700 border-slate-100',
 };
 
 $assetFields = [
-    'id' => $asset->id,
-    'supported_by' => $asset->supported_by,
-    'customer' => $asset->customer,
-    'location' => $asset->location,
-    'branch' => $asset->branch,
-    'serial_number' => $asset->serial_number,
-    'unit_type' => $asset->unit_type,
-    'year' => $asset->year,
-    'status' => $asset->status,
-    'delivery' => $asset->delivery,
-    'jenis_unit' => $asset->jenis_unit,
-    'note' => $asset->note,
-    'qr_token' => $asset->qr_token,
-    'created_at' => $asset->created_at ? $asset->created_at->format('Y-m-d H:i:s') : null,
-    'updated_at' => $asset->updated_at ? $asset->updated_at->format('Y-m-d H:i:s') : null,
+'id' => $asset->id,
+'supported_by' => $asset->supported_by,
+'customer' => $asset->customer,
+'location' => $asset->location,
+'branch' => $asset->branch,
+'serial_number' => $asset->serial_number,
+'unit_type' => $asset->unit_type,
+'year' => $asset->year,
+'status' => $asset->status,
+'delivery' => $asset->delivery,
+'jenis_unit' => $asset->jenis_unit,
+'note' => $asset->note,
+'qr_token' => $asset->qr_token,
+'created_at' => $asset->created_at ? $asset->created_at->format('Y-m-d H:i:s') : null,
+'updated_at' => $asset->updated_at ? $asset->updated_at->format('Y-m-d H:i:s') : null,
 ];
 
 $moduleBadgeClass = function ($module) {
-    return match ($module) {
-        'Update Job' => 'bg-blue-50 text-blue-700 border-blue-100',
-        'Battery' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
-        'Charger' => 'bg-amber-50 text-amber-700 border-amber-100',
-        'Delivery' => 'bg-purple-50 text-purple-700 border-purple-100',
-        default => 'bg-slate-50 text-slate-700 border-slate-100',
-    };
+return match ($module) {
+'Update Job' => 'bg-blue-50 text-blue-700 border-blue-100',
+'Battery' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+'Charger' => 'bg-amber-50 text-amber-700 border-amber-100',
+'Delivery' => 'bg-purple-50 text-purple-700 border-purple-100',
+default => 'bg-slate-50 text-slate-700 border-slate-100',
+};
 };
 @endphp
 
@@ -78,13 +78,15 @@ $moduleBadgeClass = function ($module) {
     <div class="grid gap-4 lg:grid-cols-3">
 
         <div class="lg:col-span-2 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:p-8">
-            <div class="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <div
+                class="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900">
                         Semua Kolom Unit Asset
                     </h2>
                     <p class="text-sm text-slate-500">
-                        Mengikuti struktur: id, supported_by, customer, location, branch, serial_number, unit_type, year, status, delivery, jenis_unit, note, qr_token, created_at, updated_at.
+                        Mengikuti struktur: id, supported_by, customer, location, branch, serial_number, unit_type,
+                        year, status, delivery, jenis_unit, note, qr_token, created_at, updated_at.
                     </p>
                 </div>
 
@@ -98,21 +100,28 @@ $moduleBadgeClass = function ($module) {
                     <table class="min-w-full table-fixed divide-y divide-slate-100">
                         <thead class="bg-slate-50">
                             <tr>
-                                <th class="w-[220px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Field</th>
-                                <th class="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Nilai</th>
+                                <th
+                                    class="w-55 px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                    Field</th>
+                                <th
+                                    class="px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                    Nilai</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 bg-white">
                             @foreach($assetFields as $field => $value)
                             <tr class="align-top transition hover:bg-blue-50/40">
-                                <td class="px-4 py-3 text-sm font-black text-slate-600">{{ str_replace('_', ' ', $field) }}</td>
+                                <td class="px-4 py-3 text-sm font-black text-slate-600">{{ str_replace('_', ' ', $field)
+                                    }}</td>
                                 <td class="px-4 py-3">
                                     @if($field === 'status')
-                                    <span class="inline-flex rounded-full border px-3 py-1 text-xs font-black {{ $statusClass }}">
+                                    <span
+                                        class="inline-flex rounded-full border px-3 py-1 text-xs font-black {{ $statusClass }}">
                                         {{ filled($value) ? $value : '-' }}
                                     </span>
                                     @else
-                                    <p class="break-words whitespace-pre-line text-sm font-semibold text-slate-900">{{ filled($value) ? $value : '-' }}</p>
+                                    <p class="wrap-break-word whitespace-pre-line text-sm font-semibold text-slate-900">
+                                        {{ filled($value) ? $value : '-' }}</p>
                                     @endif
                                 </td>
                             </tr>
@@ -124,13 +133,16 @@ $moduleBadgeClass = function ($module) {
                 <div class="divide-y divide-slate-100 md:hidden">
                     @foreach($assetFields as $field => $value)
                     <div class="bg-white px-4 py-3">
-                        <p class="text-[11px] font-black uppercase tracking-wide text-slate-400">{{ str_replace('_', ' ', $field) }}</p>
+                        <p class="text-[11px] font-black uppercase tracking-wide text-slate-400">{{ str_replace('_', '
+                            ', $field) }}</p>
                         @if($field === 'status')
-                        <span class="mt-1 inline-flex rounded-full border px-3 py-1 text-xs font-black {{ $statusClass }}">
+                        <span
+                            class="mt-1 inline-flex rounded-full border px-3 py-1 text-xs font-black {{ $statusClass }}">
                             {{ filled($value) ? $value : '-' }}
                         </span>
                         @else
-                        <p class="mt-1 break-words whitespace-pre-line text-sm font-bold text-slate-900">{{ filled($value) ? $value : '-' }}</p>
+                        <p class="mt-1 wrap-break-word whitespace-pre-line text-sm font-bold text-slate-900">{{
+                            filled($value) ? $value : '-' }}</p>
                         @endif
                     </div>
                     @endforeach
@@ -146,7 +158,8 @@ $moduleBadgeClass = function ($module) {
             <div class="mt-4 space-y-3">
                 <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
                     <span class="text-sm text-slate-500">Status</span>
-                    <span class="rounded-full border px-3 py-1 text-xs font-bold {{ $statusClass }}">{{ $asset->status ?? '-' }}</span>
+                    <span class="rounded-full border px-3 py-1 text-xs font-bold {{ $statusClass }}">{{ $asset->status
+                        ?? '-' }}</span>
                 </div>
 
                 <div class="flex items-center justify-between rounded-xl bg-slate-50 p-3">
@@ -170,7 +183,8 @@ $moduleBadgeClass = function ($module) {
 
     {{-- Histori Unit --}}
     <div class="overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-sm">
-        <div class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+            class="flex flex-col gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 <h2 class="text-sm font-bold uppercase tracking-wider text-slate-800">
                     Tabel Histori Unit
@@ -180,7 +194,8 @@ $moduleBadgeClass = function ($module) {
                 </p>
             </div>
 
-            <span class="inline-flex w-max items-center rounded-xl border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
+            <span
+                class="inline-flex w-max items-center rounded-xl border border-blue-100 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700">
                 {{ $timeline->count() }} Histori
             </span>
         </div>
@@ -189,32 +204,48 @@ $moduleBadgeClass = function ($module) {
             <table class="min-w-full table-fixed divide-y divide-slate-100">
                 <thead class="bg-white">
                     <tr>
-                        <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Tanggal</th>
-                        <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Module</th>
-                        <th class="w-[18%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Pekerjaan</th>
-                        <th class="w-[14%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">PIC</th>
-                        <th class="w-[32%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Deskripsi</th>
-                        <th class="w-[12%] px-4 py-3 text-right text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi</th>
+                        <th
+                            class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            Tanggal</th>
+                        <th
+                            class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            Module</th>
+                        <th
+                            class="w-[18%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            Pekerjaan</th>
+                        <th
+                            class="w-[14%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            PIC</th>
+                        <th
+                            class="w-[32%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            Deskripsi</th>
+                        <th
+                            class="w-[12%] px-4 py-3 text-right text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 bg-white">
                     @forelse($timeline as $item)
                     @php
                     $historyDate = filled($item['date'] ?? null)
-                        ? \Carbon\Carbon::parse($item['date'])->translatedFormat('d M Y')
-                        : '-';
+                    ? \Carbon\Carbon::parse($item['date'])->translatedFormat('d M Y')
+                    : '-';
                     @endphp
                     <tr class="align-top transition hover:bg-blue-50/40">
                         <td class="px-4 py-4 text-sm font-black text-slate-900">{{ $historyDate }}</td>
                         <td class="px-4 py-4">
-                            <span class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black {{ $moduleBadgeClass($item['module'] ?? '') }}">
+                            <span
+                                class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black {{ $moduleBadgeClass($item['module'] ?? '') }}">
                                 {{ $item['module'] ?? '-' }}
                             </span>
                         </td>
-                        <td class="break-words px-4 py-4 text-sm font-bold text-slate-800">{{ $item['title'] ?? '-' }}</td>
-                        <td class="break-words px-4 py-4 text-sm font-semibold text-slate-700">{{ $item['pic'] ?? '-' }}</td>
+                        <td class="wrap-break-word px-4 py-4 text-sm font-bold text-slate-800">{{ $item['title'] ?? '-'
+                            }}</td>
+                        <td class="wrap-break-word px-4 py-4 text-sm font-semibold text-slate-700">{{ $item['pic'] ??
+                            '-' }}</td>
                         <td class="px-4 py-4">
-                            <p class="break-words whitespace-pre-line text-sm font-semibold text-slate-700">{{ $item['desc'] ?? '-' }}</p>
+                            <p class="wrap-break-word whitespace-pre-line text-sm font-semibold text-slate-700">{{
+                                $item['desc'] ?? '-' }}</p>
                         </td>
                         <td class="px-4 py-4 text-right">
                             @if(!empty($item['route']))
@@ -231,7 +262,8 @@ $moduleBadgeClass = function ($module) {
                     <tr>
                         <td colspan="6" class="px-4 py-10 text-center">
                             <p class="text-sm font-bold text-slate-700">Histori unit belum tersedia.</p>
-                            <p class="mt-1 text-xs text-slate-500">Belum ada aktivitas yang tercatat untuk serial number ini.</p>
+                            <p class="mt-1 text-xs text-slate-500">Belum ada aktivitas yang tercatat untuk serial number
+                                ini.</p>
                         </td>
                     </tr>
                     @endforelse
@@ -243,16 +275,18 @@ $moduleBadgeClass = function ($module) {
             @forelse($timeline as $item)
             @php
             $historyDate = filled($item['date'] ?? null)
-                ? \Carbon\Carbon::parse($item['date'])->translatedFormat('d M Y')
-                : '-';
+            ? \Carbon\Carbon::parse($item['date'])->translatedFormat('d M Y')
+            : '-';
             @endphp
             <div class="p-4">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div class="min-w-0">
                         <p class="text-xs font-black uppercase tracking-wide text-slate-400">{{ $historyDate }}</p>
-                        <h3 class="mt-1 break-words text-sm font-black text-slate-950">{{ $item['title'] ?? '-' }}</h3>
+                        <h3 class="mt-1 wrap-break-word text-sm font-black text-slate-950">{{ $item['title'] ?? '-' }}
+                        </h3>
                     </div>
-                    <span class="w-max rounded-full border px-2.5 py-1 text-[11px] font-black {{ $moduleBadgeClass($item['module'] ?? '') }}">
+                    <span
+                        class="w-max rounded-full border px-2.5 py-1 text-[11px] font-black {{ $moduleBadgeClass($item['module'] ?? '') }}">
                         {{ $item['module'] ?? '-' }}
                     </span>
                 </div>
@@ -260,11 +294,12 @@ $moduleBadgeClass = function ($module) {
                 <dl class="mt-4 grid gap-3 sm:grid-cols-2">
                     <div class="rounded-2xl bg-slate-50 p-3">
                         <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">PIC</dt>
-                        <dd class="mt-1 break-words text-sm font-bold text-slate-800">{{ $item['pic'] ?? '-' }}</dd>
+                        <dd class="mt-1 wrap-break-word text-sm font-bold text-slate-800">{{ $item['pic'] ?? '-' }}</dd>
                     </div>
                     <div class="rounded-2xl bg-slate-50 p-3 sm:col-span-2">
                         <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Deskripsi</dt>
-                        <dd class="mt-1 break-words whitespace-pre-line text-sm font-bold text-slate-800">{{ $item['desc'] ?? '-' }}</dd>
+                        <dd class="mt-1 wrap-break-word whitespace-pre-line text-sm font-bold text-slate-800">{{
+                            $item['desc'] ?? '-' }}</dd>
                     </div>
                 </dl>
 
