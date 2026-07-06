@@ -239,8 +239,20 @@ HTML;
             '*PROBLEM :* ' . $this->value($job->problem),
             '*STATUS :* ' . $this->value($job->status_unit),
             '*RFU DATE :* ' . $this->formatDate($job->rfu_date),
+            '*LEAD TIME RFU :* ' . $this->leadTimeRfuValue($job),
             '*ACTION :* ' . $this->value($job->action),
         ];
+    }
+
+    private function leadTimeRfuValue(Job $job): string
+    {
+        $leadTime = $job->lead_time_rfu;
+
+        if ($leadTime === null && $job->problem_date && $job->rfu_date) {
+            $leadTime = max(0, (int) Carbon::parse($job->problem_date)->startOfDay()->diffInDays(Carbon::parse($job->rfu_date)->startOfDay()));
+        }
+
+        return $leadTime !== null ? $leadTime . ' hari' : '-';
     }
 
     private function formatMessage(Job $job): string

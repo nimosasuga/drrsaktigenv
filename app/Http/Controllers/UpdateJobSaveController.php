@@ -110,6 +110,98 @@ class UpdateJobSaveController extends Controller
         };
     }
 
+    private function isRfuStatus(?string $status): bool
+    {
+        return strtoupper(trim((string) $status)) === 'RFU';
+    }
+
+    private function openProblemStatusValues(): array
+    {
+        return ['Breakdown', 'BREAKDOWN', 'B/D', 'BD', 'Monitoring', 'MONITORING', 'Standby', 'STANDBY'];
+    }
+
+    private function previousOpenProblemJobsQuery(string $serialNumber, string $workDate, ?int $exceptJobId = null)
+    {
+        $query = Job::where('serial_number', $serialNumber)
+            ->whereIn('status_unit', $this->openProblemStatusValues())
+            ->where(function ($dateQuery) use ($workDate, $exceptJobId) {
+                $dateQuery->whereDate('work_date', '<', $workDate);
+
+                if ($exceptJobId) {
+                    $dateQuery->orWhere(function ($sameDateQuery) use ($workDate, $exceptJobId) {
+                        $sameDateQuery->whereDate('work_date', $workDate)
+                            ->where('id', '<', $exceptJobId);
+                    });
+                }
+            });
+
+        if ($exceptJobId) {
+            $query->where('id', '!=', $exceptJobId);
+        }
+
+        return $query;
+    }
+
+    private function prepareRfuAutomationData(array $validated, ?int $exceptJobId = null): array
+    {
+        if (!$this->isRfuStatus($validated['status_unit'] ?? null)) {
+            return $validated;
+        }
+
+        $rfuDate = $validated['rfu_date'] ?: $validated['work_date'];
+        $validated['rfu_date'] = Carbon::parse($rfuDate)->toDateString();
+
+        if (empty($validated['problem_date'])) {
+            $previousProblemJob = $this->previousOpenProblemJobsQuery(
+                $validated['serial_number'],
+                $validated['work_date'],
+                $exceptJobId
+            )
+                ->whereNotNull('problem_date')
+                ->orderByDesc('work_date')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($previousProblemJob?->problem_date) {
+                $validated['problem_date'] = Carbon::parse($previousProblemJob->problem_date)->toDateString();
+            }
+        }
+
+        $validated['lead_time_rfu'] = $this->leadTimeRfu($validated['problem_date'] ?? null, $validated['rfu_date']);
+
+        return $validated;
+    }
+
+    private function closePreviousOpenProblemJobs(Job $job): void
+    {
+        if (!$this->isRfuStatus($job->status_unit) || !$job->rfu_date || !$job->work_date) {
+            return;
+        }
+
+        $rfuDate = Carbon::parse($job->rfu_date)->toDateString();
+
+        $this->previousOpenProblemJobsQuery($job->serial_number, Carbon::parse($job->work_date)->toDateString(), $job->id)
+            ->orderBy('work_date')
+            ->orderBy('id')
+            ->get()
+            ->each(function (Job $previousJob) use ($rfuDate) {
+                $previousJob->status_unit = 'RFU';
+                $previousJob->rfu_date = $rfuDate;
+                $previousJob->lead_time_rfu = $this->leadTimeRfu($previousJob->problem_date, $rfuDate);
+
+                Job::withoutEvents(fn() => $previousJob->save());
+            });
+    }
+
+    private function leadTimeRfu(mixed $problemDate, mixed $rfuDate): ?int
+    {
+        if (!$problemDate || !$rfuDate) {
+            return null;
+        }
+
+        return max(0, (int) Carbon::parse($problemDate)->startOfDay()->diffInDays(Carbon::parse($rfuDate)->startOfDay()));
+    }
+
     private function canEditJob(Job $job): bool
     {
         $user = Auth::user();
@@ -261,6 +353,8 @@ class UpdateJobSaveController extends Controller
             return $duplicatePmResponse;
         }
 
+        $validated = $this->prepareRfuAutomationData($validated);
+
         DB::beginTransaction();
 
         try {
@@ -270,6 +364,7 @@ class UpdateJobSaveController extends Controller
             $job->pic = Auth::user()->name;
             $job->status_mekanik = Auth::user()->role ?? Auth::user()->status_user;
             $job->save();
+            $this->closePreviousOpenProblemJobs($job);
 
             $this->syncInstallParts($request, $job, false);
             $this->syncRentalSparepartUsage($job);
@@ -304,10 +399,13 @@ class UpdateJobSaveController extends Controller
             return $duplicatePmResponse;
         }
 
+        $validated = $this->prepareRfuAutomationData($validated, $job->id);
+
         DB::beginTransaction();
 
         try {
             $job->update($validated);
+            $this->closePreviousOpenProblemJobs($job->fresh());
             $this->syncInstallParts($request, $job, true);
             $this->syncRentalSparepartUsage($job);
             $this->syncRecommendations($request, $job, true);

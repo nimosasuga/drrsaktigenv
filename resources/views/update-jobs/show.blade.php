@@ -13,6 +13,11 @@ $sparepartReviews = $sparepartReviews ?? collect();
 $sparepartReviewsByInstallPart = $sparepartReviewsByInstallPart ?? collect();
 $recommendationHistories = $recommendationHistories ?? collect();
 $installPartHistories = $installPartHistories ?? collect();
+$leadTimeRfuDays = $job->lead_time_rfu;
+
+if ($leadTimeRfuDays === null && $job->problem_date && $job->rfu_date) {
+    $leadTimeRfuDays = max(0, (int) \Carbon\Carbon::parse($job->problem_date)->startOfDay()->diffInDays(\Carbon\Carbon::parse($job->rfu_date)->startOfDay()));
+}
 @endphp
 
 <div class="max-w-6xl mx-auto">
@@ -151,7 +156,7 @@ $installPartHistories = $installPartHistories ?? collect();
                     </h2>
                 </div>
                 <div class="p-6 space-y-6">
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
                             <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Tgl Problem / B/D</p>
                             <p class="text-sm font-medium text-slate-800">{{ $job->problem_date ? \Carbon\Carbon::parse($job->problem_date)->translatedFormat('d M Y') : '-' }}</p>
@@ -159,6 +164,10 @@ $installPartHistories = $installPartHistories ?? collect();
                         <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-100">
                             <p class="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider mb-1">Tgl RFU</p>
                             <p class="text-sm font-bold text-emerald-800">{{ $job->rfu_date ? \Carbon\Carbon::parse($job->rfu_date)->translatedFormat('d M Y') : '-' }}</p>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                            <p class="text-[11px] font-semibold text-blue-600 uppercase tracking-wider mb-1">Lead Time RFU</p>
+                            <p class="text-sm font-bold text-blue-800">{{ $leadTimeRfuDays !== null ? $leadTimeRfuDays . ' hari' : '-' }}</p>
                         </div>
                     </div>
                     <div>

@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Job;
 use App\Models\UnitAsset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -39,6 +40,7 @@ class UpdateJobAssetSearchController extends Controller
         return response()->json($assets->map(function ($asset) use ($columns) {
             $status = in_array('status', $columns, true) ? ($asset->status ?? '') : '';
             $isWithdrawn = in_array(strtoupper(trim((string) $status)), UnitAsset::inactiveStatusValues(), true);
+            $openProblemJob = $this->latestOpenProblemJob((string) ($asset->serial_number ?? ''));
 
             return [
                 'serial_number' => $asset->serial_number ?? '',
@@ -48,7 +50,23 @@ class UpdateJobAssetSearchController extends Controller
                 'status' => $status,
                 'is_withdrawn' => $isWithdrawn,
                 'blocked_reason' => $isWithdrawn ? 'Serial Number ini tidak bisa digunakan karena status unit asset tidak aktif.' : null,
+                'open_problem_date' => $openProblemJob?->problem_date?->format('Y-m-d'),
+                'open_status_unit' => $openProblemJob?->status_unit,
             ];
         })->values());
+    }
+
+    private function latestOpenProblemJob(string $serialNumber): ?Job
+    {
+        if ($serialNumber === '') {
+            return null;
+        }
+
+        return Job::where('serial_number', $serialNumber)
+            ->whereIn('status_unit', ['Breakdown', 'BREAKDOWN', 'B/D', 'BD', 'Monitoring', 'MONITORING', 'Standby', 'STANDBY'])
+            ->whereNotNull('problem_date')
+            ->orderByDesc('work_date')
+            ->orderByDesc('id')
+            ->first();
     }
 }

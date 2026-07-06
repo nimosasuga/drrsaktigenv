@@ -15,10 +15,16 @@
             </p>
         </div>
 
-        <a href="{{ route('dashboard') }}"
-            class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50">
-            Kembali
-        </a>
+        <div class="grid grid-cols-1 gap-2 sm:flex sm:w-auto">
+            <a href="{{ route('dashboard.pm-status.export', array_merge(['status' => $status], request()->query())) }}"
+                class="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-emerald-700">
+                Download Excel
+            </a>
+            <a href="{{ route('dashboard') }}"
+                class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50">
+                Kembali
+            </a>
+        </div>
     </div>
 
     <div class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">

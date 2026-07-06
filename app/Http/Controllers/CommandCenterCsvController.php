@@ -4,6 +4,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\DepartmentScope;
+use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -85,6 +86,11 @@ class CommandCenterCsvController extends Controller
 
                     foreach ($exportColumns as $column) {
                         if (in_array($column, $columns, true)) {
+                            if ($table === 'update_jobs' && $column === 'lead_time_rfu') {
+                                $line[] = $this->leadTimeRfuExportValue($row);
+                                continue;
+                            }
+
                             $line[] = $row->{$column} ?? null;
                             continue;
                         }
@@ -179,6 +185,19 @@ class CommandCenterCsvController extends Controller
         }
 
         return $result;
+    }
+
+    private function leadTimeRfuExportValue(mixed $row): ?int
+    {
+        if (($row->lead_time_rfu ?? null) !== null && $row->lead_time_rfu !== '') {
+            return (int) $row->lead_time_rfu;
+        }
+
+        if (empty($row->problem_date) || empty($row->rfu_date)) {
+            return null;
+        }
+
+        return max(0, (int) Carbon::parse($row->problem_date)->startOfDay()->diffInDays(Carbon::parse($row->rfu_date)->startOfDay()));
     }
 
     private function exportRelationMaps(string $table, mixed $rows): array

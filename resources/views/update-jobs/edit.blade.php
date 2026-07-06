@@ -703,6 +703,7 @@
         const unitTypeInput = document.getElementById('unit_type');
         const customerInput = document.getElementById('customer');
         const locationInput = document.getElementById('location');
+        const problemDateInput = document.getElementById('problem_date');
         let timeoutId;
 
         snInput.addEventListener('input', function() {
@@ -728,6 +729,11 @@
                                     unitTypeInput.value = item.unit_type;
                                     customerInput.value = item.customer;
                                     locationInput.value = item.location;
+
+                                    if (problemDateInput && !problemDateInput.value && item.open_problem_date) {
+                                        problemDateInput.value = item.open_problem_date;
+                                    }
+
                                     snDropdown.classList.add('hidden');
                                     snInput.dispatchEvent(new Event('change', { bubbles: true }));
 

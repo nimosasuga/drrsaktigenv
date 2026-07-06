@@ -77,6 +77,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware([CheckSubscription::class])->group(function () {
         Route::get('/dashboard', [AuthController::class, 'dashboard'])->name('dashboard');
+        Route::get('/dashboard/pm-status/{status}/export', [DashboardPmStatusController::class, 'export'])->name('dashboard.pm-status.export');
         Route::get('/dashboard/pm-status/{status}', DashboardPmStatusController::class)->name('dashboard.pm-status');
         Route::resource('assets', UnitAssetController::class);
         Route::get('/update-jobs/search-assets', UpdateJobAssetSearchController::class)->name('update-jobs.search-assets');

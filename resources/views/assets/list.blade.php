@@ -98,19 +98,19 @@ $statusBadgeClass = function ($status) {
     </form>
 
     <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-        <div class="hidden xl:block">
-            <table class="min-w-full table-fixed divide-y divide-slate-100">
+        <div class="hidden overflow-x-auto xl:block">
+            <table class="min-w-[1100px] w-full table-fixed divide-y divide-slate-100">
                 <thead class="bg-slate-50">
                     <tr>
-                        <th class="w-[13%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Serial Number</th>
-                        <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Type</th>
-                        <th class="w-[10%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Jenis</th>
-                        <th class="w-[7%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Tahun</th>
-                        <th class="w-[9%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Status</th>
-                        <th class="w-[11%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Branch</th>
-                        <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Delivery</th>
-                        <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Supported</th>
-                        <th class="w-[14%] px-4 py-3 text-right text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi</th>
+                        <th class="w-[135px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Serial Number</th>
+                        <th class="w-[130px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Type</th>
+                        <th class="w-[110px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Jenis</th>
+                        <th class="w-[75px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Tahun</th>
+                        <th class="w-[105px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Status</th>
+                        <th class="w-[90px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Branch</th>
+                        <th class="w-[110px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Delivery</th>
+                        <th class="w-[165px] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Supported</th>
+                        <th class="w-[180px] px-4 py-3 text-right text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 bg-white">
@@ -120,26 +120,26 @@ $statusBadgeClass = function ($status) {
                             <p class="break-words text-sm font-black text-slate-950">{{ $asset->serial_number ?? '-' }}</p>
                             <p class="mt-1 break-words text-xs font-semibold text-slate-500">{{ $asset->nomor_lambung ?? $asset->qr_token ?? '-' }}</p>
                         </td>
-                        <td class="px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '-' }}</td>
-                        <td class="px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->jenis_unit ?? '-' }}</td>
+                        <td class="wrap-break-word px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->unit_type ?? $asset->unit_model ?? $asset->tipe_unit ?? '-' }}</td>
+                        <td class="wrap-break-word px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->jenis_unit ?? '-' }}</td>
                         <td class="px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->year ?? $asset->tahun ?? '-' }}</td>
                         <td class="px-4 py-4">
                             <span class="inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black {{ $statusBadgeClass($asset->status) }}">
                                 {{ $asset->status ?? '-' }}
                             </span>
                         </td>
-                        <td class="px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->branch ?? '-' }}</td>
-                        <td class="px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->delivery ?? '-' }}</td>
-                        <td class="px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->supported_by ?? '-' }}</td>
+                        <td class="wrap-break-word px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->branch ?? '-' }}</td>
+                        <td class="wrap-break-word px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->delivery ?? '-' }}</td>
+                        <td class="wrap-break-word px-4 py-4 text-sm font-semibold text-slate-700">{{ $asset->supported_by ?? '-' }}</td>
                         <td class="px-4 py-4 text-right">
-                            <div class="flex justify-end gap-2">
+                            <div class="flex flex-wrap justify-end gap-2">
                                 <a href="{{ route('assets.show', $asset->id) }}"
-                                    class="inline-flex items-center justify-center rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white transition hover:bg-blue-700">
+                                    class="inline-flex w-24 items-center justify-center rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-black text-white transition hover:bg-blue-700">
                                     Detail Histori
                                 </a>
                                 @if($canManageAsset)
                                 <a href="{{ route('assets.edit', $asset->id) }}"
-                                    class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50">
+                                    class="inline-flex w-16 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50">
                                     Edit
                                 </a>
                                 @endif
