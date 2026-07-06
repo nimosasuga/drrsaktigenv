@@ -12,6 +12,8 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
 
 $statusBadgeClass = function ($status) {
     return match (strtoupper((string) $status)) {
+        'ACTIVE' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+        'INACTIVE' => 'bg-rose-50 text-rose-700 border-rose-100',
         'RENTAL' => 'bg-blue-50 text-blue-700 border-blue-100',
         'BACKUP' => 'bg-amber-50 text-amber-700 border-amber-100',
         'DITARIK' => 'bg-rose-50 text-rose-700 border-rose-100',

@@ -109,7 +109,7 @@
         </div>
     </div>
 
-    <!-- Kartu 2: Rental -->
+    <!-- Kartu 2: Active -->
     <div
         class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-900/5">
         <div class="flex items-center">
@@ -120,13 +120,13 @@
                 </svg>
             </div>
             <div class="ml-4">
-                <p class="text-sm font-medium text-slate-500">Status RENTAL</p>
-                <p class="text-2xl font-black text-slate-900">{{ number_format($rentalAssets, 0, ',', '.') }}</p>
+                <p class="text-sm font-medium text-slate-500">Status ACTIVE</p>
+                <p class="text-2xl font-black text-slate-900">{{ number_format($activeAssets, 0, ',', '.') }}</p>
             </div>
         </div>
     </div>
 
-    <!-- Kartu 3: Backup -->
+    <!-- Kartu 3: Inactive -->
     <div
         class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-900/5">
         <div class="flex items-center">
@@ -137,13 +137,13 @@
                 </svg>
             </div>
             <div class="ml-4">
-                <p class="text-sm font-medium text-slate-500">Status BACKUP</p>
-                <p class="text-2xl font-black text-slate-900">{{ number_format($backupAssets, 0, ',', '.') }}</p>
+                <p class="text-sm font-medium text-slate-500">Status INACTIVE</p>
+                <p class="text-2xl font-black text-slate-900">{{ number_format($inactiveAssets, 0, ',', '.') }}</p>
             </div>
         </div>
     </div>
 
-    <!-- Kartu 4: Ditarik -->
+    <!-- Kartu 4: Status Lain -->
     <div
         class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow ring-1 ring-slate-900/5">
         <div class="flex items-center">
@@ -155,8 +155,8 @@
                 </svg>
             </div>
             <div class="ml-4">
-                <p class="text-sm font-medium text-slate-500">Status DITARIK</p>
-                <p class="text-2xl font-black text-slate-900">{{ number_format($ditarikAssets, 0, ',', '.') }}</p>
+                <p class="text-sm font-medium text-slate-500">Status Lain</p>
+                <p class="text-2xl font-black text-slate-900">{{ number_format($otherAssets, 0, ',', '.') }}</p>
             </div>
         </div>
     </div>
@@ -207,7 +207,9 @@
             <div class="ml-4">
                 <p class="text-sm font-medium text-slate-500">Unit Sudah PM</p>
                 <p class="text-2xl font-black text-slate-900">{{ number_format($pmDoneAssets, 0, ',', '.') }}</p>
-                <p class="mt-1 text-xs font-semibold text-emerald-600">Sudah tercatat bulan ini</p>
+                <div class="mt-2">
+                    <x-status-badge status="Sudah PM" size="xs" />
+                </div>
             </div>
         </div>
         <span
@@ -228,7 +230,9 @@
             <div class="ml-4">
                 <p class="text-sm font-medium text-slate-500">Unit Belum PM</p>
                 <p class="text-2xl font-black text-slate-900">{{ number_format($pmPendingAssets, 0, ',', '.') }}</p>
-                <p class="mt-1 text-xs font-semibold text-rose-600">Perlu dijadwalkan</p>
+                <div class="mt-2">
+                    <x-status-badge status="Belum PM" size="xs" />
+                </div>
             </div>
         </div>
         <span

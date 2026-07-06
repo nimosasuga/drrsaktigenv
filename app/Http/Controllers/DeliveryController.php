@@ -55,12 +55,12 @@ class DeliveryController extends Controller
 
     private function isWithdrawnAssetStatus($status): bool
     {
-        return strtoupper(trim((string) $status)) === 'DITARIK';
+        return in_array(strtoupper(trim((string) $status)), UnitAsset::inactiveStatusValues(), true);
     }
 
     private function assetWithdrawnError(string $serialNumber): string
     {
-        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Delivery Unit karena status unit asset sudah DITARIK.";
+        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Delivery Unit karena status unit asset tidak aktif.";
     }
 
     private function rejectIfAssetWithdrawn(string $serialNumber)
@@ -252,7 +252,7 @@ class DeliveryController extends Controller
                     ->orWhere('customer', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%");
             })
-            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")
+            ->whereRaw(UnitAsset::activeStatusSql())
             ->take(10)
             ->get();
 

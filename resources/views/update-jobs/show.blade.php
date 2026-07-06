@@ -11,6 +11,8 @@ $privilegedRoles = ['koordinator', 'sect_head', 'admin', 'super_admin'];
 $canEdit = ($user->id === $job->user_id) || in_array($role, $privilegedRoles);
 $sparepartReviews = $sparepartReviews ?? collect();
 $sparepartReviewsByInstallPart = $sparepartReviewsByInstallPart ?? collect();
+$recommendationHistories = $recommendationHistories ?? collect();
+$installPartHistories = $installPartHistories ?? collect();
 @endphp
 
 <div class="max-w-6xl mx-auto">
@@ -39,13 +41,7 @@ $sparepartReviewsByInstallPart = $sparepartReviewsByInstallPart ?? collect();
         <div>
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Detail Pekerjaan</h1>
-                @if($job->status_unit === 'RFU')
-                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-700 uppercase tracking-wider">RFU (Ready)</span>
-                @elseif($job->status_unit === 'B/D')
-                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700 uppercase tracking-wider">Breakdown</span>
-                @else
-                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-700 uppercase tracking-wider">{{ $job->status_unit ?? 'On Progress' }}</span>
-                @endif
+                <x-status-badge :status="$job->status_unit" />
             </div>
             <p class="text-sm text-slate-500 mt-1">S/N: <span class="font-semibold text-slate-700">{{ $job->serial_number }}</span> &bull; ID Pekerjaan: #{{ str_pad($job->id, 5, '0', STR_PAD_LEFT) }}</p>
         </div>
@@ -364,6 +360,307 @@ $sparepartReviewsByInstallPart = $sparepartReviewsByInstallPart ?? collect();
             </div>
         </div>
 
+    </div>
+
+    <div class="mt-6 space-y-6">
+        <div class="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm">
+            <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-end">
+                <div>
+                    <p class="text-sm font-black uppercase tracking-wider text-slate-900">Ringkasan Histori Sparepart</p>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">
+                        Filter dan perbandingan qty rekomendasi terhadap qty pemasangan untuk S/N {{ $job->serial_number ?? '-' }}.
+                    </p>
+
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                            <p class="text-[11px] font-black uppercase tracking-wide text-amber-700">Total Qty Rekomendasi</p>
+                            <p class="mt-2 text-3xl font-black text-amber-900">{{ number_format($totalRecommendedQty, 0, ',', '.') }}</p>
+                        </div>
+                        <div class="rounded-2xl border border-indigo-100 bg-indigo-50 p-4">
+                            <p class="text-[11px] font-black uppercase tracking-wide text-indigo-700">Total Qty Terpasang</p>
+                            <p class="mt-2 text-3xl font-black text-indigo-900">{{ number_format($totalInstalledQty, 0, ',', '.') }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="GET" action="{{ route('update-jobs.show', $job->id) }}" class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <label for="part_number" class="mb-1 block text-xs font-black uppercase tracking-wide text-slate-500">Filter Part Number</label>
+                    <select name="part_number" id="part_number"
+                        class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                        <option value="">Semua Part Number</option>
+                        @foreach($partNumberOptions as $partNumberOption)
+                        <option value="{{ $partNumberOption }}" {{ $partNumberFilter === $partNumberOption ? 'selected' : '' }}>
+                            {{ $partNumberOption }}
+                        </option>
+                        @endforeach
+                    </select>
+
+                    <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <button type="submit" class="rounded-2xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-blue-700">
+                            Terapkan Filter
+                        </button>
+                        <a href="{{ route('update-jobs.show', $job->id) }}"
+                            class="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-center text-xs font-black text-slate-700 transition hover:bg-slate-50">
+                            Reset
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="overflow-hidden rounded-3xl border border-amber-100 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-amber-100 bg-amber-50/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-sm font-black uppercase tracking-wider text-amber-900">
+                        Histori Rekomendasi Sparepart
+                    </h2>
+                    <p class="mt-1 text-xs font-semibold text-amber-700/80">
+                        Semua rekomendasi sparepart untuk S/N {{ $job->serial_number ?? '-' }}.
+                    </p>
+                </div>
+
+                <span class="inline-flex w-max rounded-full border border-amber-200 bg-white px-3 py-1 text-xs font-black text-amber-700">
+                    {{ $recommendationHistories->count() }} Rekomendasi
+                </span>
+            </div>
+
+            <div class="hidden xl:block">
+                <table class="min-w-full table-fixed divide-y divide-amber-100">
+                    <thead class="bg-white">
+                        <tr>
+                            <th class="w-[10%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Tanggal</th>
+                            <th class="w-[12%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Job</th>
+                            <th class="w-[13%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Part Number</th>
+                            <th class="w-[21%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Part Name</th>
+                            <th class="w-[7%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Qty</th>
+                            <th class="w-[14%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Status</th>
+                            <th class="w-[15%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Remarks</th>
+                            <th class="w-[8%] px-4 py-3 text-right text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        @forelse($recommendationHistories as $history)
+                        @php
+                            $historyJob = $history['job'];
+                            $part = $history['part'];
+                        @endphp
+                        <tr class="align-top transition hover:bg-amber-50/50">
+                            <td class="px-4 py-4 text-sm font-bold text-slate-800">
+                                {{ $historyJob->work_date ? \Carbon\Carbon::parse($historyJob->work_date)->translatedFormat('d M Y') : '-' }}
+                            </td>
+                            <td class="px-4 py-4">
+                                <p class="text-sm font-black text-slate-900">#{{ str_pad($historyJob->id, 5, '0', STR_PAD_LEFT) }}</p>
+                                <p class="mt-1 wrap-break-word text-xs font-semibold text-slate-500">{{ $historyJob->job_type ?? '-' }}</p>
+                            </td>
+                            <td class="px-4 py-4 wrap-break-word font-mono text-xs font-bold text-amber-700">{{ $part->part_number ?? '-' }}</td>
+                            <td class="px-4 py-4 wrap-break-word text-sm font-bold text-slate-900">{{ $part->part_name ?? '-' }}</td>
+                            <td class="px-4 py-4 text-sm font-black text-slate-800">{{ $part->qty ?? '-' }}</td>
+                            <td class="px-4 py-4">
+                                @if($history['is_installed'])
+                                <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-black text-emerald-700">
+                                    Sudah Dipasang · Qty {{ number_format($history['installed_qty'], 0, ',', '.') }}
+                                </span>
+                                @else
+                                <span class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-black text-slate-500">
+                                    Belum Dipasang
+                                </span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-4 wrap-break-word whitespace-pre-line text-sm font-semibold text-slate-600">{{ $part->remarks ?? '-' }}</td>
+                            <td class="px-4 py-4 text-right">
+                                <a href="{{ route('update-jobs.show', $historyJob->id) }}"
+                                    class="inline-flex items-center justify-center rounded-xl bg-amber-600 px-3 py-2 text-xs font-black text-white transition hover:bg-amber-700">
+                                    Detail
+                                </a>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="8" class="px-4 py-10 text-center">
+                                <p class="text-sm font-bold text-slate-600">Belum ada histori rekomendasi sparepart.</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="divide-y divide-slate-100 xl:hidden">
+                @forelse($recommendationHistories as $history)
+                @php
+                    $historyJob = $history['job'];
+                    $part = $history['part'];
+                @endphp
+                <div class="p-4">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div class="min-w-0">
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-400">
+                                {{ $historyJob->work_date ? \Carbon\Carbon::parse($historyJob->work_date)->translatedFormat('d M Y') : '-' }}
+                            </p>
+                            <h3 class="mt-1 wrap-break-word text-sm font-black text-slate-950">{{ $part->part_name ?? '-' }}</h3>
+                            <p class="mt-1 wrap-break-word font-mono text-xs font-bold text-amber-700">{{ $part->part_number ?? '-' }}</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="w-max rounded-full bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">Qty {{ $part->qty ?? '-' }}</span>
+                            @if($history['is_installed'])
+                            <span class="w-max rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">
+                                Sudah Dipasang · Qty {{ number_format($history['installed_qty'], 0, ',', '.') }}
+                            </span>
+                            @else
+                            <span class="w-max rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-500">
+                                Belum Dipasang
+                            </span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl bg-slate-50 p-3">
+                            <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Job</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-800">#{{ str_pad($historyJob->id, 5, '0', STR_PAD_LEFT) }} · {{ $historyJob->job_type ?? '-' }}</dd>
+                        </div>
+                        <div class="rounded-2xl bg-slate-50 p-3">
+                            <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Remarks</dt>
+                            <dd class="mt-1 wrap-break-word whitespace-pre-line text-sm font-bold text-slate-800">{{ $part->remarks ?? '-' }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="mt-4 flex justify-end">
+                        <a href="{{ route('update-jobs.show', $historyJob->id) }}"
+                            class="inline-flex items-center justify-center rounded-2xl bg-amber-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-amber-700">
+                            Lihat Detail Job
+                        </a>
+                    </div>
+                </div>
+                @empty
+                <div class="p-8 text-center">
+                    <p class="text-sm font-bold text-slate-600">Belum ada histori rekomendasi sparepart.</p>
+                </div>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="overflow-hidden rounded-3xl border border-indigo-100 bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-indigo-100 bg-indigo-50/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-sm font-black uppercase tracking-wider text-indigo-900">
+                        Histori Pemasangan Sparepart
+                    </h2>
+                    <p class="mt-1 text-xs font-semibold text-indigo-700/80">
+                        Semua sparepart terpasang untuk S/N {{ $job->serial_number ?? '-' }}.
+                    </p>
+                </div>
+
+                <span class="inline-flex w-max rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs font-black text-indigo-700">
+                    {{ $installPartHistories->count() }} Pemasangan
+                </span>
+            </div>
+
+            <div class="hidden xl:block">
+                <table class="min-w-full table-fixed divide-y divide-indigo-100">
+                    <thead class="bg-white">
+                        <tr>
+                            <th class="w-[11%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Tanggal</th>
+                            <th class="w-[13%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Job</th>
+                            <th class="w-[13%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Part Number</th>
+                            <th class="w-[22%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Part Name</th>
+                            <th class="w-[6%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">Qty</th>
+                            <th class="w-[10%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">No Job</th>
+                            <th class="w-[10%] px-4 py-3 text-left text-[11px] font-black uppercase tracking-wide text-slate-500">No PR</th>
+                            <th class="w-[15%] px-4 py-3 text-right text-[11px] font-black uppercase tracking-wide text-slate-500">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        @forelse($installPartHistories as $history)
+                        @php
+                            $historyJob = $history['job'];
+                            $part = $history['part'];
+                        @endphp
+                        <tr class="align-top transition hover:bg-indigo-50/50">
+                            <td class="px-4 py-4 text-sm font-bold text-slate-800">
+                                {{ $historyJob->work_date ? \Carbon\Carbon::parse($historyJob->work_date)->translatedFormat('d M Y') : '-' }}
+                            </td>
+                            <td class="px-4 py-4">
+                                <p class="text-sm font-black text-slate-900">#{{ str_pad($historyJob->id, 5, '0', STR_PAD_LEFT) }}</p>
+                                <p class="mt-1 wrap-break-word text-xs font-semibold text-slate-500">{{ $historyJob->job_type ?? '-' }}</p>
+                            </td>
+                            <td class="px-4 py-4 wrap-break-word font-mono text-xs font-bold text-indigo-700">{{ $part->part_number ?? '-' }}</td>
+                            <td class="px-4 py-4 wrap-break-word text-sm font-bold text-slate-900">{{ $part->part_name ?? '-' }}</td>
+                            <td class="px-4 py-4 text-sm font-black text-slate-800">{{ $part->qty ?? '-' }}</td>
+                            <td class="px-4 py-4 wrap-break-word text-sm font-semibold text-slate-700">{{ $part->no_job ?? '-' }}</td>
+                            <td class="px-4 py-4 wrap-break-word text-sm font-semibold text-slate-700">{{ $part->no_pr ?? '-' }}</td>
+                            <td class="px-4 py-4 text-right">
+                                <div class="flex justify-end gap-2">
+                                    <a href="{{ route('update-jobs.show', $historyJob->id) }}"
+                                        class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-3 py-2 text-xs font-black text-white transition hover:bg-indigo-700">
+                                        Detail
+                                    </a>
+                                    @if($part->remarks)
+                                    <span title="{{ $part->remarks }}" class="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600">
+                                        Note
+                                    </span>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="8" class="px-4 py-10 text-center">
+                                <p class="text-sm font-bold text-slate-600">Belum ada histori pemasangan sparepart.</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="divide-y divide-slate-100 xl:hidden">
+                @forelse($installPartHistories as $history)
+                @php
+                    $historyJob = $history['job'];
+                    $part = $history['part'];
+                @endphp
+                <div class="p-4">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div class="min-w-0">
+                            <p class="text-xs font-black uppercase tracking-wide text-slate-400">
+                                {{ $historyJob->work_date ? \Carbon\Carbon::parse($historyJob->work_date)->translatedFormat('d M Y') : '-' }}
+                            </p>
+                            <h3 class="mt-1 wrap-break-word text-sm font-black text-slate-950">{{ $part->part_name ?? '-' }}</h3>
+                            <p class="mt-1 wrap-break-word font-mono text-xs font-bold text-indigo-700">{{ $part->part_number ?? '-' }}</p>
+                        </div>
+                        <span class="w-max rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">Qty {{ $part->qty ?? '-' }}</span>
+                    </div>
+
+                    <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div class="rounded-2xl bg-slate-50 p-3">
+                            <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Job</dt>
+                            <dd class="mt-1 text-sm font-bold text-slate-800">#{{ str_pad($historyJob->id, 5, '0', STR_PAD_LEFT) }} · {{ $historyJob->job_type ?? '-' }}</dd>
+                        </div>
+                        <div class="rounded-2xl bg-slate-50 p-3">
+                            <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">No Job / No PR</dt>
+                            <dd class="mt-1 wrap-break-word text-sm font-bold text-slate-800">{{ $part->no_job ?? '-' }} / {{ $part->no_pr ?? '-' }}</dd>
+                        </div>
+                        <div class="rounded-2xl bg-slate-50 p-3 sm:col-span-2">
+                            <dt class="text-[11px] font-black uppercase tracking-wide text-slate-400">Remarks</dt>
+                            <dd class="mt-1 wrap-break-word whitespace-pre-line text-sm font-bold text-slate-800">{{ $part->remarks ?? '-' }}</dd>
+                        </div>
+                    </dl>
+
+                    <div class="mt-4 flex justify-end">
+                        <a href="{{ route('update-jobs.show', $historyJob->id) }}"
+                            class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-indigo-700">
+                            Lihat Detail Job
+                        </a>
+                    </div>
+                </div>
+                @empty
+                <div class="p-8 text-center">
+                    <p class="text-sm font-bold text-slate-600">Belum ada histori pemasangan sparepart.</p>
+                </div>
+                @endforelse
+            </div>
+        </div>
     </div>
 </div>
 @endsection

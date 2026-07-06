@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UnitAsset;
 use App\Support\DepartmentScope;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
@@ -486,8 +487,8 @@ class CommandCenterController extends Controller
         $this->applyDepartmentScope($query, 'unit_assets');
 
         return $withdrawn
-            ? $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) = 'DITARIK'")->count()
-            : $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")->count();
+            ? $query->whereRaw(UnitAsset::inactiveStatusSql())->count()
+            : $query->whereRaw(UnitAsset::activeStatusSql())->count();
     }
 
     private function filterOptions(array $modules, array $filters): array

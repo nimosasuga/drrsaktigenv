@@ -119,7 +119,7 @@ class PenarikanController extends Controller
         }
 
         UnitAsset::where('serial_number', $serialNumber)->update([
-            'status' => 'DITARIK',
+            'status' => UnitAsset::STATUS_INACTIVE,
             'updated_at' => now(),
         ]);
     }

@@ -249,14 +249,16 @@ class CalendarController extends Controller
         $mechanicId = $request->input('mechanic_id');
         $canManagePlanning = $this->canManagePlanning($user);
         $canViewPiket = $user->department === 'RENTAL' || $this->canSeeAllDepartments($user);
+        $departmentOptions = $this->departmentOptions($user);
+        $selectedDepartment = $this->selectedDepartment($request, $user, $departmentOptions);
 
         $mechanics = User::query()
             ->where('status_user', 'mekanik')
-            ->when(!$this->canSeeAllDepartments($user), fn ($query) => $query->where('department', $user->department))
+            ->when($selectedDepartment, fn ($query) => $query->where('department', $selectedDepartment))
             ->orderBy('name')
             ->get();
 
-        $assetOptions = $this->assetOptionsForUser();
+        $assetOptions = $this->assetOptionsForUser($selectedDepartment);
         $customers = $assetOptions->pluck('customer')->filter()->unique()->values();
         $customerLocations = [];
 
@@ -271,6 +273,7 @@ class CalendarController extends Controller
         $planningsQuery = WorkPlanning::with(['mechanic', 'partner', 'creator'])
             ->whereYear('planned_date', $year)
             ->whereMonth('planned_date', $month)
+            ->when($selectedDepartment, fn ($query) => $query->where('department', $selectedDepartment))
             ->when($mechanicId, function ($query, $mechanicId) {
                 $query->where(function ($sub) use ($mechanicId) {
                     $sub->where('mechanic_id', $mechanicId)->orWhere('partner_id', $mechanicId);
@@ -281,6 +284,7 @@ class CalendarController extends Controller
 
         $plannings = $planningsQuery->orderBy('planned_date')->get();
         $groupedPlannings = $plannings->groupBy(fn ($planning) => $planning->planned_date->format('Y-m-d'));
+        $planningWeeks = $this->planningWeeks($year, $month, $groupedPlannings);
         $saturdays = $this->saturdaysInMonth($year, $month);
         $pikets = collect();
         $recommendedMechanics = collect();
@@ -301,7 +305,7 @@ class CalendarController extends Controller
             $piketMonthCards = $this->piketMonthCards($user);
         }
 
-        $planningMonthCards = $this->planningMonthCards($user);
+        $planningMonthCards = $this->planningMonthCards($user, $selectedDepartment);
         $timelineMonthCards = $this->timelineMonthCards($canViewPiket, $user);
 
         return compact(
@@ -311,8 +315,11 @@ class CalendarController extends Controller
             'customers',
             'customerLocations',
             'groupedPlannings',
+            'planningWeeks',
             'plannings',
             'canManagePlanning',
+            'departmentOptions',
+            'selectedDepartment',
             'saturdays',
             'pikets',
             'recommendedMechanics',
@@ -338,17 +345,18 @@ class CalendarController extends Controller
         return $saturdays;
     }
 
-    private function planningMonthCards(?User $user = null)
+    private function planningMonthCards(?User $user = null, ?string $department = null)
     {
         $startMonth = now()->startOfMonth();
 
-        return collect(range(0, 5))->map(function ($offset) use ($startMonth, $user) {
+        return collect(range(0, 5))->map(function ($offset) use ($startMonth, $user, $department) {
             $date = $startMonth->copy()->addMonths($offset);
             $month = (int) $date->format('m');
             $year = (int) $date->format('Y');
 
             $query = WorkPlanning::whereYear('planned_date', $year)
-                ->whereMonth('planned_date', $month);
+                ->whereMonth('planned_date', $month)
+                ->when($department, fn ($query) => $query->where('department', $department));
             DepartmentScope::apply($query, 'work_plannings', $user);
 
             $monthPlannings = $query->get();
@@ -365,6 +373,54 @@ class CalendarController extends Controller
                 'is_current' => $offset === 0,
             ];
         });
+    }
+
+    private function planningWeeks(int $year, int $month, $groupedPlannings)
+    {
+        $start = Carbon::create($year, $month, 1)->startOfWeek(Carbon::MONDAY);
+        $end = Carbon::create($year, $month, 1)->endOfMonth()->endOfWeek(Carbon::SUNDAY);
+        $weeks = collect();
+        $cursor = $start->copy();
+        $weekNumber = 1;
+
+        while ($cursor <= $end) {
+            $days = collect();
+            $weekStart = $cursor->copy();
+            $weekEnd = $cursor->copy()->endOfWeek(Carbon::SUNDAY);
+
+            for ($i = 0; $i < 7; $i++) {
+                $date = $cursor->copy();
+                $dateKey = $date->format('Y-m-d');
+                $plans = collect($groupedPlannings->get($dateKey, collect()));
+
+                $days->push([
+                    'date' => $date,
+                    'key' => $dateKey,
+                    'is_current_month' => (int) $date->month === $month,
+                    'plans' => $plans,
+                    'planned_count' => $plans->where('status', 'PLANNED')->count(),
+                    'done_count' => $plans->where('status', 'DONE')->count(),
+                    'cancelled_count' => $plans->where('status', 'CANCELLED')->count(),
+                ]);
+
+                $cursor->addDay();
+            }
+
+            $weeks->push([
+                'number' => $weekNumber,
+                'label' => 'Week ' . $weekNumber,
+                'range' => $weekStart->translatedFormat('d M') . ' - ' . $weekEnd->translatedFormat('d M Y'),
+                'days' => $days,
+                'total_count' => $days->sum(fn ($day) => $day['plans']->count()),
+                'planned_count' => $days->sum('planned_count'),
+                'done_count' => $days->sum('done_count'),
+                'cancelled_count' => $days->sum('cancelled_count'),
+            ]);
+
+            $weekNumber++;
+        }
+
+        return $weeks;
     }
 
     private function piketMonthCards(?User $user = null)
@@ -492,9 +548,53 @@ class CalendarController extends Controller
             });
     }
 
-    private function assetOptionsForUser()
+    private function departmentOptions(?User $user = null)
+    {
+        if (!$this->canSeeAllDepartments($user)) {
+            $department = strtoupper(trim((string) ($user->department ?? '')));
+
+            return $department !== '' ? collect([$department]) : collect();
+        }
+
+        return collect()
+            ->merge(User::whereNotNull('department')->where('department', '!=', '')->distinct()->pluck('department'))
+            ->merge(UnitAsset::withoutGlobalScope('department')->whereNotNull('department')->where('department', '!=', '')->distinct()->pluck('department'))
+            ->merge(WorkPlanning::withoutGlobalScope('department')->whereNotNull('department')->where('department', '!=', '')->distinct()->pluck('department'))
+            ->map(fn ($department) => strtoupper(trim((string) $department)))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+    }
+
+    private function selectedDepartment(Request $request, ?User $user, $departmentOptions): ?string
+    {
+        if (!$this->canSeeAllDepartments($user)) {
+            return strtoupper(trim((string) ($user->department ?? ''))) ?: null;
+        }
+
+        $requested = strtoupper(trim((string) $request->input('department', '')));
+
+        if ($requested !== '' && $departmentOptions->contains($requested)) {
+            return $requested;
+        }
+
+        $userDepartment = strtoupper(trim((string) ($user->department ?? '')));
+        if ($userDepartment !== '' && $departmentOptions->contains($userDepartment)) {
+            return $userDepartment;
+        }
+
+        if ($departmentOptions->contains('RENTAL')) {
+            return 'RENTAL';
+        }
+
+        return $departmentOptions->first();
+    }
+
+    private function assetOptionsForUser(?string $department = null)
     {
         return UnitAsset::query()
+            ->when($department, fn ($query) => $query->where('department', $department))
             ->whereNotNull('customer')
             ->where('customer', '!=', '')
             ->whereNotNull('location')

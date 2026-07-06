@@ -31,14 +31,14 @@ class UpdateJobAssetSearchController extends Controller
                 }
             })
             ->when(!$includeWithdrawn && in_array('status', $columns, true), function ($query) {
-                $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'");
+                $query->whereRaw(UnitAsset::activeStatusSql());
             })
             ->take(10)
             ->get();
 
         return response()->json($assets->map(function ($asset) use ($columns) {
             $status = in_array('status', $columns, true) ? ($asset->status ?? '') : '';
-            $isWithdrawn = strtoupper(trim((string) $status)) === 'DITARIK';
+            $isWithdrawn = in_array(strtoupper(trim((string) $status)), UnitAsset::inactiveStatusValues(), true);
 
             return [
                 'serial_number' => $asset->serial_number ?? '',
@@ -47,7 +47,7 @@ class UpdateJobAssetSearchController extends Controller
                 'location' => $asset->location ?? '',
                 'status' => $status,
                 'is_withdrawn' => $isWithdrawn,
-                'blocked_reason' => $isWithdrawn ? 'Serial Number ini tidak bisa digunakan karena status unit asset sudah DITARIK.' : null,
+                'blocked_reason' => $isWithdrawn ? 'Serial Number ini tidak bisa digunakan karena status unit asset tidak aktif.' : null,
             ];
         })->values());
     }

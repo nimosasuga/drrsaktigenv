@@ -187,16 +187,18 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label for="in_time" class="block text-xs font-medium text-slate-700 mb-1">Jam Mulai
-                                Job</label>
+                                Job <span class="text-red-500">*</span></label>
                             <input type="time" name="in_time" id="in_time"
                                 value="{{ old('in_time', $job->in_time ? \Carbon\Carbon::parse($job->in_time)->format('H:i') : '') }}"
+                                required
                                 class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
                         </div>
                         <div>
                             <label for="out_time" class="block text-xs font-medium text-slate-700 mb-1">Jam Selesai
-                                Job</label>
+                                Job <span class="text-red-500">*</span></label>
                             <input type="time" name="out_time" id="out_time"
                                 value="{{ old('out_time', $job->out_time ? \Carbon\Carbon::parse($job->out_time)->format('H:i') : '') }}"
+                                required
                                 class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
                         </div>
                     </div>
@@ -328,8 +330,8 @@
                         </div>
                         <div>
                             <label for="status_unit" class="block text-xs font-medium text-slate-700 mb-1">Status Akhir
-                                Unit</label>
-                            <select name="status_unit" id="status_unit"
+                                Unit <span class="text-red-500">*</span></label>
+                            <select name="status_unit" id="status_unit" required
                                 class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow">
                                 <option value="">Pilih Status</option>
                                 <option value="RFU" {{ old('status_unit', $job->status_unit) == 'RFU' ? 'selected' : ''

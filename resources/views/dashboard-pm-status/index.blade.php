@@ -86,7 +86,7 @@
                         </td>
                         <td class="px-4 py-4">
                             @if($pmJob)
-                                <p class="font-black text-emerald-700">Sudah PM</p>
+                                <x-status-badge status="Sudah PM" />
                                 <p class="mt-1 text-xs font-semibold text-slate-500">
                                     {{ $pmJob->work_date ? $pmJob->work_date->format('d/m/Y') : '-' }}
                                 </p>
@@ -94,7 +94,7 @@
                                     {{ $pmJob->job_type ?: 'Preventive Maintenance' }}
                                 </p>
                             @else
-                                <p class="font-black text-rose-700">Belum PM</p>
+                                <x-status-badge status="Belum PM" />
                                 <p class="mt-1 text-xs font-semibold text-slate-500">Belum ada PM bulan ini</p>
                             @endif
                         </td>
@@ -104,7 +104,9 @@
                                 <p class="mt-1 text-xs font-semibold text-slate-500">
                                     HM {{ number_format((float) $pmJob->hour_meter, 0, ',', '.') }}
                                 </p>
-                                <p class="mt-1 text-[11px] font-semibold text-slate-400">{{ $pmJob->status_unit ?: '-' }}</p>
+                                <div class="mt-2">
+                                    <x-status-badge :status="$pmJob->status_unit" size="xs" />
+                                </div>
                             @else
                                 <p class="text-xs font-semibold text-slate-400">-</p>
                             @endif
@@ -158,9 +160,9 @@
                             {{ $asset->status ?: '-' }}
                         </span>
                         @if($pmJob)
-                            <span class="inline-flex rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700">Sudah PM</span>
+                            <x-status-badge status="Sudah PM" />
                         @else
-                            <span class="inline-flex rounded-full border border-rose-100 bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-700">Belum PM</span>
+                            <x-status-badge status="Belum PM" />
                         @endif
                     </div>
                 </div>
@@ -183,11 +185,11 @@
                     <div class="rounded-2xl bg-slate-50 p-3">
                         <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">PM Bulan Ini</p>
                         @if($pmJob)
-                            <p class="mt-1 text-sm font-black text-emerald-700">Sudah PM</p>
+                            <x-status-badge status="Sudah PM" />
                             <p class="mt-1 text-xs font-semibold text-slate-500">{{ $pmJob->work_date ? $pmJob->work_date->format('d/m/Y') : '-' }}</p>
                             <p class="mt-1 break-words text-[11px] font-semibold text-slate-400">{{ $pmJob->job_type ?: 'Preventive Maintenance' }}</p>
                         @else
-                            <p class="mt-1 text-sm font-black text-rose-700">Belum PM</p>
+                            <x-status-badge status="Belum PM" />
                             <p class="mt-1 text-xs font-semibold text-slate-500">Belum ada PM bulan ini</p>
                         @endif
                     </div>
@@ -197,7 +199,9 @@
                         @if($pmJob)
                             <p class="mt-1 break-words text-sm font-bold text-slate-900">{{ $pmJob->pic ?: '-' }}</p>
                             <p class="mt-1 text-xs font-semibold text-slate-500">HM {{ number_format((float) $pmJob->hour_meter, 0, ',', '.') }}</p>
-                            <p class="mt-1 text-[11px] font-semibold text-slate-400">{{ $pmJob->status_unit ?: '-' }}</p>
+                            <div class="mt-2">
+                                <x-status-badge :status="$pmJob->status_unit" size="xs" />
+                            </div>
                         @else
                             <p class="mt-1 text-sm font-semibold text-slate-400">-</p>
                         @endif

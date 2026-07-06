@@ -123,7 +123,7 @@ class UpdateJobSaveController extends Controller
     {
         $asset = UnitAsset::where('serial_number', $serialNumber)->first();
 
-        return $asset && strtoupper(trim((string) ($asset->status ?? ''))) === 'DITARIK';
+        return $asset && $asset->isInactiveUnit();
     }
 
     private function rejectDuplicatePreventiveMaintenance(array $validated, ?int $exceptJobId = null)
@@ -208,8 +208,8 @@ class UpdateJobSaveController extends Controller
     {
         return $request->validate([
             'work_date' => ['required', 'date'],
-            'in_time' => ['nullable', 'date_format:H:i'],
-            'out_time' => ['nullable', 'date_format:H:i'],
+            'in_time' => ['required', 'date_format:H:i'],
+            'out_time' => ['required', 'date_format:H:i'],
             'serial_number' => ['required', 'string', 'max:100'],
             'unit_type' => ['required', 'string', 'max:100'],
             'nomor_lambung' => ['nullable', 'string', 'max:100'],
@@ -254,7 +254,7 @@ class UpdateJobSaveController extends Controller
         $validated = $this->validateRequest($request);
 
         if ($this->isWithdrawnAsset($validated['serial_number'])) {
-            return back()->withInput()->withErrors(['error' => 'Serial Number ' . $validated['serial_number'] . ' tidak bisa digunakan karena status unit asset sudah DITARIK.']);
+            return back()->withInput()->withErrors(['error' => 'Serial Number ' . $validated['serial_number'] . ' tidak bisa digunakan karena status unit asset tidak aktif.']);
         }
 
         if ($duplicatePmResponse = $this->rejectDuplicatePreventiveMaintenance($validated)) {
@@ -297,7 +297,7 @@ class UpdateJobSaveController extends Controller
         $validated = $this->validateRequest($request);
 
         if ($this->isWithdrawnAsset($validated['serial_number'])) {
-            return back()->withInput()->withErrors(['error' => 'Serial Number ' . $validated['serial_number'] . ' tidak bisa digunakan karena status unit asset sudah DITARIK.']);
+            return back()->withInput()->withErrors(['error' => 'Serial Number ' . $validated['serial_number'] . ' tidak bisa digunakan karena status unit asset tidak aktif.']);
         }
 
         if ($duplicatePmResponse = $this->rejectDuplicatePreventiveMaintenance($validated, $job->id)) {

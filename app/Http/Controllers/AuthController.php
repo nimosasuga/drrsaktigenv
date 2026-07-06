@@ -39,19 +39,19 @@ class AuthController extends Controller
 
         // Mengambil statistik asli dari database
         $totalAssets = UnitAsset::count();
-        $rentalAssets = UnitAsset::where('status', 'RENTAL')->orWhere('status', 'Ready')->count();
-        $ditarikAssets = UnitAsset::where('status', 'DITARIK')->orWhere('status', 'Breakdown')->count();
-        $backupAssets = UnitAsset::where('status', 'BACKUP')->orWhere('status', 'Standby')->count();
+        $activeAssets = UnitAsset::whereRaw(UnitAsset::activeStatusSql())->count();
+        $inactiveAssets = UnitAsset::whereRaw(UnitAsset::inactiveStatusSql())->count();
+        $otherAssets = max($totalAssets - $activeAssets - $inactiveAssets, 0);
         $pmMonth = now();
         $pmEligibleAssets = UnitAsset::query()
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
-            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) NOT IN ('DITARIK', 'BREAKDOWN')")
+            ->whereRaw(UnitAsset::activeStatusSql())
             ->count();
         $pmDoneAssets = UnitAsset::query()
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
-            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) NOT IN ('DITARIK', 'BREAKDOWN')")
+            ->whereRaw(UnitAsset::activeStatusSql())
             ->whereIn('serial_number', Job::query()
                 ->select('serial_number')
                 ->whereNotNull('serial_number')
@@ -81,9 +81,9 @@ class AuthController extends Controller
         return view('dashboard', compact(
             'user',
             'totalAssets',
-            'rentalAssets',
-            'ditarikAssets',
-            'backupAssets',
+            'activeAssets',
+            'inactiveAssets',
+            'otherAssets',
             'pmEligibleAssets',
             'pmDoneAssets',
             'pmPendingAssets',

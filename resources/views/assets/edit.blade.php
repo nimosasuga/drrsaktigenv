@@ -124,6 +124,8 @@
                         <select name="status" id="status" required
                             class="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2 text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm transition-colors bg-white">
                             <option value="">Pilih Status</option>
+                            <option value="ACTIVE" {{ old('status', $asset->status) === 'ACTIVE' ? 'selected' : '' }}>ACTIVE</option>
+                            <option value="INACTIVE" {{ old('status', $asset->status) === 'INACTIVE' ? 'selected' : '' }}>INACTIVE</option>
                             <option value="RENTAL" {{ old('status', $asset->status) === 'RENTAL' ? 'selected' : '' }}>RENTAL</option>
                             <option value="BACKUP" {{ old('status', $asset->status) === 'BACKUP' ? 'selected' : '' }}>BACKUP</option>
                             <option value="DITARIK" {{ old('status', $asset->status) === 'DITARIK' ? 'selected' : '' }}>DITARIK</option>

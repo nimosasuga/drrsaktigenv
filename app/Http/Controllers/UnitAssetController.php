@@ -38,7 +38,7 @@ class UnitAssetController extends Controller
 
     private function assetStatusOptions(): array
     {
-        return ['RENTAL', 'BACKUP', 'DITARIK'];
+        return UnitAsset::statusOptions();
     }
 
     public function index(Request $request)
@@ -196,6 +196,7 @@ class UnitAssetController extends Controller
             'note' => 'nullable|string',
         ]);
 
+        $validated['status'] = strtoupper(trim((string) $validated['status']));
         $validated['qr_token'] = Str::random(32);
 
         UnitAsset::create($validated);
@@ -214,7 +215,12 @@ class UnitAssetController extends Controller
         $timeline = collect();
 
         // 1. Data Update Jobs (Warna Biru)
-        $jobs = \App\Models\Job::where('serial_number', $sn)->get();
+        $jobs = \App\Models\Job::with(['recommendations', 'installParts'])
+            ->where('serial_number', $sn)
+            ->orderByDesc('work_date')
+            ->orderByDesc('id')
+            ->get();
+
         foreach ($jobs as $j) {
             $timeline->push([
                 'module' => 'Update Job',
@@ -228,6 +234,91 @@ class UnitAssetController extends Controller
                 'color_border' => 'border-blue-200'
             ]);
         }
+
+        $latestJob = $jobs->first();
+        $pmJobs = $jobs
+            ->filter(function ($job) {
+                $jobType = strtoupper(trim((string) ($job->job_type ?? '')));
+
+                return $jobType === 'PM' || str_contains($jobType, 'PREVENTIVE MAINTENANCE');
+            })
+            ->values();
+
+        $recommendationHistories = $jobs
+            ->flatMap(function ($job) {
+                return $job->recommendations->map(function ($part) use ($job) {
+                    return [
+                        'type' => 'recommendation',
+                        'date' => $job->work_date,
+                        'job' => $job,
+                        'part' => $part,
+                        'title' => $part->part_name ?: 'Rekomendasi Sparepart',
+                        'description' => 'PN: ' . ($part->part_number ?: '-') . ' · Qty ' . number_format((int) ($part->qty ?? 0), 0, ',', '.'),
+                    ];
+                });
+            })
+            ->sortByDesc('date')
+            ->values();
+
+        $installPartHistories = $jobs
+            ->flatMap(function ($job) {
+                return $job->installParts->map(function ($part) use ($job) {
+                    return [
+                        'type' => 'install_part',
+                        'date' => $job->work_date,
+                        'job' => $job,
+                        'part' => $part,
+                        'title' => $part->part_name ?: 'Pemasangan Sparepart',
+                        'description' => 'PN: ' . ($part->part_number ?: '-') . ' · Qty ' . number_format((int) ($part->qty ?? 0), 0, ',', '.'),
+                    ];
+                });
+            })
+            ->sortByDesc('date')
+            ->values();
+
+        $unitTimeline = collect()
+            ->merge($jobs->map(function ($job) {
+                return [
+                    'type' => str_contains(strtoupper((string) $job->job_type), 'PREVENTIVE MAINTENANCE') ? 'pm' : 'job',
+                    'date' => $job->work_date,
+                    'title' => $job->job_type ?: 'Update Job',
+                    'subtitle' => $job->pic ?: 'Tanpa PIC',
+                    'description' => $job->problem ?: ($job->action ?: 'Pekerjaan unit'),
+                    'status' => $job->status_unit,
+                    'route' => route('update-jobs.show', $job->id),
+                ];
+            }))
+            ->merge($recommendationHistories->map(function ($history) {
+                return [
+                    'type' => 'recommendation',
+                    'date' => $history['date'],
+                    'title' => $history['title'],
+                    'subtitle' => 'Rekomendasi Sparepart',
+                    'description' => $history['description'] . (filled($history['part']->remarks ?? null) ? ' · ' . $history['part']->remarks : ''),
+                    'status' => 'Belum PM',
+                    'route' => route('update-jobs.show', $history['job']->id),
+                ];
+            }))
+            ->merge($installPartHistories->map(function ($history) {
+                return [
+                    'type' => 'install_part',
+                    'date' => $history['date'],
+                    'title' => $history['title'],
+                    'subtitle' => 'Pemasangan Sparepart',
+                    'description' => $history['description'] . (filled($history['part']->remarks ?? null) ? ' · ' . $history['part']->remarks : ''),
+                    'status' => 'Sudah PM',
+                    'route' => route('update-jobs.show', $history['job']->id),
+                ];
+            }))
+            ->sortByDesc('date')
+            ->values();
+
+        $timelineStats = [
+            'job_total' => $jobs->count(),
+            'pm_total' => $pmJobs->count(),
+            'recommendation_total' => $recommendationHistories->count(),
+            'install_part_total' => $installPartHistories->count(),
+        ];
 
         // 2. Data Batteries (Warna Emerald)
         $batteries = \App\Models\Battery::where('serial_number', $sn)->get();
@@ -282,7 +373,16 @@ class UnitAssetController extends Controller
         // Urutkan timeline berdasarkan tanggal terbaru di atas
         $timeline = $timeline->sortByDesc('date')->values();
 
-        return view('assets.show', compact('asset', 'timeline'));
+        return view('assets.show', compact(
+            'asset',
+            'timeline',
+            'latestJob',
+            'pmJobs',
+            'recommendationHistories',
+            'installPartHistories',
+            'unitTimeline',
+            'timelineStats'
+        ));
     }
 
     public function edit(UnitAsset $asset)
@@ -310,6 +410,7 @@ class UnitAssetController extends Controller
             'note' => 'nullable|string',
         ]);
 
+        $validated['status'] = strtoupper(trim((string) $validated['status']));
         $asset->update($validated);
 
         return redirect()->route('assets.show', $asset->id)->with('success', 'Data aset berhasil diperbarui.');

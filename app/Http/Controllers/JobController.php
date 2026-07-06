@@ -100,12 +100,12 @@ class JobController extends Controller
 
     private function isWithdrawnAssetStatus(string $status): bool
     {
-        return strtoupper(trim((string) $status)) === 'DITARIK';
+        return in_array(strtoupper(trim((string) $status)), UnitAsset::inactiveStatusValues(), true);
     }
 
     private function assetWithdrawnError(string $serialNumber): string
     {
-        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Update Job karena status unit asset sudah DITARIK.";
+        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Update Job karena status unit asset tidak aktif.";
     }
 
     private function rejectIfAssetWithdrawn(string $serialNumber)
@@ -186,6 +186,7 @@ class JobController extends Controller
 
         // Default aman: tampilkan tahun berjalan agar halaman tidak memuat seluruh histori pekerjaan.
         $selectedYear = (int) $request->input('year_filter', now()->year);
+        $hasDateRange = $request->filled('date_from') || $request->filled('date_to');
 
         if ($request->filled('month_filter')) {
             $parts = explode('-', $request->month_filter);
@@ -194,8 +195,16 @@ class JobController extends Controller
                 $query->whereYear('work_date', $parts[0])
                     ->whereMonth('work_date', $parts[1]);
             }
-        } else {
+        } elseif (!$hasDateRange) {
             $query->whereYear('work_date', $selectedYear);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('work_date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('work_date', '<=', $request->date_to);
         }
 
         if ($request->filled('customer_filter')) {
@@ -212,6 +221,16 @@ class JobController extends Controller
 
         if ($request->filled('status_filter')) {
             $query->where('status_unit', $request->status_filter);
+        }
+
+        if ($request->filled('job_type_filter')) {
+            $query->where('job_type', $request->job_type_filter);
+        }
+
+        if ($request->filled('serial_number_filter')) {
+            $serialNumber = trim($request->serial_number_filter);
+
+            $query->where('serial_number', 'like', "%{$serialNumber}%");
         }
 
         if ($request->filled('search')) {
@@ -342,6 +361,13 @@ class JobController extends Controller
             ->orderBy('status_unit')
             ->pluck('status_unit');
 
+        $jobTypes = Job::whereNotNull('job_type')
+            ->where('job_type', '!=', '')
+            ->select('job_type')
+            ->distinct()
+            ->orderBy('job_type')
+            ->pluck('job_type');
+
         $years = Job::whereNotNull('work_date')
             ->selectRaw('YEAR(work_date) as year')
             ->distinct()
@@ -357,6 +383,7 @@ class JobController extends Controller
             'pics',
             'locations',
             'statuses',
+            'jobTypes',
             'years',
             'selectedYear'
         ));
@@ -394,7 +421,7 @@ class JobController extends Controller
                 ->orWhere('location', 'LIKE', "%{$search}%");
         })
             ->when(!$includeWithdrawn, function ($query) {
-                $query->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'");
+                $query->whereRaw(UnitAsset::activeStatusSql());
             })
             ->take(10)
             ->get();
@@ -460,8 +487,8 @@ class JobController extends Controller
 
         $validated = $request->validate([
             'work_date'     => 'required|date',
-            'in_time'       => 'nullable|date_format:H:i',
-            'out_time'      => 'nullable|date_format:H:i',
+            'in_time'       => 'required|date_format:H:i',
+            'out_time'      => 'required|date_format:H:i',
             'serial_number' => 'required|string|max:100',
             'unit_type'     => 'required|string|max:100',
             'nomor_lambung' => 'nullable|string|max:100',
@@ -538,9 +565,86 @@ class JobController extends Controller
         }
     }
 
-    public function show(mixed $id)
+    public function show(Request $request, mixed $id)
     {
         $job = Job::with(['user', 'installParts', 'recommendations'])->findOrFail($id);
+        $partNumberFilter = trim((string) $request->query('part_number', ''));
+        $normalizePartNumber = function ($value): string {
+            $value = strtoupper(trim((string) ($value ?? '')));
+
+            return preg_replace('/\s+/', '', $value) ?: '';
+        };
+        $partNumberFilterKey = $normalizePartNumber($partNumberFilter);
+
+        $historyJobs = Job::with(['installParts', 'recommendations'])
+            ->where('serial_number', $job->serial_number)
+            ->where(function ($query) {
+                $query->whereHas('installParts')
+                    ->orWhereHas('recommendations');
+            })
+            ->orderByDesc('work_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $rawRecommendationHistories = $historyJobs
+            ->flatMap(function ($historyJob) {
+                return $historyJob->recommendations->map(function ($recommendation) use ($historyJob) {
+                    return [
+                        'job' => $historyJob,
+                        'part' => $recommendation,
+                    ];
+                });
+            })
+            ->values();
+
+        $rawInstallPartHistories = $historyJobs
+            ->flatMap(function ($historyJob) {
+                return $historyJob->installParts->map(function ($installPart) use ($historyJob) {
+                    return [
+                        'job' => $historyJob,
+                        'part' => $installPart,
+                    ];
+                });
+            })
+            ->values();
+
+        $partNumberOptions = $rawRecommendationHistories
+            ->merge($rawInstallPartHistories)
+            ->map(fn($history) => trim((string) ($history['part']->part_number ?? '')))
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values();
+
+        $installedQtyByPartNumber = $rawInstallPartHistories
+            ->filter(fn($history) => $normalizePartNumber($history['part']->part_number ?? '') !== '')
+            ->groupBy(fn($history) => $normalizePartNumber($history['part']->part_number ?? ''))
+            ->map(fn($items) => $items->sum(fn($history) => (int) ($history['part']->qty ?? 0)));
+
+        $recommendationHistories = $rawRecommendationHistories
+            ->map(function ($history) use ($normalizePartNumber, $installedQtyByPartNumber) {
+                $partNumberKey = $normalizePartNumber($history['part']->part_number ?? '');
+
+                return array_merge($history, [
+                    'part_number_key' => $partNumberKey,
+                    'is_installed' => $partNumberKey !== '' && $installedQtyByPartNumber->has($partNumberKey),
+                    'installed_qty' => $partNumberKey !== '' ? (int) ($installedQtyByPartNumber->get($partNumberKey, 0)) : 0,
+                ]);
+            })
+            ->when($partNumberFilterKey !== '', fn($histories) => $histories->filter(fn($history) => $history['part_number_key'] === $partNumberFilterKey))
+            ->values();
+
+        $installPartHistories = $rawInstallPartHistories
+            ->map(function ($history) use ($normalizePartNumber) {
+                return array_merge($history, [
+                    'part_number_key' => $normalizePartNumber($history['part']->part_number ?? ''),
+                ]);
+            })
+            ->when($partNumberFilterKey !== '', fn($histories) => $histories->filter(fn($history) => $history['part_number_key'] === $partNumberFilterKey))
+            ->values();
+
+        $totalRecommendedQty = $recommendationHistories->sum(fn($history) => (int) ($history['part']->qty ?? 0));
+        $totalInstalledQty = $installPartHistories->sum(fn($history) => (int) ($history['part']->qty ?? 0));
 
         $sparepartReviews = RentalSparepartUsageReview::query()
             ->with(['stock.item', 'stock.location', 'movement'])
@@ -553,7 +657,17 @@ class JobController extends Controller
             ->whereNotNull('job_install_part_id')
             ->groupBy('job_install_part_id');
 
-        return view('update-jobs.show', compact('job', 'sparepartReviews', 'sparepartReviewsByInstallPart'));
+        return view('update-jobs.show', compact(
+            'job',
+            'sparepartReviews',
+            'sparepartReviewsByInstallPart',
+            'recommendationHistories',
+            'installPartHistories',
+            'partNumberFilter',
+            'partNumberOptions',
+            'totalRecommendedQty',
+            'totalInstalledQty'
+        ));
     }
 
     public function edit(mixed $id)
@@ -595,8 +709,8 @@ class JobController extends Controller
 
         $validated = $request->validate([
             'work_date'     => 'required|date',
-            'in_time'       => 'nullable|date_format:H:i',
-            'out_time'      => 'nullable|date_format:H:i',
+            'in_time'       => 'required|date_format:H:i',
+            'out_time'      => 'required|date_format:H:i',
             'serial_number' => 'required|string|max:100',
             'unit_type'     => 'required|string|max:100',
             'nomor_lambung' => 'nullable|string|max:100',

@@ -37,12 +37,12 @@ class ChargerController extends Controller
 
     private function isWithdrawnAssetStatus($status): bool
     {
-        return strtoupper(trim((string) $status)) === 'DITARIK';
+        return in_array(strtoupper(trim((string) $status)), UnitAsset::inactiveStatusValues(), true);
     }
 
     private function assetWithdrawnError(string $serialNumber): string
     {
-        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Management Charger karena status unit asset sudah DITARIK.";
+        return "Serial Number {$serialNumber} tidak bisa digunakan untuk Management Charger karena status unit asset tidak aktif.";
     }
 
     private function rejectIfAssetWithdrawn(string $serialNumber)
@@ -203,7 +203,7 @@ class ChargerController extends Controller
                 ->orWhere('customer', 'LIKE', "%{$search}%")
                 ->orWhere('location', 'LIKE', "%{$search}%");
         })
-            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) <> 'DITARIK'")
+            ->whereRaw(UnitAsset::activeStatusSql())
             ->take(10)
             ->get();
 

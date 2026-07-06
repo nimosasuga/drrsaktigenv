@@ -101,21 +101,93 @@
         </div>
     </div>
 
-    <details class="drr-card overflow-hidden rounded-3xl">
-        <summary class="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-black text-slate-900">
-            <span>Filter Data</span><span class="rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-600">Tap</span>
+    <details class="drr-card overflow-hidden rounded-3xl" open>
+        <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-900">
+            <span class="min-w-0 wrap-break-word">Filter Global Data</span>
+            <span class="shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[11px] text-slate-600">Admin</span>
         </summary>
-        <form action="{{ route('update-jobs.index') }}" method="GET" class="grid grid-cols-1 gap-3 border-t border-slate-100 p-4 sm:grid-cols-2 xl:grid-cols-6">
-            <input type="month" name="month_filter" value="{{ request('month_filter') }}" class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
-            <select name="year_filter" class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
-                @forelse($years as $year)<option value="{{ $year }}" {{ (int) request('year_filter', $selectedYear) === (int) $year ? 'selected' : '' }}>{{ $year }}</option>@empty<option value="{{ now()->year }}">{{ now()->year }}</option>@endforelse
-            </select>
-            <select name="customer_filter" class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"><option value="">Semua Customer</option>@foreach($customers as $cust)<option value="{{ $cust }}" {{ request('customer_filter') == $cust ? 'selected' : '' }}>{{ $cust }}</option>@endforeach</select>
-            <select name="pic_filter" class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"><option value="">Semua PIC</option>@foreach($pics as $pic)<option value="{{ $pic }}" {{ request('pic_filter') == $pic ? 'selected' : '' }}>{{ $pic }}</option>@endforeach</select>
-            <select name="location_filter" class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"><option value="">Semua Lokasi</option>@foreach($locations as $location)<option value="{{ $location }}" {{ request('location_filter') == $location ? 'selected' : '' }}>{{ $location }}</option>@endforeach</select>
-            <select name="status_filter" class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100"><option value="">Semua Status</option>@foreach($statuses as $status)<option value="{{ $status }}" {{ request('status_filter') == $status ? 'selected' : '' }}>{{ $status }}</option>@endforeach</select>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari S/N, PIC, customer, lokasi..." class="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 sm:col-span-2 xl:col-span-4">
-            <div class="grid grid-cols-2 gap-2 sm:col-span-2 xl:col-span-2"><button type="submit" class="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-black text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800">Terapkan</button><a href="{{ route('update-jobs.index') }}" class="rounded-2xl border border-red-100 bg-red-50 px-4 py-2 text-center text-sm font-black text-red-600 hover:bg-red-100">Reset</a></div>
+        <form action="{{ route('update-jobs.index') }}" method="GET" class="border-t border-slate-100 p-4">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div>
+                    <label for="date_from" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Tanggal Dari</label>
+                    <input type="date" id="date_from" name="date_from" value="{{ request('date_from') }}" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                </div>
+                <div>
+                    <label for="date_to" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Tanggal Sampai</label>
+                    <input type="date" id="date_to" name="date_to" value="{{ request('date_to') }}" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                </div>
+                <div>
+                    <label for="month_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Bulan</label>
+                    <input type="month" id="month_filter" name="month_filter" value="{{ request('month_filter') }}" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                </div>
+                <div>
+                    <label for="year_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Tahun</label>
+                    <select id="year_filter" name="year_filter" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                        @forelse($years as $year)
+                            <option value="{{ $year }}" {{ (int) request('year_filter', $selectedYear) === (int) $year ? 'selected' : '' }}>{{ $year }}</option>
+                        @empty
+                            <option value="{{ now()->year }}">{{ now()->year }}</option>
+                        @endforelse
+                    </select>
+                </div>
+                <div>
+                    <label for="customer_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Customer</label>
+                    <select id="customer_filter" name="customer_filter" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                        <option value="">Semua Customer</option>
+                        @foreach($customers as $cust)
+                            <option value="{{ $cust }}" {{ request('customer_filter') == $cust ? 'selected' : '' }}>{{ $cust }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="location_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Location</label>
+                    <select id="location_filter" name="location_filter" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                        <option value="">Semua Lokasi</option>
+                        @foreach($locations as $location)
+                            <option value="{{ $location }}" {{ request('location_filter') == $location ? 'selected' : '' }}>{{ $location }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="pic_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">PIC</label>
+                    <select id="pic_filter" name="pic_filter" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                        <option value="">Semua PIC</option>
+                        @foreach($pics as $pic)
+                            <option value="{{ $pic }}" {{ request('pic_filter') == $pic ? 'selected' : '' }}>{{ $pic }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="status_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Status Unit</label>
+                    <select id="status_filter" name="status_filter" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                        <option value="">Semua Status</option>
+                        @foreach($statuses as $status)
+                            <option value="{{ $status }}" {{ request('status_filter') == $status ? 'selected' : '' }}>{{ $status }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="job_type_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Tipe Pekerjaan</label>
+                    <select id="job_type_filter" name="job_type_filter" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                        <option value="">Semua Tipe</option>
+                        @foreach($jobTypes as $jobType)
+                            <option value="{{ $jobType }}" {{ request('job_type_filter') == $jobType ? 'selected' : '' }}>{{ $jobType }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="serial_number_filter" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Serial Number</label>
+                    <input type="text" id="serial_number_filter" name="serial_number_filter" value="{{ request('serial_number_filter') }}" placeholder="Contoh: SN123" class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                </div>
+                <div class="sm:col-span-2">
+                    <label for="search" class="mb-1 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Cari Cepat</label>
+                    <input type="text" id="search" name="search" value="{{ request('search') }}" placeholder="S/N, PIC, customer, lokasi, problem, action..." class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100">
+                </div>
+            </div>
+            <div class="mt-4 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                <a href="{{ route('update-jobs.index') }}" class="rounded-2xl border border-red-100 bg-red-50 px-4 py-2.5 text-center text-sm font-black text-red-600 hover:bg-red-100">Reset</a>
+                <button type="submit" class="rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-slate-900/15 hover:bg-slate-800">Terapkan</button>
+            </div>
         </form>
     </details>
 
@@ -133,8 +205,7 @@
                                         <summary class="cursor-pointer list-none px-3 py-3"><div class="flex items-center justify-between gap-3"><div class="min-w-0"><h4 class="truncate text-xs font-black uppercase tracking-wide text-slate-800">{{ $customerLocationGroup['name'] }}</h4><p class="text-[11px] font-semibold text-slate-500">{{ $customerLocationGroup['unit_total'] }} unit · {{ $customerLocationGroup['total'] }} job</p></div><span class="shrink-0 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-blue-700">Lihat</span></div></summary>
                                         <div class="space-y-2 border-t border-slate-100 bg-slate-50 p-2 sm:grid sm:grid-cols-2 sm:gap-2 sm:space-y-0 xl:grid-cols-3">
                                             @foreach($customerLocationGroup['jobs'] as $job)
-                                                @php $status = strtoupper((string) ($job->status_unit ?? '')); $statusClass = $status === 'RFU' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : (in_array($status, ['B/D', 'BD', 'BREAKDOWN']) ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'); @endphp
-                                                <a href="{{ route('update-jobs.show', $job->id) }}" class="drr-press block rounded-2xl border border-white bg-white p-3 shadow-lg shadow-slate-900/8 active:scale-[0.99]"><div class="flex items-start justify-between gap-2"><div class="min-w-0"><p class="truncate text-sm font-black text-slate-950">{{ $job->unit_type ?? '-' }}</p><p class="truncate text-xs font-bold text-slate-500">SN {{ $job->serial_number ?? '-' }}</p></div><span class="shrink-0 rounded-full border px-2 py-1 text-[10px] font-black {{ $statusClass }}">{{ $job->status_unit ?? '-' }}</span></div><div class="mt-3 grid grid-cols-3 gap-2 text-[11px]"><div><p class="font-bold text-slate-400">Tanggal</p><p class="font-black text-slate-700">{{ $job->work_date ? \Carbon\Carbon::parse($job->work_date)->format('d/m/y') : '-' }}</p></div><div><p class="font-bold text-slate-400">HM</p><p class="font-black text-slate-700">{{ number_format((float) $job->hour_meter, 0, ',', '.') }}</p></div><div><p class="font-bold text-slate-400">Type</p><p class="truncate font-black text-slate-700">{{ $job->job_type ?? '-' }}</p></div></div><div class="mt-3 rounded-xl bg-slate-50/90 p-2 ring-1 ring-slate-100"><p class="line-clamp-2 text-[11px] font-medium leading-relaxed text-slate-600">{{ \Illuminate\Support\Str::limit($job->problem ?? '-', 90) }}</p></div><div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2"><span class="text-[11px] font-bold text-slate-500">#{{ $job->id }}</span><span class="text-[11px] font-black text-blue-600">Lihat Detail</span></div></a>
+                                                <a href="{{ route('update-jobs.show', $job->id) }}" class="drr-press block rounded-2xl border border-white bg-white p-3 shadow-lg shadow-slate-900/8 active:scale-[0.99]"><div class="flex items-start justify-between gap-2"><div class="min-w-0"><p class="truncate text-sm font-black text-slate-950">{{ $job->unit_type ?? '-' }}</p><p class="truncate text-xs font-bold text-slate-500">SN {{ $job->serial_number ?? '-' }}</p></div><x-status-badge :status="$job->status_unit" size="xs" /></div><div class="mt-3 grid grid-cols-3 gap-2 text-[11px]"><div><p class="font-bold text-slate-400">Tanggal</p><p class="font-black text-slate-700">{{ $job->work_date ? \Carbon\Carbon::parse($job->work_date)->format('d/m/y') : '-' }}</p></div><div><p class="font-bold text-slate-400">HM</p><p class="font-black text-slate-700">{{ number_format((float) $job->hour_meter, 0, ',', '.') }}</p></div><div><p class="font-bold text-slate-400">Type</p><p class="truncate font-black text-slate-700">{{ $job->job_type ?? '-' }}</p></div></div><div class="mt-3 rounded-xl bg-slate-50/90 p-2 ring-1 ring-slate-100"><p class="line-clamp-2 text-[11px] font-medium leading-relaxed text-slate-600">{{ \Illuminate\Support\Str::limit($job->problem ?? '-', 90) }}</p></div><div class="mt-3 flex items-center justify-between border-t border-slate-100 pt-2"><span class="text-[11px] font-bold text-slate-500">#{{ $job->id }}</span><span class="text-[11px] font-black text-blue-600">Lihat Detail</span></div></a>
                                             @endforeach
                                         </div>
                                     </details>

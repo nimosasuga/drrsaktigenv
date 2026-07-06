@@ -37,6 +37,7 @@ class RentalSparepartAssetSearchController extends Controller
             ->withoutGlobalScope('department')
             ->where('department', 'RENTAL')
             ->where('serial_number', $serialNumber)
+            ->whereRaw(UnitAsset::activeStatusSql())
             ->first();
 
         if (!$asset) {

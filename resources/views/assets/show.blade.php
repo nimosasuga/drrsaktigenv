@@ -11,6 +11,8 @@ $canManageAsset = in_array(strtolower((string) ($user->role ?? '')), $assetManag
 || in_array(strtolower((string) ($user->status_user ?? '')), $assetManageRoles, true);
 
 $statusClass = match ($asset->status) {
+'ACTIVE' => 'bg-emerald-50 text-emerald-700 border-emerald-100',
+'INACTIVE' => 'bg-rose-50 text-rose-700 border-rose-100',
 'RENTAL' => 'bg-blue-50 text-blue-700 border-blue-100',
 'BACKUP' => 'bg-amber-50 text-amber-700 border-amber-100',
 'DITARIK' => 'bg-rose-50 text-rose-700 border-rose-100',
@@ -42,6 +44,24 @@ return match ($module) {
 'Charger' => 'bg-amber-50 text-amber-700 border-amber-100',
 'Delivery' => 'bg-purple-50 text-purple-700 border-purple-100',
 default => 'bg-slate-50 text-slate-700 border-slate-100',
+};
+};
+
+$timelineTypeClass = function ($type) {
+return match ($type) {
+'pm' => 'border-cyan-100 bg-cyan-50 text-cyan-700',
+'recommendation' => 'border-purple-100 bg-purple-50 text-purple-700',
+'install_part' => 'border-emerald-100 bg-emerald-50 text-emerald-700',
+default => 'border-blue-100 bg-blue-50 text-blue-700',
+};
+};
+
+$timelineTypeLabel = function ($type) {
+return match ($type) {
+'pm' => 'Histori PM',
+'recommendation' => 'Rekomendasi',
+'install_part' => 'Pemasangan',
+default => 'Histori Job',
 };
 };
 @endphp
@@ -179,6 +199,125 @@ default => 'bg-slate-50 text-slate-700 border-slate-100',
             </div>
         </div>
 
+    </div>
+
+    <div class="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <p class="text-xs font-black uppercase tracking-wider text-slate-400">Status Terakhir Unit</p>
+            <div class="mt-4 space-y-3">
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Status Asset</p>
+                    <div class="mt-2">
+                        <span class="inline-flex rounded-full border px-3 py-1 text-xs font-black {{ $statusClass }}">
+                            {{ $asset->status ?? '-' }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl bg-slate-50 p-4">
+                    <p class="text-[11px] font-black uppercase tracking-wider text-slate-400">Status Job Terakhir</p>
+                    @if($latestJob)
+                        <div class="mt-2">
+                            <x-status-badge :status="$latestJob->status_unit" />
+                        </div>
+                        <p class="mt-2 wrap-break-word text-sm font-black text-slate-900">{{ $latestJob->job_type ?: 'Update Job' }}</p>
+                        <p class="mt-1 text-xs font-semibold text-slate-500">
+                            {{ $latestJob->work_date ? \Carbon\Carbon::parse($latestJob->work_date)->translatedFormat('d M Y') : '-' }}
+                            · {{ $latestJob->pic ?: 'Tanpa PIC' }}
+                        </p>
+                    @else
+                        <p class="mt-2 text-sm font-bold text-slate-500">Belum ada histori job.</p>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="rounded-2xl border border-blue-100 bg-blue-50 p-3">
+                        <p class="text-[10px] font-black uppercase tracking-wide text-blue-500">Job</p>
+                        <p class="mt-1 text-2xl font-black text-blue-800">{{ number_format($timelineStats['job_total'] ?? 0, 0, ',', '.') }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-cyan-100 bg-cyan-50 p-3">
+                        <p class="text-[10px] font-black uppercase tracking-wide text-cyan-500">PM</p>
+                        <p class="mt-1 text-2xl font-black text-cyan-800">{{ number_format($timelineStats['pm_total'] ?? 0, 0, ',', '.') }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-purple-100 bg-purple-50 p-3">
+                        <p class="text-[10px] font-black uppercase tracking-wide text-purple-500">Rekom</p>
+                        <p class="mt-1 text-2xl font-black text-purple-800">{{ number_format($timelineStats['recommendation_total'] ?? 0, 0, ',', '.') }}</p>
+                    </div>
+                    <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+                        <p class="text-[10px] font-black uppercase tracking-wide text-emerald-500">Terpasang</p>
+                        <p class="mt-1 text-2xl font-black text-emerald-800">{{ number_format($timelineStats['install_part_total'] ?? 0, 0, ',', '.') }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div class="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h2 class="text-sm font-black uppercase tracking-wider text-slate-900">Timeline Unit</h2>
+                    <p class="mt-1 text-xs font-semibold text-slate-500">
+                        Job, PM, rekomendasi sparepart, dan pemasangan sparepart dalam satu alur.
+                    </p>
+                </div>
+                <span class="w-max rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-black text-slate-600">
+                    {{ number_format($unitTimeline->count(), 0, ',', '.') }} event
+                </span>
+            </div>
+
+            <div class="mt-5 space-y-4">
+                @forelse($unitTimeline->take(12) as $event)
+                    @php
+                    $eventDate = filled($event['date'] ?? null)
+                    ? \Carbon\Carbon::parse($event['date'])->translatedFormat('d M Y')
+                    : '-';
+                    @endphp
+                    <article class="relative pl-7">
+                        <span class="absolute left-2 top-2 h-full w-px bg-slate-200"></span>
+                        <span class="absolute left-0 top-1.5 h-4 w-4 rounded-full border-4 border-white shadow-sm {{ $timelineTypeClass($event['type'] ?? 'job') }}"></span>
+
+                        <div class="rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="rounded-full border px-2.5 py-1 text-[10px] font-black {{ $timelineTypeClass($event['type'] ?? 'job') }}">
+                                            {{ $timelineTypeLabel($event['type'] ?? 'job') }}
+                                        </span>
+                                        <span class="text-[11px] font-bold text-slate-400">{{ $eventDate }}</span>
+                                    </div>
+                                    <h3 class="mt-2 wrap-break-word text-sm font-black text-slate-950">{{ $event['title'] ?? '-' }}</h3>
+                                    <p class="mt-1 wrap-break-word text-xs font-semibold text-slate-500">{{ $event['subtitle'] ?? '-' }}</p>
+                                </div>
+                                @if(!empty($event['status']) && in_array($event['type'] ?? 'job', ['job', 'pm'], true))
+                                    <x-status-badge :status="$event['status']" size="xs" />
+                                @endif
+                            </div>
+
+                            <p class="mt-3 wrap-break-word whitespace-pre-line text-sm font-semibold leading-relaxed text-slate-700">
+                                {{ $event['description'] ?? '-' }}
+                            </p>
+
+                            @if(!empty($event['route']))
+                                <a href="{{ $event['route'] }}"
+                                    class="mt-3 inline-flex rounded-xl bg-blue-600 px-3 py-2 text-xs font-black text-white hover:bg-blue-700">
+                                    Lihat Detail
+                                </a>
+                            @endif
+                        </div>
+                    </article>
+                @empty
+                    <div class="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
+                        <p class="text-sm font-black text-slate-800">Timeline unit belum tersedia.</p>
+                        <p class="mt-1 text-xs font-semibold text-slate-500">Belum ada job, PM, rekomendasi, atau pemasangan sparepart untuk S/N ini.</p>
+                    </div>
+                @endforelse
+            </div>
+
+            @if($unitTimeline->count() > 12)
+                <p class="mt-4 text-xs font-bold text-slate-500">
+                    Menampilkan 12 event terbaru. Detail lengkap tetap tersedia di tabel histori unit di bawah.
+                </p>
+            @endif
+        </section>
     </div>
 
     {{-- Histori Unit --}}

@@ -83,7 +83,7 @@ class DashboardPmStatusController extends Controller
         return UnitAsset::query()
             ->whereNotNull('serial_number')
             ->where('serial_number', '!=', '')
-            ->whereRaw("UPPER(TRIM(COALESCE(status, ''))) NOT IN ('DITARIK', 'BREAKDOWN')");
+            ->whereRaw(UnitAsset::activeStatusSql());
     }
 
     private function pmJobQuery(int $year, int $month)

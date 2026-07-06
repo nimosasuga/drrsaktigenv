@@ -124,6 +124,7 @@ class CommandCenterCsvController extends Controller
 
     private function exportColumns(string $table, array $columns): array
     {
+        $columns = $this->orderedExportColumns($table, $columns);
         $config = $this->exportRelationConfig($table);
 
         if (!$config) {
@@ -143,7 +144,44 @@ class CommandCenterCsvController extends Controller
         return array_merge($columns, $extraColumns);
     }
 
-    private function exportRelationMaps(string $table, $rows): array
+    private function orderedExportColumns(string $table, array $columns): array
+    {
+        return match ($table) {
+            'update_jobs' => $this->placeColumnsAfter($columns, 'hour_meter', ['battery_type', 'battery_brand']),
+            'unit_assets' => $this->placeColumnsAfter($columns, 'year', ['battery_type', 'battery_brand']),
+            default => $columns,
+        };
+    }
+
+    private function placeColumnsAfter(array $columns, string $afterColumn, array $movedColumns): array
+    {
+        $availableMovedColumns = array_values(array_filter(
+            $movedColumns,
+            fn($column) => in_array($column, $columns, true)
+        ));
+
+        if (empty($availableMovedColumns) || !in_array($afterColumn, $columns, true)) {
+            return $columns;
+        }
+
+        $result = [];
+
+        foreach ($columns as $column) {
+            if (in_array($column, $availableMovedColumns, true)) {
+                continue;
+            }
+
+            $result[] = $column;
+
+            if ($column === $afterColumn) {
+                array_push($result, ...$availableMovedColumns);
+            }
+        }
+
+        return $result;
+    }
+
+    private function exportRelationMaps(string $table, mixed $rows): array
     {
         $config = $this->exportRelationConfig($table);
 
@@ -226,7 +264,7 @@ class CommandCenterCsvController extends Controller
             ->all();
     }
 
-    private function csvText($value): string
+    private function csvText(mixed $value): string
     {
         $value = trim((string) ($value ?? ''));
 
