@@ -86,7 +86,6 @@ class RentalSparepartUsageService
         }
 
         $alternativeStock = $this->findAlternativeStock($installPart);
-        $this->applyBorrowedRemark($installPart);
 
         $this->createReview($job, $installPart, $alternativeStock, $qty, $alternativeStock ? RentalSparepartUsageReview::MATCH_PART_ONLY : RentalSparepartUsageReview::MATCH_NOT_FOUND, RentalSparepartUsageReview::STATUS_NEED_SOURCE_SELECTION, true, 'PINJAM');
     }
@@ -177,22 +176,6 @@ class RentalSparepartUsageService
             'mechanic_id' => $job->user_id,
             'mechanic_name' => $job->pic ?: $job->user?->name,
         ]);
-    }
-
-    private function applyBorrowedRemark(JobInstallPart $installPart): void
-    {
-        $remarks = trim((string) $installPart->remarks);
-
-        if ($remarks === '') {
-            $installPart->remarks = 'PINJAM';
-            $installPart->save();
-            return;
-        }
-
-        if (!str_contains(strtoupper($remarks), 'PINJAM')) {
-            $installPart->remarks = 'PINJAM - ' . $remarks;
-            $installPart->save();
-        }
     }
 
     private function matchType(Job $job, JobInstallPart $installPart): string

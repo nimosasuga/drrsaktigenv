@@ -99,17 +99,6 @@ class RentalSparepartUsageReviewService
                 'mechanic_name' => $job->pic,
             ]);
 
-            if ($isBorrowed) {
-                $currentRemarks = trim((string) ($installPart->remarks ?? ''));
-                $nextRemarks = $currentRemarks === ''
-                    ? 'PINJAM'
-                    : (str_contains($this->normalize($currentRemarks), 'PINJAM') ? $currentRemarks : $currentRemarks . ' | PINJAM');
-
-                if ($nextRemarks !== $currentRemarks) {
-                    $installPart->remarks = $nextRemarks;
-                    $installPart->saveQuietly();
-                }
-            }
         });
     }
 
